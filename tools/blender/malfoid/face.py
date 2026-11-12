@@ -232,7 +232,31 @@ def _env_expr():
             EXPR[grp] = {k: float(w) for k, w in (kv.split('=') for kv in v.split(',') if kv)}
 
 
+# Default: the base mesh's geometry is left exactly as authored. Her resting
+# expression is only a set of shape-key values on the existing keys, so the
+# Basis and every key stay untouched. RESHAPE=True restores the rejected
+# landmark-driven reshape (kept only for comparison).
+RESHAPE = False
+REST_KEYS = {
+    'vrc.blink_Straight': 0.35,     # half-lidded
+    'mouthSmileLeft': 0.60,         # one-sided smirk
+    'mouthSmileRight': 0.10,
+}
+
+
 def apply(head, parts, fparts):
+    import os
+    if not RESHAPE and os.environ.get('MF_RESHAPE') != '1':
+        kb = head.data.shape_keys.key_blocks
+        for k in kb:
+            k.value = 0.0
+        rest = dict(REST_KEYS)
+        if os.environ.get('MF_REST') is not None:
+            rest = {k: float(v) for k, v in (kv.split('=') for kv in os.environ['MF_REST'].split(',') if kv)}
+        for k, v in rest.items():
+            kb[k].value = v
+        print('MF face: geometry untouched; rest keys %s' % rest)
+        return
     _env_expr()
     me = head.data
     keys = get_keys(me)

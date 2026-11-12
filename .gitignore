@@ -153,3 +153,9 @@ __pycache__/
 *.pyc
 /build/
 *.blend1
+
+# purchased asset (not redistributed)
+base_character.blend
+*.Zone.Identifier
+*:Zone.Identifier
+Gumroad_Anime_Female_BaseMesh/

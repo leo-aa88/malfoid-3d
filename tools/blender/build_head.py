@@ -39,10 +39,16 @@ def main():
     print('PARTS', {k: len(v) for k, v in sorted(parts.items())})
     print('FACE PARTS', {k: len(v) for k, v in fparts.items()})
     m = mats.make()
-    mats.assign(head, parts, fparts, m)
-    body = bpy.data.objects[base.BODY_OBJ]
-    body.data.materials.clear()
-    body.data.materials.append(m['mf_skin_body'])
+    if os.environ.get('MF_FLATMATS') == '1':
+        # old path: flat colours, used before the purchased textures were available
+        mats.assign(head, parts, fparts, m)
+        body = bpy.data.objects[base.BODY_OBJ]
+        body.data.materials.clear()
+        body.data.materials.append(m['mf_skin_body'])
+    else:
+        from malfoid import textures
+        textures.apply(original=os.environ.get('MF_ORIGINAL_TEX') == '1')
+        textures.mark_decals(head, parts)
 
     if stage >= 1:
         from malfoid import face

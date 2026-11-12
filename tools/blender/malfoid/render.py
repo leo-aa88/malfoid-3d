@@ -7,8 +7,10 @@ from mathutils import Vector
 
 FLAT = ('mf_highlight', 'mf_sclera', 'mf_iris', 'mf_pupil', 'mf_lash', 'mf_brow', 'mf_lidline',
         'mf_teeth', 'mf_lipline')
+FLAT += ('Eye', 'Highlight', 'Alpha', 'Tear')
 SHADE_TINT = {'mf_skin': (0.86, 0.74, 0.76), 'mf_skin_body': (0.86, 0.74, 0.76), 'mf_hair': (0.84, 0.78, 0.76),
-              'mf_hair_dark': (0.84, 0.78, 0.76)}
+              'mf_hair_dark': (0.84, 0.78, 0.76), 'Body': (0.88, 0.78, 0.80), 'Body_All': (0.88, 0.78, 0.80)}
+BASE_MATS = ('Body', 'Body_All', 'Eye', 'Highlight', 'Alpha', 'Tear', 'Underwear')
 
 
 def _toon_on():
@@ -16,13 +18,14 @@ def _toon_on():
     N.L against a per-shot light direction, hard ramp, emitted as flat colour
     (the same idea as the viewer's toon material)."""
     for m in bpy.data.materials:
-        if not m.use_nodes or not m.name.startswith('mf_'):
+        if not m.use_nodes or not (m.name.startswith('mf_') or m.name in BASE_MATS):
             continue
         nt = m.node_tree
         out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
         bsdf = nt.nodes.get('Principled BSDF')
         if nt.nodes.get('PV_out') or bsdf is None:
             continue
+        alpha = bsdf.inputs['Alpha'].links[0].from_socket if bsdf.inputs['Alpha'].links else None
         if m.name == 'mf_fx':
             tr = nt.nodes.new('ShaderNodeBsdfTransparent')
             tr.name = 'PV_out'
@@ -71,7 +74,17 @@ def _toon_on():
                 mix.inputs['A'].default_value = src.default_value
             nt.links.new(tone.outputs['Result'], mix.inputs['B'])
             nt.links.new(mix.outputs['Result'], em.inputs['Color'])
-        nt.links.new(em.outputs[0], out.inputs[0])
+        if alpha is not None:
+            tr = nt.nodes.new('ShaderNodeBsdfTransparent')
+            tr.name = 'PV_tr'
+            cut = nt.nodes.new('ShaderNodeMixShader')
+            cut.name = 'PV_cut'
+            nt.links.new(alpha, cut.inputs['Fac'])
+            nt.links.new(tr.outputs[0], cut.inputs[1])
+            nt.links.new(em.outputs[0], cut.inputs[2])
+            nt.links.new(cut.outputs[0], out.inputs[0])
+        else:
+            nt.links.new(em.outputs[0], out.inputs[0])
 
 
 def _set_light(L):
@@ -83,7 +96,7 @@ def _set_light(L):
 
 def _toon_off():
     for m in bpy.data.materials:
-        if not m.use_nodes or not m.name.startswith('mf_'):
+        if not m.use_nodes or not (m.name.startswith('mf_') or m.name in BASE_MATS):
             continue
         nt = m.node_tree
         out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
@@ -101,6 +114,7 @@ def setup(scene, lines=True, samples=8):
     scene.cycles.samples = samples
     scene.cycles.use_denoising = False
     scene.cycles.max_bounces = 2
+    scene.cycles.transparent_max_bounces = 16
     scene.render.film_transparent = False
     scene.view_settings.view_transform = 'Standard'
     scene.render.image_settings.file_format = 'PNG'
