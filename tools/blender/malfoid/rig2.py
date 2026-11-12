@@ -62,6 +62,12 @@ def bone_table():
         add('shin_' + s, h['leg_stretch.' + a], t['leg_twist.' + a], 'thigh_' + s)
         add('foot_' + s, h['foot.' + a], t['foot.' + a], 'shin_' + s)
         add('toe_' + s, h['toes_01.' + a], t['toes_01.' + a], 'foot_' + s)
+    # robe helpers at the hip joints: the lower robe follows these instead of the thighs.
+    # anim2 turns them with the thigh's swing, eased off for very high legs (kicks), so the
+    # robe never blends across a huge thigh angle (that folded it over itself)
+    for s, a in (('L', 'l'), ('R', 'r')):
+        hip = Vector(h['thigh_twist.' + a])
+        add('robe_' + s, hip, hip + Vector((0.0, 0.0, -0.15)), 'hips')
     return B
 
 

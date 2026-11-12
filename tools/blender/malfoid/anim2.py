@@ -172,6 +172,22 @@ class Skel:
         self.l_shin = (rig.ANKLE_L - rig.KNEE_L).length
 
 
+ROBE_FREE = radians(40.0)     # thigh swings up to this are followed exactly (walk, run)
+ROBE_MAX = radians(70.0)      # ... larger ones ease off towards this (high kicks)
+
+
+def robe_follow(q):
+    """rotation of a robe helper bone from its thigh's rotation (relative to the hips)"""
+    q = q.normalized()
+    if q.w < 0:
+        q = -q
+    axis, ang = q.to_axis_angle()
+    if ang <= ROBE_FREE:
+        return q
+    span = ROBE_MAX - ROBE_FREE
+    return Quaternion(axis, ROBE_FREE + span * math.tanh((ang - ROBE_FREE) / span))
+
+
 def mirx(v):
     return Vector((-v.x, v.y, v.z))
 
@@ -209,6 +225,8 @@ def solve(sk, spec):
             Q[b] = leg['_shin']
         elif base == 'foot' and leg:
             Q[b] = leg.get('foot', IDENT)
+        elif base == 'robe':
+            Q[b] = Q['hips'] @ robe_follow(Q['hips'].inverted() @ Q['thigh_' + side])
         elif base == 'upperarm' and arm:
             wrist, elbow_hint = arm['wrist'], arm['elbow']
             if arm.get('space') == 'chest':
