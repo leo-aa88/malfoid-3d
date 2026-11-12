@@ -17,15 +17,18 @@ type Weights = Record<string, number>;
 
 /** Her face while annoyed (existing shape keys of the base mesh). */
 const ANNOYED_FACE: Weights = {
-  'vrc.blink_Straight': 0.45,
-  browDownLeft: 0.8,
-  browDownRight: 0.8,
-  browOuterUpLeft: 0.0,
-  eyeSquintLeft: 0.3,
-  eyeSquintRight: 0.3,
-  mouthSmileLeft: 0.0,
+  // stronger than her (already haughty) resting face: brows pulled down hard,
+  // narrowed eyes, pout
+  'vrc.blink_Straight': 0.4,
+  browDownLeft: 1.3,                // above ~1.4 (with the squint) the brow cards kink
+  browDownRight: 1.3,
+  '怒り': 0.5,
+  'ｷﾘｯ': 0.2,
+  eyeSquintLeft: 0.35,
+  eyeSquintRight: 0.35,
+  '口角下げ': 0.3,
+  mouthPressLeft: 0.0,
   mouthPressRight: 0.0,
-  mouthDimpleLeft: 0.0,
   Sulk: 0.7,
   mouthPucker: 0.25,
   mouthFrownLeft: 0.3,
@@ -55,6 +58,8 @@ export class Malfoid {
 
   // face
   private blinkTimer = 2.5;
+  private blinkEnabled = true;
+  private frozen = false;
   private blinkPhase = -1;
   private annoyedBlend = 0;
   private readonly restFace: Weights = {};
@@ -77,6 +82,7 @@ export class Malfoid {
     });
     Object.assign(m.restFace, meta.rest_expression);
     const keys = new Set([...Object.keys(meta.rest_expression), ...Object.keys(ANNOYED_FACE), 'vrc.blink']);
+    for (const fm of m.faceMeshes) Object.keys(fm.morphTargetDictionary ?? {}).forEach((k) => keys.add(k));
     m.faceKeys.push(...keys);
     m.animation = new AnimationController(gltf.scene, gltf.animations);
     m.hair = new HairSway(gltf.scene);
@@ -149,11 +155,35 @@ export class Malfoid {
     this.animation.play(state);
     if (state === 'walk') this.animation.setTimeScale(Math.max(this.speed, 0.35) / this.meta.walk_speed);
     if (state === 'run') this.animation.setTimeScale(Math.max(this.speed, 1.2) / this.meta.run_speed);
-    this.animation.update(dt);
+    if (this.frozen) {
+      this.resetIdleTimer();
+      this.animation.mixer.setTime(0);      // fixed reference pose for visual comparisons
+    } else {
+      this.animation.update(dt);
+    }
     this.root.updateMatrixWorld();
     this.hair.update(dt);
 
     this.updateFace(dt, state === 'idle_annoyed');
+  }
+
+  /**
+   * Development hook for the visual comparison tool: replace the resting
+   * expression (shape-key weights) and switch blinking on/off.
+   */
+  /** Development hook: hold her still in idle frame 0 (no breathing / head motion). */
+  debugFreeze(on: boolean): void {
+    this.frozen = on;
+  }
+
+  debugFace(weights: Weights | null, blink = true): string[] {
+    if (weights) {
+      for (const k of Object.keys(this.restFace)) delete this.restFace[k];
+      Object.assign(this.restFace, weights);
+    }
+    this.blinkEnabled = blink;
+    if (!blink) this.blinkPhase = -1;
+    return [...this.faceKeys];
   }
 
   private updateFace(dt: number, annoyed: boolean): void {
@@ -163,7 +193,7 @@ export class Malfoid {
 
     // blinking
     this.blinkTimer -= dt;
-    if (this.blinkTimer <= 0 && this.blinkPhase < 0) {
+    if (this.blinkEnabled && this.blinkTimer <= 0 && this.blinkPhase < 0) {
       this.blinkPhase = 0;
       this.blinkTimer = 2.2 + Math.random() * 3.5;
     }

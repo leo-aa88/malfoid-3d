@@ -106,6 +106,49 @@ def paint_scalp(img):
     print('scalp recoloured: %d px' % m.sum())
 
 
+LASH_BOX = (2560, 2960, 4096, 4096)       # x0, y0, x1, y1: lash / liner cards in the head texture
+LASH_INK = np.array([24, 21, 23], np.float32)
+CREASE_RGB = np.array([214, 168, 158], np.float32)     # faint crease line, like the atlas
+
+
+def black_lashes(img):
+    """The atlas draws her lashes and liner black; the base texture paints
+    them maroon. Only the dark lash/liner shapes are recoloured (pink lower
+    lid and white highlight strips are kept)."""
+    x0, y0, x1, y1 = LASH_BOX
+    reg = img[y0:y1, x0:x1]
+    lum = (reg[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32)) / 255.0
+    sel = (reg[..., 3] > 0) & (lum < 0.45) & (reg[..., 0] >= reg[..., 2])
+    # the double-eyelid crease is a long thin arc (low fill of its bounding
+    # box); it stays a faint skin-shadow line, otherwise it reads as a second brow
+    from scipy import ndimage
+    lab, n = ndimage.label(sel)
+    crease = np.zeros_like(sel)
+    for i, sl in enumerate(ndimage.find_objects(lab), 1):
+        comp = lab[sl] == i
+        h, w = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
+        if comp.sum() > 5000 and comp.sum() / float(h * w) < 0.15:
+            crease[sl] |= comp
+    lash = sel & ~crease
+    reg[lash, :3] = LASH_INK + (reg[lash, :3] - LASH_INK) * 0.18
+    reg[crease, :3] = CREASE_RGB
+    print('lashes recoloured: %d px, crease softened: %d px' % (lash.sum(), crease.sum()))
+
+
+NOSE_BOX = (2440, 3260, 2580, 3590)       # pink nose-tip card in the head texture
+
+
+def hide_nose_mark(img):
+    """The atlas nose is a small line with no pink tip: the base's pink
+    nose-tip card is painted the surrounding skin colour."""
+    x0, y0, x1, y1 = NOSE_BOX
+    reg = img[y0:y1, x0:x1]
+    skin = img[1560:1580, 2040:2060, :3].reshape(-1, 3).mean(0)       # skin beside the nose
+    sel = (reg[..., 3] > 0) & (reg[..., 0] > reg[..., 1] + 20)
+    reg[sel, :3] = skin
+    print('nose mark recoloured: %d px' % sel.sum())
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     pre = os.path.join(ASSET, 'Preset')
@@ -130,6 +173,8 @@ def main():
     reg[..., :3] = np.where(sel, col, reg[..., :3])
     remove_blush(head)
     paint_scalp(head)
+    black_lashes(head)
+    hide_nose_mark(head)
     Image.fromarray(np.clip(head, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, 'Malfoid_Head_BaseColor.png'))
     body = load(os.path.join(ASSET, 'PNG', 'Body_All_BaseColor.png'))
     body = over(body, load(os.path.join(pre, 'Body_Texture_Presets', 'BodyAll_BaseColor2_NeutralFair.png')))

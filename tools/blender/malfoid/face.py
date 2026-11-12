@@ -238,14 +238,21 @@ def _env_expr():
 # landmark-driven reshape (kept only for comparison).
 RESHAPE = False
 REST_KEYS = {
-    'mf_cheek_slim': 1.0,           # slimmer cheeks (added key, basis untouched)
-    'vrc.blink_Straight': 0.50,     # heavy, half-lidded
-    'browDownLeft': 0.20,
-    'browDownRight': 0.50,          # one brow lowered ...
-    'browOuterUpLeft': 0.45,        # ... the other raised: aloof, appraising
-    'mouthSmileLeft': 0.80,         # one-sided smirk
-    'mouthPressRight': 0.50,
-    'mouthDimpleLeft': 0.60,
+    # neutral, haughty face matched to facial_atlas2.png Front (0) / Neutral in
+    # the real viewer (tools/qa/face_batch.mjs): heavy flat upper lids, low
+    # brows angled down towards the nose, small flat mouth slightly down
+    'mf_cheek_slim': 1.0,
+    'vrc.blink_Straight': 0.36,
+    'browDownLeft': 1.4,
+    'browDownRight': 1.4,
+    '怒り': 0.45,
+    '真面目': 0.2,
+    'ｷﾘｯ': 0.3,
+    'eyeSquintLeft': 0.2,
+    'eyeSquintRight': 0.2,
+    '口角下げ': 0.5,
+    'mouthPressLeft': 0.25,
+    'mouthPressRight': 0.25,
 }
 
 
@@ -290,6 +297,7 @@ def apply(head, parts, fparts):
         if os.environ.get('MF_REST') is not None:
             rest = {k: float(v) for k, v in (kv.split('=') for kv in os.environ['MF_REST'].split(',') if kv)}
         for k, v in rest.items():
+            kb[k].slider_max = max(kb[k].slider_max, v)     # browDown is extrapolated past 1
             kb[k].value = v
         print('MF face: geometry untouched; rest keys %s' % rest)
         return

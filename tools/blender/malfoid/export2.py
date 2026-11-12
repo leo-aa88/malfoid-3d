@@ -10,6 +10,13 @@ KEEP_KEYS = [
     'mouthSmileLeft', 'mouthSmileRight', 'mouthPressLeft', 'mouthPressRight', 'mouthDimpleLeft',
     'mouthFrownLeft', 'mouthFrownRight', 'mouthPucker', 'eyeSquintLeft', 'eyeSquintRight',
     'Sulk', 'Angry',
+    # extra expression keys of the base mesh, used to tune her resting face in the viewer
+    'browOuterUpRight', 'eyeWideLeft', 'eyeWideRight', 'eyeLookDownLeft', 'eyeLookDownRight',
+    'eyeLookUpLeft', 'eyeLookUpRight', 'mouthClose', 'mouthRollUpper', 'mouthRollLower', 'mouthShrugUpper',
+    'mouthShrugLower', 'mouthStretchLeft', 'mouthStretchRight', 'mouthLeft', 'mouthRight', 'noseSneerLeft',
+    'noseSneerRight', 'cheekSquintLeft', 'cheekSquintRight',
+    'じト目', 'ｷﾘｯ', '真面目', '怒り', '困る', '口角下げ', '口角上げ', '∧', 'にやり', '瞳小',
+    'Serious', 'Confident', 'Meh', 'Smirk',
 ]
 TEX_SIZE = 2048
 
