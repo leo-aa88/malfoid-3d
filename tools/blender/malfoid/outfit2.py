@@ -640,7 +640,8 @@ def robe_lower(info):
         back = sstep(-0.06, 0.06, p.y)
         across = lerp(sstep(0.0, 0.03, abs(p.x)), sstep(0.0, 0.32, abs(p.x)), back)
         t = 0.38 * sstep(0.95, 0.55, p.z) * across
-        w = {'hips': 1.0 - t}
+        c = sstep(0.98, 0.78, p.z)                          # below the waist: the robe centre helper
+        w = {'hips': (1.0 - t) * (1.0 - c), 'robe_C': (1.0 - t) * c}
         if t > 0:
             w[side] = t
         if p.z > 0.98:

@@ -172,6 +172,9 @@ class Skel:
         self.l_shin = (rig.ANKLE_L - rig.KNEE_L).length
 
 
+ROBE_HEM_Z = 0.22             # lower robe hem height at rest (outfit2.robe_lower)
+ROBE_HEM_CLEAR = 0.03         # the hem stays at least this far above the floor
+ROBE_BONES = ('robe_C', 'robe_L', 'robe_R')
 ROBE_FREE = radians(40.0)     # thigh swings up to this are followed exactly (walk, run)
 ROBE_MAX = radians(70.0)      # ... larger ones ease off towards this (high kicks)
 
@@ -583,8 +586,21 @@ def _skip(b):
     return b == 'root'
 
 
+def robe_squash(sk, P):
+    """scale of each robe helper along its downward axis: 1 normally; when the hips drop
+    so low that the hem would reach the floor (crouch, sweep) the lower robe shortens"""
+    out = {}
+    for b in ROBE_BONES:
+        if b not in P:
+            continue
+        rest = sk.head[b].z - ROBE_HEM_Z
+        out[b] = max(0.55, min(1.0, (P[b].z - ROBE_HEM_CLEAR) / rest))
+    return out
+
+
 def local_pose(sk, spec):
     Q, P = solve(sk, spec)
+    spec['_squash'] = robe_squash(sk, P)
     out = {}
     for b in sk.order:
         if _skip(b):
@@ -610,11 +626,15 @@ def build_all(arm_ob):
         act.use_fake_user = True
         rot = {b: [] for b in sk.order if not _skip(b)}
         locs = []
+        squash = {b: [] for b in ROBE_BONES if b in sk.head}
         for f in range(n + 1):
             t = f / FPS
             if name not in _one_shot() and f == n:
                 t = 0.0                                   # exact loop closure
-            q, loc = local_pose(sk, fn(t))
+            spec = fn(t)
+            q, loc = local_pose(sk, spec)
+            for b in squash:
+                squash[b].append(spec['_squash'].get(b, 1.0))
             for b, v in q.items():
                 if rot[b] and rot[b][-1].dot(v) < 0:
                     v = -v
@@ -643,6 +663,18 @@ def build_all(arm_ob):
             for kp in fc.keyframe_points:
                 kp.interpolation = 'LINEAR'
             fc.update()
+        for b, ys in squash.items():                      # bone Y = along the bone (downwards)
+            path = 'pose.bones["%s"].scale' % b
+            for i in range(3):
+                fc = act.fcurves.new(path, index=i, action_group=b)
+                fc.keyframe_points.add(n + 1)
+                co = []
+                for f, y in enumerate(ys):
+                    co += [float(f), y if i == 1 else 1.0]
+                fc.keyframe_points.foreach_set('co', co)
+                for kp in fc.keyframe_points:
+                    kp.interpolation = 'LINEAR'
+                fc.update()
         tr = arm_ob.animation_data.nla_tracks.new()
         tr.name = name
         st = tr.strips.new(name, 0, act)
