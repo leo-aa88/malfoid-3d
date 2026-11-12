@@ -60,7 +60,7 @@ class FireOrb {
 }
 
 /**
- * Confringo's look: fire gathering in the palm, a fiery bolt with a flame trail and sparks,
+ * Confringo's look: fire gathering at the wand tip, a fiery bolt with a flame trail and sparks,
  * and the explosion. Everything is created once and reused (pools); two point lights stay in
  * the scene at zero intensity so the fire lights the scene without shader recompiles.
  */
@@ -129,14 +129,14 @@ export class ConfringoFx implements SpellFx {
     // gathers from 0.1 of the way in, brightens just before the thrust
     const grow = THREE.MathUtils.smoothstep(k, 0.15, 0.85);
     const peak = THREE.MathUtils.smoothstep(k, 0.8, 1.0);
-    this.charge.set(this.p, 0.018 + 0.03 * grow + 0.012 * peak, Math.min(1, grow * 1.2 + 0.1));
+    this.charge.set(this.p, 0.012 + 0.022 * grow + 0.01 * peak, Math.min(1, grow * 1.2 + 0.1));   // at the wand tip
     this.orbBoost = 0.5 * grow + 0.5 * peak;
     this.orbLight.position.copy(this.p);
-    // sparks drawn in towards the palm
+    // sparks drawn in towards the tip
     if (grow > 0.05) {
       for (let i = 0; i < 2; i++) {
         const d = randomDir();
-        const r = rand(0.12, 0.22);
+        const r = rand(0.07, 0.15);
         this.particles.spawn({
           x: this.p.x + d.x * r, y: this.p.y + d.y * r, z: this.p.z + d.z * r,
           vx: -d.x * r * 4, vy: -d.y * r * 4, vz: -d.z * r * 4,
@@ -157,7 +157,7 @@ export class ConfringoFx implements SpellFx {
     slot.id = p.id;
     slot.orb.group.visible = true;
     slot.orb.set(p.position, 0.065, 1);
-    // launch burst at the palm
+    // launch burst at the tip
     for (let i = 0; i < 18; i++) {
       const d = randomDir();
       const v = rand(1.0, 3.0);

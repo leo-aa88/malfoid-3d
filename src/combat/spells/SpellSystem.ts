@@ -86,7 +86,7 @@ interface Flying {
  *
  * - cast(def): starts the cast clip if she is free, no melee strike is running, nothing is
  *   being cast and the spell is off cooldown. Otherwise the press is ignored (no buffering).
- * - At def.release the projectile leaves the emitter (her palm) and the cooldown starts; a
+ * - At def.release the projectile leaves the emitter (her wand tip) and the cooldown starts; a
  *   cast cancelled before that costs no cooldown. Melee is locked until the release.
  * - Cooldowns and flight run on update(dt) only (game time): pausing the game pauses them.
  * - On impact: a target hit directly takes the direct damage and knockback; every other

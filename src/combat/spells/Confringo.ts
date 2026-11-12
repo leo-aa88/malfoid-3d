@@ -1,7 +1,7 @@
 import type { SpellDef } from './SpellSystem';
 
 /*
- * Confringo, the Blasting Curse: a fiery bolt from her right palm (no wand yet) that
+ * Confringo, the Blasting Curse: a fiery bolt from the tip of her wand that
  * explodes on impact. All tuning lives here.
  *
  * World scale: metres (Malfoid is ~1.6 m tall, she runs at 2.9 m/s). The suggested values

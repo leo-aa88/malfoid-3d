@@ -49,9 +49,9 @@ async function start(): Promise<void> {
   const hud = new CombatHud(sm.camera, document.getElementById('hud')!);
   combat.onEvent = (e) => hud.handle(e);
 
-  // spells: cast from her right palm at any combat target (the dummy for now)
+  // spells: cast from her wand tip at any combat target (the dummy for now)
   const spellFx = new ConfringoFx(sm.scene);
-  const spells = new SpellSystem(malfoid, malfoid.rightHand, () => combat.busy, spellFx, { targets: [dummy], groundY: 0 });
+  const spells = new SpellSystem(malfoid, malfoid.spellEmitter, () => combat.busy, spellFx, { targets: [dummy], groundY: 0 });
   spells.onEvent = (e) => hud.handleSpell(e);
 
   const input = new CharacterController(malfoid, combat);
@@ -85,7 +85,7 @@ async function start(): Promise<void> {
       input.update();
       combat.update(dt);
       malfoid.update(dt);
-      spells.update(dt);                    // after the pose update: the palm is where it is drawn
+      spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
       keepApart(malfoid.position, dummy);
       dummy.update(dt, malfoid.position);
       hud.update(dt);

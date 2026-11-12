@@ -3,7 +3,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { AnimationController, AnimationState, ActionState, HoldState, StrikeState } from './AnimationController';
 import { ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
-import { palmEmitter, SpellEmitter } from '../combat/spells/SpellEmitter';
+import type { SpellEmitter } from '../combat/spells/SpellEmitter';
+import { Wand, WandGrip } from './Wand';
+import { SPELL_CLIPS } from '../combat/spells/clips';
 
 /** Seconds without movement before she gets annoyed. */
 export const IDLE_ANNOYED_TIMEOUT = 10;
@@ -65,8 +67,9 @@ export class Malfoid {
   private strike: StrikeState | null = null;   // strike played by the combo or spell system
   /** set by the spell system from the start of a cast to its release: no melee meanwhile */
   castLock = false;
-  /** where spells leave from: in front of the right palm (no wand yet) */
-  rightHand!: SpellEmitter;
+  /** her wand: up her right sleeve until she casts, put away again when she punches or kicks */
+  wand!: Wand;
+  private wandGrip!: WandGrip;
   private strikeFacing: number | null = null;  // auto-facing target during a strike
 
   // face
@@ -108,7 +111,8 @@ export class Malfoid {
       if ((o as THREE.Bone).isBone && o.name === 'hand_R') hand = o as THREE.Bone;
     });
     if (!hand) throw new Error('model has no hand_R bone');
-    m.rightHand = palmEmitter(hand, 'R');
+    m.wand = new Wand(hand);
+    m.wandGrip = new WandGrip(gltf.scene, gltf.animations);
     return m;
   }
 
@@ -135,6 +139,11 @@ export class Malfoid {
 
   stop(): void {
     this.moving = false;
+  }
+
+  /** where her spells leave from: the tip of her wand */
+  get spellEmitter(): SpellEmitter {
+    return this.wand.tip;
   }
 
   /** facing direction (rad, 0 = +z) */
@@ -268,6 +277,14 @@ export class Malfoid {
     } else {
       this.animation.update(dt);
     }
+    // the wand comes out of her sleeve for a spell and stays in her hand afterwards; she puts
+    // it away as soon as she fights with her fists (any punch or kick)
+    if (this.strike) {
+      if ((SPELL_CLIPS as readonly string[]).includes(this.strike)) this.wand.draw();
+      else this.wand.stow();
+    }
+    this.wand.update(dt);
+    this.wandGrip.apply(this.wand.drawn);
     this.root.updateMatrixWorld();
     this.hair.update(dt);
 

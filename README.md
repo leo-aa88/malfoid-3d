@@ -70,10 +70,14 @@ Two strikes in quick succession chain into a finisher:
 
 ## Confringo (L)
 
-The Blasting Curse, cast from her right palm (there is no wand yet). She turns towards the
-dummy if it is within 60°, raises her arm while fire gathers in front of the palm, and thrusts
-it forward. At 0.42 s a fiery bolt leaves the palm, flies at 18 m/s with a flame trail and
-sparks, and explodes on the first thing it touches: a target, a solid, or the ground. If it
+The Blasting Curse, cast with her wand. She keeps the wand up her right sleeve. When she casts,
+it slides out into her hand. It stays there afterwards, while she walks, runs, jumps or idles,
+and goes back up the sleeve as soon as she punches or kicks.
+
+She turns towards the dummy if it is within 60°, raises the wand while fire gathers at its tip,
+and thrusts it at the target. At 0.42 s a fiery bolt leaves the tip, flies at 18 m/s with a
+flame trail and sparks, and explodes on the first thing it touches: a target, a solid, or the
+ground. If it
 touches nothing, it fizzles out at 25 m.
 
 - **Damage:** a direct hit does 20 damage and a strong knockback. Anyone else within 2.5 m of
@@ -104,12 +108,14 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/CombatTarget.ts` – what any attack hits (the dummy now, opponents later).
 - `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
   `Confringo.ts` (tuning), `Projectile.ts` + `collision.ts` (swept collision: no tunnelling),
-  `SpellEmitter.ts` (where spells leave from: the right palm now, a wand tip later),
+  `SpellEmitter.ts` (where spells leave from: the wand tip),
   `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion).
 - `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, spell cooldown.
 
 `npm test` runs the spell logic tests in `tests/` (Node's test runner on an esbuild bundle).
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
+- `character/Wand.ts` – her wand (built at runtime), drawn from the sleeve to cast, the hand's
+  grip, and the tip emitter.
 - `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
 - `camera/CameraController.ts`, `scene/SceneManager.ts` – orbit camera, lights, shadows.
 

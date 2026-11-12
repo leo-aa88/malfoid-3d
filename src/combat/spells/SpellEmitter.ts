@@ -1,13 +1,12 @@
 import * as THREE from 'three';
 
 /**
- * Where a spell leaves from. Today: in front of Malfoid's right palm. With a wand
- * later, a BoneEmitter on the wand-tip bone (or object) replaces it; nothing that
- * fires spells has to change.
+ * Where a spell leaves from: the tip of Malfoid's wand (character/Wand.ts), or in front of
+ * a palm (palmEmitter, for wandless casting). Nothing that fires spells depends on which.
  */
 export interface SpellEmitter {
   getWorldPosition(out: THREE.Vector3): THREE.Vector3;
-  /** the way the emitter points (palm normal, wand tip forward) */
+  /** the way the emitter points (along the wand, or the palm normal) */
   getWorldDirection(out: THREE.Vector3): THREE.Vector3;
 }
 
@@ -39,20 +38,35 @@ export class BoneEmitter implements SpellEmitter {
   }
 }
 
+/** a hand bone's own axes in its local space, read from the bind pose */
+export interface HandFrame {
+  /** wrist -> fingertips */
+  fingers: THREE.Vector3;
+  /** out of the palm */
+  palm: THREE.Vector3;
+  /** bone-local units per metre (the armature's scale) */
+  unit: number;
+}
+
 /**
- * Emitter in front of a hand's palm. The palm normal and the finger direction are read from
- * the bind pose (the rig's rest is a T-pose: fingers point straight out to the side, palms
- * down), so no bone-axis convention is assumed.
+ * The rig's rest is a T-pose: fingers point straight out to the side, palms down. Reading
+ * the hand's axes from it avoids assuming any bone-axis convention.
  */
-export function palmEmitter(hand: THREE.Bone, side: 'L' | 'R', out = 0.07, along = 0.05): BoneEmitter {
+export function handFrame(hand: THREE.Bone, side: 'L' | 'R'): HandFrame {
   hand.updateWorldMatrix(true, false);
   const inv = hand.getWorldQuaternion(new THREE.Quaternion()).invert();
-  const palm = new THREE.Vector3(0, -1, 0).applyQuaternion(inv);                  // palm normal, bone space
-  const fingers = new THREE.Vector3(side === 'R' ? -1 : 1, 0, 0).applyQuaternion(inv);
-  // the bone's local units can carry the armature's scale: express metres in bone space
   const s = new THREE.Vector3();
   hand.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), s);
-  const k = 1 / (s.x || 1);
-  const offset = palm.clone().multiplyScalar(out * k).addScaledVector(fingers, along * k);
-  return new BoneEmitter(hand, offset, palm);
+  return {
+    fingers: new THREE.Vector3(side === 'R' ? -1 : 1, 0, 0).applyQuaternion(inv).normalize(),
+    palm: new THREE.Vector3(0, -1, 0).applyQuaternion(inv).normalize(),
+    unit: 1 / (s.x || 1),
+  };
+}
+
+/** emitter in front of a hand's palm (casting without a wand) */
+export function palmEmitter(hand: THREE.Bone, side: 'L' | 'R', out = 0.07, along = 0.05): BoneEmitter {
+  const f = handFrame(hand, side);
+  const offset = f.palm.clone().multiplyScalar(out * f.unit).addScaledVector(f.fingers, along * f.unit);
+  return new BoneEmitter(hand, offset, f.palm);
 }
