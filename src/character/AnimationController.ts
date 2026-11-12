@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { MOVE_CLIPS, MoveId } from '../combat/moves';
+import { SPELL_CLIPS, SpellClip } from '../combat/spells/clips';
 
 export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed';
 /** one-shot movement: plays once, then hands control back to locomotion */
@@ -7,7 +8,7 @@ export type ActionState = 'jump';
 /** held poses: play once and stay in the last frame while the key is down */
 export type HoldState = 'crouch' | 'block';
 /** strikes (driven by the combo system) */
-export type StrikeState = MoveId;
+export type StrikeState = MoveId | SpellClip;
 export type AnimationState = LocomotionState | ActionState | HoldState | StrikeState;
 
 const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
@@ -23,7 +24,7 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
 
 const STRIKE_FADE = 0.08;
 const LOOPS_WARP = new Set(['walk', 'run']);
-const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', ...MOVE_CLIPS]);
+const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', ...MOVE_CLIPS, ...SPELL_CLIPS]);
 const ACTIONS = new Set<string>(['jump']);
 
 /**

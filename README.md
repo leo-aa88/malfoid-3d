@@ -26,6 +26,7 @@ site in `dist/`.
 | K / I | high / low kick (roundhouse / shin kick) |
 | two strike keys quickly | combo (see below) |
 | O | block (hold) |
+| L | cast Confringo (5 s cooldown) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
 | Esc | pause (click or Esc to resume) |
@@ -67,6 +68,32 @@ Two strikes in quick succession chain into a finisher:
 - Hitboxes are relative to her position and facing, with a high/low height that a matching guard
   blocks. Damage, active frames and ranges are in `src/combat/moves.ts`.
 
+## Confringo (L)
+
+The Blasting Curse, cast with her wand. She keeps the wand up her right sleeve. When she casts,
+it slides out into her hand. It stays there afterwards, while she walks, runs, jumps or idles,
+and goes back up the sleeve as soon as she punches or kicks.
+
+She turns towards the dummy if it is within 60°, raises the wand while fire gathers at its tip,
+and thrusts it at the target. At 0.42 s a fiery bolt leaves the tip, flies at 18 m/s with a
+flame trail and sparks, and explodes on the first thing it touches: a target, a solid, or the
+ground. If it touches nothing, it fizzles out at 25 m.
+
+- **Damage:** a direct hit does 20 damage and a strong knockback. Anyone else within 2.5 m of
+  the blast takes splash damage, up to 10 and less with distance, with a weaker knockback away
+  from the blast. Walls shield from splash, and one explosion damages a target only once.
+- **Cooldown:** 5 s, starting when the bolt is released and counted in game time, so pausing
+  pauses it. A cast cancelled before the release costs nothing. The HUD shows
+  `CONFRINGO [L]` with READY or the seconds left.
+- **Rules:** casting isn't possible while jumping, crouching, blocking, or during a punch or
+  kick. Melee is locked from the start of the cast until the release. Holding L or key repeat
+  never casts twice.
+- **Aim assist:** the bolt aims at the torso of the target nearest her facing within 45° and
+  20 m. Without one, it flies straight ahead.
+- **Tuning:** all values are in `src/combat/spells/Confringo.ts`.
+
+Screenshots from the viewer are in `docs/confringo/`.
+
 ## Viewer (`src/`)
 
 - `character/Malfoid.ts` – loads the model, locomotion, idle → annoyed state machine, blinking and
@@ -77,8 +104,17 @@ Two strikes in quick succession chain into a finisher:
 - `combat/moves.ts` – strikes (timing, damage, hitbox, effect) and the combo table.
 - `combat/ComboSystem.ts` – input buffer, cancel windows, hit / block / miss, auto-facing.
 - `combat/TrainingDummy.ts` – the opponent: HP, guard, flinch / stagger / knockback / knockdown.
-- `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP.
+- `combat/CombatTarget.ts` – what any attack hits (the dummy now, opponents later).
+- `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
+  `Confringo.ts` (tuning), `Projectile.ts` + `collision.ts` (swept collision: no tunnelling),
+  `SpellEmitter.ts` (where spells leave from: the wand tip),
+  `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion).
+- `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, spell cooldown.
+
+`npm test` runs the spell logic tests in `tests/` (Node's test runner on an esbuild bundle).
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
+- `character/Wand.ts` – her wand (built at runtime), drawn from the sleeve to cast, the hand's
+  grip, and the tip emitter.
 - `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
 - `camera/CameraController.ts`, `scene/SceneManager.ts` – orbit camera, lights, shadows.
 

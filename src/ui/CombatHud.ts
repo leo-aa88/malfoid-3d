@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CombatEvent } from '../combat/ComboSystem';
+import type { SpellEvent } from '../combat/spells/SpellSystem';
 import { DUMMY_MAX_HP, Guard } from '../combat/TrainingDummy';
 
 /**
@@ -13,6 +14,10 @@ export class CombatHud {
   private readonly hpFill: HTMLElement;
   private readonly hpText: HTMLElement;
   private readonly guardText: HTMLElement;
+  private readonly spellBox: HTMLElement;
+  private readonly spellState: HTMLElement;
+  private readonly spellFill: HTMLElement;
+  private spellShown = '';
   private bannerTimer = 0;
   private hpShown = -1;
   private readonly v = new THREE.Vector3();
@@ -28,6 +33,37 @@ export class CombatHud {
     this.hpFill = box.querySelector('.hp-fill')!;
     this.hpText = box.querySelector('.hp-text')!;
     this.guardText = box.querySelector('.guard')!;
+    this.spellBox = el('div', 'spell-box ready');
+    this.spellBox.innerHTML =
+      '<div class="row"><span class="spell-name"></span><span class="spell-state"></span></div>' +
+      '<div class="cd"><div class="cd-fill"></div></div>';
+    hud.append(this.spellBox);
+    this.spellState = this.spellBox.querySelector('.spell-state')!;
+    this.spellFill = this.spellBox.querySelector('.cd-fill')!;
+  }
+
+  /** spell slot: name, key, seconds of cooldown left (0 = ready) out of total */
+  setSpell(name: string, key: string, left: number, total: number): void {
+    const ready = left <= 0;
+    const text = ready ? 'READY' : `${left.toFixed(1)}s`;
+    if (text === this.spellShown) return;
+    if (!this.spellShown) this.spellBox.querySelector('.spell-name')!.textContent = `${name.toUpperCase()} [${key}]`;
+    this.spellShown = text;
+    this.spellState.textContent = text;
+    this.spellBox.classList.toggle('ready', ready);
+    this.spellBox.classList.toggle('cooling', !ready);
+    this.spellFill.style.width = `${ready ? 100 : (100 * (1 - left / total)).toFixed(1)}%`;
+  }
+
+  /** damage numbers for spell hits (same pop-ups as melee) */
+  handleSpell(e: SpellEvent): void {
+    if (e.type !== 'hit') return;
+    const r = e.report;
+    // above the blast (the fireball would swallow a number drawn at the impact point)
+    const at = e.at.clone().setY(e.at.y + 0.45);
+    if (r.result === 'hit') this.popup(at, `${r.damage}`, 'dmg' + (e.direct ? ' heavy spell' : ' spell'));
+    else if (r.result === 'blocked') this.popup(at, `BLOCKED ${r.damage}`, 'blocked');
+    if (r.ko) this.popup(at.setY(at.y + 0.3), 'K.O.', 'ko');
   }
 
   setDummy(hp: number, guard: Guard): void {

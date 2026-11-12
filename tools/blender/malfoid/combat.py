@@ -36,6 +36,8 @@ CLIPS = {             # name: duration (s)
     'leg_sweep': 0.85,     # I>I and K>I
     'spin_kick': 0.95,     # K>K
     'rising_kick': 0.85,   # I>K
+    # spells (cast with the wand in the right hand)
+    'cast_confringo': 0.65,   # wand thrust; the projectile leaves at CAST_RELEASE
     # movement
     'jump': 0.95,
     'block': 0.22,    # held: plays once and stays in the last frame while the key is down
@@ -232,6 +234,35 @@ def spin_kick(sk, t):
     D['spine'] = E(pitch=-6.0 * ex)
     D['head'] = E(yaw=-14.0 * ex)
     spec['t'] = spec['t'] + Vector((0.0, 0.0, 0.02 * up))
+    return spec
+
+
+# --- spells -------------------------------------------------------------------
+
+CAST_RELEASE = 0.42     # s: wand fully thrust, the spell leaves its tip (viewer: CONFRINGO_RELEASE)
+
+
+def cast_confringo(sk, t):
+    """Confringo with the wand (held in the right hand, along the hand): turn towards the
+    target, raise the wand up and forward while the fire gathers at its tip, thrust it at
+    the target (release), settle back."""
+    g = env(t, 0.0, 0.10, 0.50, 0.65)                      # stance
+    up = env(t, 0.03, 0.16, 0.46, 0.63)                    # arm raised, wand up
+    thrust = env(t, 0.32, CAST_RELEASE, 0.47, 0.60)        # wand thrust at the target
+    charge_w, charge_e = V(-0.140, 0.210, 1.330), V(-0.260, 0.040, 1.180)
+    out_w, out_e = V(-0.070, 0.470, 1.300), V(-0.200, 0.240, 1.250)
+    wrist = _vl(charge_w, out_w, thrust)
+    elbow = _vl(charge_e, out_e, thrust)
+    spec = base(sk, 0.45 * g, g, arms={'R': (wrist, elbow, up, 'world')})
+    arm = spec['arm_R']
+    # the wand runs along the hand: point the hand up-forward while charging, at the target
+    # on the thrust
+    arm['hand_dir'] = _vl(V(0.0, 0.45, 1.0), V(0.02, 1.0, 0.0), thrust)
+    arm['hand_k'] = up
+    _twist(spec['D'], up, 16.0 + 18.0 * thrust, pitch=3.0)
+    spec['t'] = spec['t'] + Vector((0.0, -0.025 * thrust, -0.01 * up))
+    spec['leg_L']['foot'] = spec['leg_L']['foot'] @ qx(8.0 * thrust)
+    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(12.0 * thrust)     # rear heel lifts into it
     return spec
 
 
