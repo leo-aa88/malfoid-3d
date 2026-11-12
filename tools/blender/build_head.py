@@ -51,6 +51,12 @@ def main():
         textures.mark_decals(head, parts)
 
     if stage >= 1:
+        from malfoid import bust
+        bust.add_key()                    # smaller bust (shape key, Basis untouched)
+        from malfoid import hands
+        hands.add_key()                   # 10% smaller hands (shape key, Basis untouched)
+        from malfoid import legs
+        legs.add_key()                    # 10% thinner legs (shape key, Basis untouched)
         from malfoid import face
         face.apply(head, parts, fparts)
     if stage >= 2:

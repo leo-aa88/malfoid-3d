@@ -23,11 +23,22 @@ def _arp_pts():
 
 
 def bone_table():
+    from .hands import HAND_SCALE
     h, t = _arp_pts()
     B = []
+    wrists = {'L': h['hand.l'], 'R': h['hand.r']}
+    FINGERS = ('index', 'middle', 'ring', 'pinky', 'thumb')
 
     def add(name, head, tail, parent):
-        B.append((name, Vector(head), Vector(tail), parent))
+        head, tail = Vector(head), Vector(tail)
+        side = name[-1]
+        if name.startswith(FINGERS) or name.startswith('hand_'):
+            # joints follow the smaller hands (mf_hands_small shape key)
+            w = wrists[side]
+            if not name.startswith('hand_'):
+                head = w + (head - w) * HAND_SCALE
+            tail = w + (tail - w) * HAND_SCALE
+        B.append((name, head, tail, parent))
 
     add('root', (0, 0, 0), (0, -0.1, 0), None)
     add('hips', (0, h['root.x'].y, 0.925), h['spine_01.x'], 'root')

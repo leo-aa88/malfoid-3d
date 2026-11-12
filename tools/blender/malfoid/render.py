@@ -216,6 +216,17 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
         if 'waist' in v:
             shot(scene, os.path.join(out_dir, tag + 'waist_front.png'), (0, -0.05, 0.99), 0, 0.26, 5, res=(res, res))
             shot(scene, os.path.join(out_dir, tag + 'waist_q.png'), (0, -0.05, 0.99), 30, 0.26, 8, res=(res, res))
+        if 'knot' in v:
+            shot(scene, os.path.join(out_dir, tag + 'knot_front.png'), (0, -0.06, 1.255), 0, 0.085, 12, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'knot_q.png'), (0, -0.06, 1.255), 35, 0.085, 15, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'knot_low.png'), (0, -0.06, 1.255), -20, 0.085, -10, res=(res, res))
+        if 'hands' in v:
+            shot(scene, os.path.join(out_dir, tag + 'hand_side.png'), (0.20, -0.02, 0.86), 90, 0.32, 0, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'hand_front.png'), (0.20, -0.02, 0.86), 25, 0.32, 0, res=(res, res))
+        if 'skirt' in v:
+            for nm, yaw, pitch in (('skirt_front', 0, 0), ('skirt_q', 40, 5), ('skirt_side', 90, 0)):
+                shot(scene, os.path.join(out_dir, tag + nm + '.png'), (0, 0, 0.82), yaw, 0.55, pitch, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'skirt_top.png'), (0, -0.03, 0.99), 30, 0.30, 35, res=(res, res))
         if 'shoulder' in v:
             shot(scene, os.path.join(out_dir, tag + 'shoulder_back.png'), (0.12, 0.03, 1.20), 150, 0.30, 15, res=(res, res))
             shot(scene, os.path.join(out_dir, tag + 'shoulder_side.png'), (0.12, 0.03, 1.20), 100, 0.30, 10, res=(res, res))

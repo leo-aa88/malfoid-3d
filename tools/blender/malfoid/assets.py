@@ -404,7 +404,7 @@ OBJECT_OF = {
 # minimum distance outside the body skin after fitting (metres)
 CLEAR = {'shirt': 0.0030, 'sleeve': 0.0035, 'collar': 0.0030, 'button': 0.0045, 'placket': 0.0040,
          'vest': 0.0078, 'vest_rib': 0.0070, 'tie': 0.0060, 'skirt': 0.0050, 'skirt_band': 0.0050,
-         'socks': 0.0018}
+         'socks': 0.0018, 'drop': 0.003}
 
 
 def classify_part(mn, mx, n):
@@ -416,7 +416,7 @@ def classify_part(mn, mx, n):
     if mx.z < 90 and c in ('torso', 'button', 'placket'):
         return 'skirt'                       # small pieces along the skirt hem
     if c == 'collar' and (mx.x - mn.x) < 5.0 and mn.y < -4.5:
-        return 'tie'                         # the tie knot (short pieces at the collar)
+        return 'drop'                        # the pack's knot slivers (replaced by a modelled knot)
     if c == 'torso':
         return 'shirt' if mn.z < 100 else 'vest'
     if c == 'band':
@@ -626,7 +626,7 @@ def fit_uniform(co, cls, body):
         if bs is None:
             continue
         xo, yfo, ybo = bs
-        c = 0.006
+        c = 0.0035                       # tucked in: just over the skin, under the skirt band
         res[i, 0] = np.clip(res[i, 0], -(xo + c), xo + c)
         res[i, 1] = np.clip(res[i, 1], yfo - c, ybo + c)
     out[idx_up] = res
@@ -657,10 +657,10 @@ def fit_uniform(co, cls, body):
         xo, yfo, ybo = bs
         co_ = (yfo + ybo) / 2
         if s_top is None:                                   # waistband: snug on the waist
-            s_top = ((xo + 0.012) / xu, (co_ - yfo + 0.012) / (cu - yfu), (ybo - co_ + 0.012) / (ybu - cu))
-        X = max(xu * s_top[0], xo + 0.012)
-        F = max((cu - yfu) * s_top[1], co_ - yfo + 0.012)
-        Bk = max((ybu - cu) * s_top[2], ybo - co_ + 0.012)
+            s_top = ((xo + 0.0065) / xu, (co_ - yfo + 0.0065) / (cu - yfu), (ybo - co_ + 0.0065) / (ybu - cu))
+        X = max(xu * s_top[0], xo + 0.008)
+        F = max((cu - yfu) * s_top[1], co_ - yfo + 0.008)
+        Bk = max((ybu - cu) * s_top[2], ybo - co_ + 0.008)
         if prev is not None:                                # flare never closes in
             X, F, Bk = max(X, prev[0]), max(F, prev[1]), max(Bk, prev[2])
         prev = (X, F, Bk)
@@ -712,8 +712,9 @@ def push_out(pos, cls, body_ob, faces):
     """move vertices that are closer to the skin than their class clearance
     outwards; the push is shared with nearby vertices (keeps shell thickness)
     and smoothed so the fabric doesn't crumple"""
+    from .bust import body_co
     me = body_ob.data
-    bvh = BVHTree.FromPolygons([v.co.copy() for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+    bvh = BVHTree.FromPolygons([Vector(c) for c in body_co(body_ob)], [tuple(p.vertices) for p in me.polygons])
     n = len(pos)
     need = np.zeros(n)
     nrm = np.zeros((n, 3))
@@ -825,9 +826,11 @@ def import_uniform(info, arm):
             if c in ('skirt', 'skirt_band'):
                 # each part of the skirt follows the leg it covers, more towards
                 # the hem; the waistband stays on the hips
-                share = 0.70 * sstep(0.905, 0.76, p[2])
-                wl = math.exp(-((p[0] - 0.076) / 0.075) ** 2)
-                wr = math.exp(-((p[0] + 0.076) / 0.075) ** 2)
+                # over the leg the hem follows the thigh fully, so the stepping
+                # leg carries the skirt with it instead of passing through
+                share = sstep(0.925, 0.78, p[2])
+                wl = math.exp(-((p[0] - 0.076) / 0.055) ** 2)
+                wr = math.exp(-((p[0] + 0.076) / 0.055) ** 2)
                 tot_lr = wl + wr + 1e-6
                 w = {'hips': 1.0 - share}
                 if share > 0:
@@ -849,7 +852,54 @@ def import_uniform(info, arm):
         print('MF uniform: %-6s %6d verts, materials %s' % (obname, len(me.vertices), mats))
     bpy.data.objects.remove(src, do_unlink=True)
     tie_stripes(objs['Tie'])
+    tie_knot(objs['Tie'], objs['Shirt'], arm)
     return objs
+
+
+def tie_knot(tie, shirt, arm):
+    """A clean four-in-hand knot at the top of the tie: a rounded, slightly
+    tapered block sitting in the collar opening over the top of the blade."""
+    from .meshutil import MeshData
+    co = [tie.matrix_world @ v.co for v in tie.data.vertices]
+    ztop = max(c.z for c in co)
+    top = [c for c in co if c.z > ztop - 0.012]
+    cx = sum(c.x for c in top) / len(top)
+    yf = min(c.y for c in top)
+    me = shirt.data
+    sb = BVHTree.FromPolygons([shirt.matrix_world @ v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+    md = MeshData()
+    rows = []
+    n = 16
+    z1, z0 = ztop + 0.006, ztop - 0.016
+    for k in range(7):
+        t = k / 6
+        z = z1 + (z0 - z1) * t
+        hw = 0.0115 - 0.0045 * t                      # wider at the top, narrowing down
+        hit = sb.ray_cast(Vector((cx, -1.0, z)), Vector((0, 1, 0)))
+        yb = min(hit[0].y if hit[0] is not None else yf, yf + 0.004)
+        depth = 0.0065 * (1.0 - 0.25 * t)
+        ycen = yb - depth * 0.55
+        ring = []
+        for j in range(n):
+            a = 2 * math.pi * j / n
+            ring.append(Vector((cx + hw * math.cos(a) * (1 + 0.15 * abs(math.sin(a))),
+                                ycen - depth * 0.5 * math.sin(a), z)))
+        rows.append(ring)
+    md.add_grid(rows, 'mf_tie', closed=True, cap_start=Vector((cx, rows[0][0].y - 0.0, z1 + 0.0015)),
+                cap_end=Vector((cx, rows[-1][0].y, z0 - 0.002)))
+    # outward-facing winding
+    cen = Vector((cx, sum(r[0].y for r in rows) / len(rows), (z0 + z1) / 2))
+    for fi, f in enumerate(md.f):
+        a, b, c = md.v[f[0]], md.v[f[1]], md.v[f[2]]
+        if (b - a).cross(c - a).dot((a + b + c) / 3 - cen) < 0:
+            md.f[fi] = tuple(reversed(f))
+    ob = md.to_object('TieKnot', bpy.data.materials, bone=None, rig=None)
+    for nm, w in (('chest', 0.6), ('neck', 0.4)):
+        ob.vertex_groups.new(name=nm).add(list(range(len(md.v))), w, 'REPLACE')
+    ob.parent = arm
+    mod = ob.modifiers.new('Armature', 'ARMATURE')
+    mod.object = arm
+    print('MF uniform: TieKnot %d verts at z %.3f-%.3f' % (len(md.v), z0, z1))
 
 
 def tie_stripes(ob):

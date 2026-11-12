@@ -50,6 +50,18 @@ Uniform weights are interpolated from the nearest body surface; the skirt uses h
 - **Crossed arms**: retargeted so her left forearm goes over the right and each hand reaches the opposite elbow.
 - **Controls**: WASD is fixed to the world (as seen from the initial camera), so you can orbit to watch her walk or run from any side.
 
+## Body proportions (shape keys; the base mesh's Basis is untouched)
+
+- **Diagnosis**:
+  - Bust projection over the underbust was about 32 mm on the base body itself.
+  - The shirt, vest and robe copied it outward: about 27 mm on the shirt, about 25 mm on the vest, and the robe a further 23 mm out from the body.
+  - The base pack's own `Chest` key only collapses the chest for clothing, so it couldn't be used.
+- **`mf_bust_small`**: inside the base mesh's breast weight groups, the projection in front of the chest wall is kept at 45%. Every garment is fitted to the body with the key applied, so the bust over the underbust is now about 7 mm on the shirt, 5 mm on the vest and 11 mm on the robe.
+- **`mf_hands_small`**: hands are 10% smaller about the wrist. The finger joints are scaled to match, so finger bending stays aligned.
+- **`mf_legs_thin`**: thighs and shins are 10% thinner towards the leg axis, fading out at the hips. Socks and shoes follow.
+- **Unchanged**: head, hair, earrings and animations are byte-identical. The skeleton's names and hierarchy are unchanged; only the finger joints moved.
+- **Renders**: before/after comparisons are `14_bust_before_after.png`, `15_hands_smaller.png` and `16_legs_thinner.png`.
+
 ## Remaining limitations
 
 - **Robe**: built for this project and plainer than the reference: no hood, simple folds.

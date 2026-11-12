@@ -28,6 +28,17 @@ def body():
     return bpy.data.objects['Body_All']
 
 
+def _normals(me, co):
+    """vertex normals for the given positions (area-weighted face normals)"""
+    acc = [Vector((0.0, 0.0, 0.0)) for _ in co]
+    for p in me.polygons:
+        vs = list(p.vertices)
+        for k in range(len(vs)):
+            a, b, c = co[vs[k - 1]], co[vs[k]], co[vs[(k + 1) % len(vs)]]
+            acc[vs[k]] += (c - b).cross(a - b)
+    return [n.normalized() if n.length > 1e-12 else Vector((0, 0, 1)) for n in acc]
+
+
 class Info:
     """per-vertex data of the body"""
 
@@ -35,8 +46,9 @@ class Info:
         ob = body()
         me = ob.data
         names = {g.index: g.name for g in ob.vertex_groups}
-        self.co = [v.co.copy() for v in me.vertices]
-        self.no = [v.normal.copy() for v in me.vertices]
+        from .bust import body_co
+        self.co = [Vector(c) for c in body_co(ob)]          # with the smaller-bust key
+        self.no = _normals(me, self.co)
         self.dom = []
         self.w = []
         for v in me.vertices:
@@ -116,6 +128,9 @@ def extract(name, info, keep, offset, thick, mat, inner_mat=None, smooth=0, post
         ob.shape_key_clear()
     bm = bmesh.new()
     bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    for v in bm.verts:                       # body shape with the smaller-bust key
+        v.co = info.co[v.index]
     bm.verts.ensure_lookup_table()
     keepv = [keep(i) for i in range(len(bm.verts))]
     dead = [f for f in bm.faces if not all(keepv[v.index] for v in f.verts)
@@ -1023,7 +1038,9 @@ def hide_covered_body(info):
     ob = body()
     me = ob.data
     if me.shape_keys:
-        ob.shape_key_clear()
+        for k in list(me.shape_keys.key_blocks)[1:]:
+            if not k.name.startswith('mf_'):
+                ob.shape_key_remove(k)
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
