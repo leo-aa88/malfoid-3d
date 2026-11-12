@@ -5,7 +5,7 @@ import bpy
 
 # shape keys the viewer drives (everything else is dropped to keep the file small)
 KEEP_KEYS = [
-    'mf_cheek_slim', 'mf_eyes_up', 'vrc.blink', 'vrc.blink_Straight',
+    'mf_cheek_slim', 'mf_eyes_up', 'mf_eyes_in', 'vrc.blink', 'vrc.blink_Straight',
     'browDownLeft', 'browDownRight', 'browOuterUpLeft', 'browInnerUp',
     'mouthSmileLeft', 'mouthSmileRight', 'mouthPressLeft', 'mouthPressRight', 'mouthDimpleLeft',
     'mouthFrownLeft', 'mouthFrownRight', 'mouthPucker', 'eyeSquintLeft', 'eyeSquintRight',

@@ -243,6 +243,7 @@ REST_KEYS = {
     # brows angled down towards the nose, small flat mouth slightly down
     'mf_cheek_slim': 1.0,
     'mf_eyes_up': 1.0,              # eyes and brows ~5% higher (added key, basis untouched)
+    'mf_eyes_in': 1.0,              # eyes and brows 5% closer together (added key)
     'vrc.blink_Straight': 0.36,
     'browDownLeft': 1.4,
     'browDownRight': 1.4,
@@ -318,11 +319,44 @@ def add_eyes_up(head, parts):
     print('MF face: eyes-up key on %d verts (+%.1f mm, basis untouched)' % (moved, EYES_UP * 1000))
 
 
+EYES_IN = 0.05          # eye-to-eye distance reduced by 5% (each eye ~2.1 mm inwards)
+
+
+def add_eyes_in(head, parts):
+    """Shape key moving the eyes and brows towards the face's centre line.
+    Same region and falloff as mf_eyes_up; fades to zero at the nose bridge
+    so the two sides never cross. Basis and authored keys untouched."""
+    import math
+    me = head.data
+    if 'mf_eyes_in' in me.shape_keys.key_blocks:
+        return
+    kb = head.shape_key_add(name='mf_eyes_in', from_mix=False)
+    ears = set(parts['ear_L']) | set(parts['ear_R'])
+    shift = EYES_IN * EYE_CENTRES[0][0]
+    moved = 0
+    for i, v in enumerate(me.vertices):
+        if i in ears or v.co.y > 0.02:
+            continue
+        w = 0.0
+        for cx, cz in EYE_CENTRES:
+            dx = (v.co.x - cx) / 0.034
+            dz = (v.co.z - (cz + 0.018)) / 0.040
+            r = math.sqrt(dx * dx + dz * dz)
+            w = max(w, 1.0 - float(sm(1.0, 1.9, r)))
+        w *= float(sm(0.0, 0.02, abs(v.co.x)))          # nothing moves at the midline
+        if w <= 0:
+            continue
+        kb.data[i].co.x = v.co.x - math.copysign(shift * w, v.co.x)
+        moved += 1
+    print('MF face: eyes-in key on %d verts (-%.1f mm each side, basis untouched)' % (moved, shift * 1000))
+
+
 def apply(head, parts, fparts):
     import os
     if not RESHAPE and os.environ.get('MF_RESHAPE') != '1':
         add_cheek_slim(head, parts)
         add_eyes_up(head, parts)
+        add_eyes_in(head, parts)
         kb = head.data.shape_keys.key_blocks
         for k in kb:
             k.value = 0.0
