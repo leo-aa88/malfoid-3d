@@ -71,12 +71,17 @@ class MeshData:
         self.v = []
         self.f = []
         self.fm = []
+        self.c = []
 
-    def add_grid(self, rows, mat, closed=True, cap_start=None, cap_end=None, flip=False):
+    def add_grid(self, rows, mat, closed=True, cap_start=None, cap_end=None, flip=False, cols=None):
         n = len(rows[0])
         base = len(self.v)
-        for r in rows:
+        for i, r in enumerate(rows):
             self.v.extend(Vector(p) for p in r)
+            if cols is not None:
+                self.c.extend(cols[i] if isinstance(cols[i], list) else [cols[i]] * n)
+            else:
+                self.c.extend([(1.0, 1.0, 1.0)] * n)
         nc = n if closed else n - 1
         for i in range(len(rows) - 1):
             for j in range(nc):
@@ -89,6 +94,7 @@ class MeshData:
                 continue
             ci = len(self.v)
             self.v.append(Vector(cap))
+            self.c.append(self.c[base + ring_i * n])
             for j in range(nc):
                 j2 = (j + 1) % n
                 a, b = base + ring_i * n + j, base + ring_i * n + j2
@@ -108,6 +114,12 @@ class MeshData:
         for p, m in zip(me.polygons, self.fm):
             p.material_index = names.index(m)
             p.use_smooth = True
+        if any(c != (1.0, 1.0, 1.0) for c in self.c):
+            ca = me.color_attributes.new('Col', 'FLOAT_COLOR', 'POINT')
+            flat = []
+            for c in self.c:
+                flat += [c[0], c[1], c[2], 1.0]
+            ca.data.foreach_set('color', flat)
         me.update()
         ob = bpy.data.objects.get(name)
         if ob is not None:

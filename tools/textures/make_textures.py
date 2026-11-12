@@ -64,6 +64,32 @@ def hsv_to_rgb(h, s, v):
     return out
 
 
+# cheek blush (pink patch, hatch lines, white dots) baked into the skin preset
+BLUSH = [(1772, 1590, 255, 105), (2332, 1590, 255, 105)]
+RIM_BOTTOM = 1508                                          # lowest texel of the pink lower-lid rim     # centre x, y, radius x, y
+
+
+def remove_blush(img):
+    """Fill the blush ellipses from the surrounding skin by normalised
+    convolution, so the painted skin gradient continues smoothly."""
+    from scipy.ndimage import gaussian_filter
+    for cx, cy, rx, ry in BLUSH:
+        x0, x1, y0, y1 = cx - 2 * rx, cx + 2 * rx, cy - 3 * ry, cy + 3 * ry
+        reg = img[y0:y1, x0:x1]
+        yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+        d = np.sqrt(((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2)
+        hole = (d < 1.0) & (yy > RIM_BOTTOM)
+        # sources: skin around the patch, but not the pink lower-lid rim above it
+        rim = (yy < RIM_BOTTOM + 20) & (np.abs(xx - cx) < 1.25 * rx)
+        w = (~hole & ~rim).astype(np.float64)
+        fill = np.empty(reg.shape[:2] + (3,), np.float64)
+        ws = gaussian_filter(w, 70)
+        for c in range(3):
+            fill[..., c] = gaussian_filter(reg[..., c].astype(np.float64) * w, 70) / np.maximum(ws, 1e-30)
+        a = (np.clip((1.0 - d) / 0.40, 0, 1) * np.clip((yy - RIM_BOTTOM) / 6.0, 0, 1))[..., None]
+        reg[..., :3] = reg[..., :3] * (1 - a) + fill * a
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     pre = os.path.join(ASSET, 'Preset')
@@ -86,6 +112,7 @@ def main():
     col = BROW_DARK * (1 - t) + BROW_LIGHT * t
     sel = (reg[..., 3:4] > 0) & (lum[..., None] < 0.92)
     reg[..., :3] = np.where(sel, col, reg[..., :3])
+    remove_blush(head)
     Image.fromarray(np.clip(head, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, 'Malfoid_Head_BaseColor.png'))
     body = load(os.path.join(ASSET, 'PNG', 'Body_All_BaseColor.png'))
     body = over(body, load(os.path.join(pre, 'Body_Texture_Presets', 'BodyAll_BaseColor2_NeutralFair.png')))

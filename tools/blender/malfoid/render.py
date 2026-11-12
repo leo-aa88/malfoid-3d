@@ -8,8 +8,8 @@ from mathutils import Vector
 FLAT = ('mf_highlight', 'mf_sclera', 'mf_iris', 'mf_pupil', 'mf_lash', 'mf_brow', 'mf_lidline',
         'mf_teeth', 'mf_lipline')
 FLAT += ('Eye', 'Highlight', 'Alpha', 'Tear')
-SHADE_TINT = {'mf_skin': (0.86, 0.74, 0.76), 'mf_skin_body': (0.86, 0.74, 0.76), 'mf_hair': (0.84, 0.78, 0.76),
-              'mf_hair_dark': (0.84, 0.78, 0.76), 'Body': (0.88, 0.78, 0.80), 'Body_All': (0.88, 0.78, 0.80)}
+SHADE_TINT = {'mf_skin': (0.86, 0.74, 0.76), 'mf_skin_body': (0.86, 0.74, 0.76), 'mf_hair': (0.84, 0.76, 0.70),
+              'mf_hair_dark': (0.84, 0.76, 0.70), 'Body': (0.88, 0.78, 0.80), 'Body_All': (0.88, 0.78, 0.80)}
 BASE_MATS = ('Body', 'Body_All', 'Eye', 'Highlight', 'Alpha', 'Tear', 'Underwear')
 
 
@@ -198,8 +198,13 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
             shot(scene, os.path.join(out_dir, tag + 'q.png'), (0, 0, cz), 38, span, 4, res=(res, res))
         if 'back' in v:
             shot(scene, os.path.join(out_dir, tag + 'back.png'), (0, 0, cz - 0.1), 180, span * 1.9, res=(res, res))
+        if 'qback' in v:
+            shot(scene, os.path.join(out_dir, tag + 'qback.png'), (0, 0, cz - 0.12), 140, span * 2.0, 5,
+                 res=(res, res))
         if 'bust' in v:
             shot(scene, os.path.join(out_dir, tag + 'bust.png'), (0, 0, cz - 0.11), 0, span * 2.1, res=(res, res))
+        if 'face' in v:
+            shot(scene, os.path.join(out_dir, tag + 'face.png'), (0, 0, 1.372), 0, 0.17, res=(res, res))
         if 'eyes' in v:
             shot(scene, os.path.join(out_dir, tag + 'eyes.png'), (0, 0, ey + 0.004), 0, 0.165,
                  res=(res, int(res * 0.5)))

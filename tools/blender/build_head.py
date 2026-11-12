@@ -54,9 +54,13 @@ def main():
         from malfoid import face
         face.apply(head, parts, fparts)
     if stage >= 2:
-        from malfoid import hair, earrings
+        from malfoid import hair, hair2, earrings
         earrings.build(head, parts, m)
-        hair.build(head, parts, m)
+        variant = os.environ.get('MF_HAIR', 'C')
+        if variant == 'old':
+            hair.build(head, parts, m)
+        else:
+            hair2.build(head, parts, m, variant)
 
     if o['keys']:
         kb = head.data.shape_keys.key_blocks

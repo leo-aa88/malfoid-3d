@@ -19,7 +19,7 @@ PALETTE = {
     'mf_lipline':   ('#7a3f42', 0.85, 0.0),
     'mf_tongue':    ('#e58f95', 0.60, 0.0),
     'mf_teeth':     ('#fffaf5', 0.45, 0.0),
-    'mf_hair':      ('#f7e5d4', 0.70, 0.0),
+    'mf_hair':      ('#fff3e3', 0.70, 0.0),     # x vertex colour (~0.93) = #F7E5D4
     'mf_hair_dark': ('#d8c0a6', 0.75, 0.0),
     'mf_earring':   ('#1b1b1b', 0.35, 0.8),
     'mf_fx':        ('#ffffff', 1.00, 0.0),     # hidden effect meshes
@@ -110,6 +110,16 @@ def make():
             tex.image = iris_image()
             tex.extension = 'EXTEND'
             nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
+        if name in ('mf_hair', 'mf_hair_dark'):
+            ca = nt.nodes.new('ShaderNodeVertexColor')
+            ca.layer_name = 'Col'
+            mul = nt.nodes.new('ShaderNodeMix')
+            mul.data_type = 'RGBA'
+            mul.blend_type = 'MULTIPLY'
+            mul.inputs['Factor'].default_value = 1.0
+            mul.inputs['A'].default_value = (*lin, 1.0)
+            nt.links.new(ca.outputs['Color'], mul.inputs['B'])
+            nt.links.new(mul.outputs['Result'], bsdf.inputs['Base Color'])
         if name == 'mf_fx':
             bsdf.inputs['Alpha'].default_value = 0.0
             m.blend_method = 'BLEND'

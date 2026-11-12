@@ -238,9 +238,13 @@ def _env_expr():
 # landmark-driven reshape (kept only for comparison).
 RESHAPE = False
 REST_KEYS = {
-    'vrc.blink_Straight': 0.35,     # half-lidded
-    'mouthSmileLeft': 0.60,         # one-sided smirk
-    'mouthSmileRight': 0.10,
+    'vrc.blink_Straight': 0.50,     # heavy, half-lidded
+    'browDownLeft': 0.20,
+    'browDownRight': 0.50,          # one brow lowered ...
+    'browOuterUpLeft': 0.45,        # ... the other raised: aloof, appraising
+    'mouthSmileLeft': 0.80,         # one-sided smirk
+    'mouthPressRight': 0.50,
+    'mouthDimpleLeft': 0.60,
 }
 
 
