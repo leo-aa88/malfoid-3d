@@ -7,7 +7,21 @@
   "run": 0.62,
   "turn": 0.8,
   "idle_annoyed_start": 1.5,
-  "idle_annoyed": 6.0
+  "idle_annoyed": 6.0,
+  "jab": 0.4,
+  "body_jab": 0.42,
+  "kick_low": 0.75,
+  "kick_high": 0.9,
+  "cross": 0.55,
+  "body_hook": 0.6,
+  "uppercut": 0.65,
+  "heavy_body": 0.7,
+  "leg_sweep": 0.85,
+  "spin_kick": 0.95,
+  "rising_kick": 0.85,
+  "jump": 0.95,
+  "block": 0.22,
+  "crouch": 0.3
  },
  "rest_expression": {
   "vrc.blink": 0.0,

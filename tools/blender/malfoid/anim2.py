@@ -214,6 +214,10 @@ def solve(sk, spec):
             if arm.get('space') == 'chest':
                 wrist = P['chest'] + Q['chest'] @ (wrist - sk.head['chest'])
                 elbow_hint = P['chest'] + Q['chest'] @ (elbow_hint - sk.head['chest'])
+            if arm.get('world_k'):                       # blend towards a world-space target (strikes)
+                k = arm['world_k']
+                wrist = wrist.lerp(arm['world_wrist'], k)
+                elbow_hint = elbow_hint.lerp(arm['world_elbow'], k)
             el, wr, u, pp = two_bone(P[b], wrist, rig.UPPERARM_LEN, rig.FOREARM_LEN, elbow_hint - P[b])
             hinge = pp.cross(u)
             d = rig.ARM_DIR_L if side == 'L' else mirx(rig.ARM_DIR_L)
@@ -541,7 +545,17 @@ def _clips(sk):
         ('turn', TURN_T, turn_pose),
         ('idle_annoyed_start', ANN_START_T, lambda t: annoyed_start_pose(sk, t)),
         ('idle_annoyed', ANN_LOOP_T, lambda t: annoyed_loop_pose(sk, t)),
-    ]
+    ] + _combat_clips(sk)
+
+
+def _combat_clips(sk):
+    from . import combat
+    return combat.clips(sk)
+
+
+def _one_shot():
+    from . import combat
+    return ('idle_annoyed_start',) + tuple(combat.CLIPS)
 
 
 FINGERS = ('index', 'middle', 'ring', 'pinky', 'thumb')
@@ -580,7 +594,7 @@ def build_all(arm_ob):
         locs = []
         for f in range(n + 1):
             t = f / FPS
-            if name != 'idle_annoyed_start' and f == n:
+            if name not in _one_shot() and f == n:
                 t = 0.0                                   # exact loop closure
             q, loc = local_pose(sk, fn(t))
             for b, v in q.items():
