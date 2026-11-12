@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import type { Malfoid } from './Malfoid';
-import type { ActionState } from './AnimationController';
+import type { ComboSystem } from '../combat/ComboSystem';
+import type { AttackButton } from '../combat/moves';
 
-/** One-shot moves, triggered on key press. */
-const ACTION_KEYS: Record<string, ActionState> = {
-  Space: 'jump',
-  KeyJ: 'punch_high',
-  KeyU: 'punch_low',
-  KeyK: 'kick_high',
-  KeyI: 'kick_low',
+/** Strike buttons; pressed twice in quick succession they form combos. */
+const ATTACK_KEYS: Record<string, AttackButton> = {
+  KeyJ: 'J',
+  KeyU: 'U',
+  KeyK: 'K',
+  KeyI: 'I',
 };
 
 /**
@@ -23,6 +23,8 @@ const ACTION_KEYS: Record<string, ActionState> = {
  * | J / U        | high / low punch           |
  * | K / I        | high / low kick            |
  * | O            | block (held)               |
+ * | B            | dummy guard none/high/low  |
+ * | N            | dummy in front of her      |
  * | Esc          | pause                      |
  */
 export class CharacterController {
@@ -30,8 +32,11 @@ export class CharacterController {
   private readonly dir = new THREE.Vector3();
   paused = false;
   onPauseChange: ((paused: boolean) => void) | null = null;
+  /** training dummy: cycle its guard / bring it in front of her */
+  onDummyGuard: (() => void) | null = null;
+  onDummyReset: (() => void) | null = null;
 
-  constructor(private readonly character: Malfoid) {
+  constructor(private readonly character: Malfoid, private readonly combat: ComboSystem) {
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
       if (e.code === 'Escape') {
@@ -41,8 +46,12 @@ export class CharacterController {
       if (e.code === 'Space' || e.code === 'ControlLeft') e.preventDefault();   // no page scroll
       if (this.paused) return;
       this.keys.add(e.code);
-      const action = ACTION_KEYS[e.code];
-      if (action && !e.repeat) this.character.trigger(action);
+      if (e.repeat) return;
+      const attack = ATTACK_KEYS[e.code];
+      if (attack) this.combat.press(attack);
+      else if (e.code === 'Space') this.character.trigger('jump');
+      else if (e.code === 'KeyB') this.onDummyGuard?.();
+      else if (e.code === 'KeyN') this.onDummyReset?.();
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());

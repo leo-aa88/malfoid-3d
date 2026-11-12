@@ -4,15 +4,52 @@ import { SceneManager } from './scene/SceneManager';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
 import { CharacterController } from './character/CharacterController';
+import { TrainingDummy, DUMMY_RADIUS, Guard } from './combat/TrainingDummy';
+import { ComboSystem } from './combat/ComboSystem';
+import { CombatHud } from './ui/CombatHud';
 
 const BASE = import.meta.env.BASE_URL;
+const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
+// at the start it stands at her front-right (screen left as she faces the camera), off the
+// path she takes to the right and still inside the auto-facing angle
+const DUMMY_START_ANGLE = -1.0;               // rad (+ is her left)
+const DUMMY_START_DISTANCE = 0.9;
+const MIN_GAP = DUMMY_RADIUS + 0.22;          // she can't walk through it
+
+/** push her out of the dummy (it is fixed to the floor) */
+function keepApart(p: THREE.Vector3, dummy: TrainingDummy): void {
+  if (dummy.down) return;
+  const dx = p.x - dummy.position.x;
+  const dz = p.z - dummy.position.z;
+  const d = Math.hypot(dx, dz);
+  if (d >= MIN_GAP || d < 1e-6) return;
+  p.x = dummy.position.x + (dx / d) * MIN_GAP;
+  p.z = dummy.position.z + (dz / d) * MIN_GAP;
+}
 
 async function start(): Promise<void> {
   const sm = new SceneManager(document.getElementById('app')!);
   const cam = new CameraController(sm.camera, sm.renderer.domElement);
   const malfoid = await Malfoid.load(`${BASE}models/malfoid.glb`, `${BASE}models/malfoid.json`);
   sm.scene.add(malfoid.root);
-  const input = new CharacterController(malfoid);
+
+  // training dummy
+  const dummy = new TrainingDummy();
+  sm.scene.add(dummy.root);
+  const placeDummy = (angle: number, dist: number) => {
+    const f = malfoid.facingAngle + angle;
+    const p = malfoid.position.clone().add(new THREE.Vector3(Math.sin(f), 0, Math.cos(f)).multiplyScalar(dist));
+    dummy.placeAt(p, malfoid.position);
+  };
+  placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
+  const combat = new ComboSystem(malfoid, dummy);
+  const hud = new CombatHud(sm.camera, document.getElementById('hud')!);
+  combat.onEvent = (e) => hud.handle(e);
+
+  const input = new CharacterController(malfoid, combat);
+  const guards: Guard[] = ['none', 'high', 'low'];
+  input.onDummyGuard = () => dummy.setGuard(guards[(guards.indexOf(dummy.guard) + 1) % guards.length]);
+  input.onDummyReset = () => placeDummy(0, DUMMY_DISTANCE);
   cam.reset(malfoid.position);
   malfoid.resetIdleTimer();          // the countdown starts when she appears
   document.getElementById('reset-camera')!.addEventListener('click', (e) => {
@@ -37,8 +74,13 @@ async function start(): Promise<void> {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (!input.paused) {
       input.update();
+      combat.update(dt);
       malfoid.update(dt);
+      keepApart(malfoid.position, dummy);
+      dummy.update(dt, malfoid.position);
+      hud.update(dt);
     }
+    hud.setDummy(dummy.hp, dummy.guard);
     cam.update(malfoid.position);
     sm.followShadow(malfoid.position);
     sm.render();
@@ -56,8 +98,7 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  (window as unknown as { malfoid: Malfoid; cam: CameraController }).malfoid = malfoid;
-  (window as unknown as { malfoid: Malfoid; cam: CameraController }).cam = cam;
+  Object.assign(window, { malfoid, cam, combat, dummy });
 }
 
 start().catch((err) => {

@@ -1,29 +1,30 @@
 import * as THREE from 'three';
+import { MOVE_CLIPS, MoveId } from '../combat/moves';
 
 export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed';
-/** one-shot moves: play once, then hand control back to locomotion */
-export type ActionState = 'jump' | 'punch_high' | 'punch_low' | 'kick_high' | 'kick_low';
+/** one-shot movement: plays once, then hands control back to locomotion */
+export type ActionState = 'jump';
 /** held poses: play once and stay in the last frame while the key is down */
 export type HoldState = 'crouch' | 'block';
-export type AnimationState = LocomotionState | ActionState | HoldState;
+/** strikes (driven by the combo system) */
+export type StrikeState = MoveId;
+export type AnimationState = LocomotionState | ActionState | HoldState | StrikeState;
 
-const FADE: Record<AnimationState, number> = {
+const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   idle: 0.45,
   walk: 0.3,
   run: 0.25,
   turn: 0.25,
   idle_annoyed: 0.6,
   jump: 0.08,
-  punch_high: 0.08,
-  punch_low: 0.08,
-  kick_high: 0.1,
-  kick_low: 0.1,
   crouch: 0.12,
   block: 0.08,
 };
 
-const ONCE = new Set(['idle_annoyed_start', 'jump', 'punch_high', 'punch_low', 'kick_high', 'kick_low', 'crouch', 'block']);
-const ACTIONS = new Set<string>(['jump', 'punch_high', 'punch_low', 'kick_high', 'kick_low']);
+const STRIKE_FADE = 0.08;
+const LOOPS_WARP = new Set(['walk', 'run']);
+const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', ...MOVE_CLIPS]);
+const ACTIONS = new Set<string>(['jump']);
 
 /**
  * Wraps the AnimationMixer: one action per clip, cross-fades between
@@ -35,7 +36,7 @@ export class AnimationController {
   private readonly actions = new Map<string, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
   private stateName: AnimationState = 'idle';
-  /** called when a one-shot move (jump, punch, kick) has finished */
+  /** called when a one-shot move (jump) has finished; strikes are timed by the combo system */
   onActionDone: ((state: ActionState) => void) | null = null;
 
   constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
@@ -68,22 +69,25 @@ export class AnimationController {
     return this.actions.has(clip);
   }
 
-  play(state: AnimationState, fade = FADE[state]): void {
+  play(state: AnimationState, fade = fadeOf(state)): void {
     if (state === this.stateName && this.current) return;
     this.start(state, fade);
   }
 
-  /** (re)start a state even if it is already the current one (repeated punches) */
-  restart(state: AnimationState, fade = FADE[state]): void {
-    this.start(state, fade);
+  /**
+   * (re)start a state even if it is already the current one (repeated
+   * strikes); startAt skips into the clip (chained combo finishers)
+   */
+  restart(state: AnimationState, fade = fadeOf(state), startAt = 0): void {
+    this.start(state, fade, startAt);
   }
 
-  private start(state: AnimationState, fade: number): void {
+  private start(state: AnimationState, fade: number, startAt = 0): void {
     const clip = state === 'idle_annoyed' ? 'idle_annoyed_start' : state;
     const action = this.actions.get(clip);
     if (!action) return;
     this.stateName = state;
-    this.fadeTo(action, fade);
+    this.fadeTo(action, fade, startAt);
   }
 
   /** playback speed of the current locomotion clip (keeps feet planted) */
@@ -91,19 +95,25 @@ export class AnimationController {
     if (this.current) this.current.timeScale = scale;
   }
 
-  private fadeTo(next: THREE.AnimationAction, fade: number): void {
+  private fadeTo(next: THREE.AnimationAction, fade: number, startAt = 0): void {
     const prev = this.current;
     if (prev === next) {
       // same clip again: cross-fade from a frozen copy is not possible, so restart in place
       next.reset().play();
+      next.timeScale = 1;
+      next.time = startAt;
       return;
     }
     next.reset();
+    next.time = startAt;
     next.timeScale = 1;
     next.setEffectiveWeight(1);
     next.play();
     if (prev) {
-      if (fade > 0) next.crossFadeFrom(prev, fade, true);
+      // time-warp only between the walk and run loops (it keeps their steps in
+      // phase); anything else would race a short clip through its start
+      const loops = LOOPS_WARP.has(prev.getClip().name) && LOOPS_WARP.has(next.getClip().name);
+      if (fade > 0) next.crossFadeFrom(prev, fade, loops);
       else prev.stop();
     }
     this.current = next;
@@ -112,4 +122,8 @@ export class AnimationController {
   update(dt: number): void {
     this.mixer.update(dt);
   }
+}
+
+function fadeOf(state: AnimationState): number {
+  return (FADE as Record<string, number>)[state] ?? STRIKE_FADE;
 }

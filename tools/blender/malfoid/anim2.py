@@ -553,7 +553,9 @@ def _combat_clips(sk):
     return combat.clips(sk)
 
 
-ONE_SHOT = ('idle_annoyed_start', 'punch_high', 'punch_low', 'kick_high', 'kick_low', 'jump', 'block', 'crouch')
+def _one_shot():
+    from . import combat
+    return ('idle_annoyed_start',) + tuple(combat.CLIPS)
 
 
 FINGERS = ('index', 'middle', 'ring', 'pinky', 'thumb')
@@ -592,7 +594,7 @@ def build_all(arm_ob):
         locs = []
         for f in range(n + 1):
             t = f / FPS
-            if name not in ONE_SHOT and f == n:
+            if name not in _one_shot() and f == n:
                 t = 0.0                                   # exact loop closure
             q, loc = local_pose(sk, fn(t))
             for b, v in q.items():

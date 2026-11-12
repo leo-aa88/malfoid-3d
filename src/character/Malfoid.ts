@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AnimationController, AnimationState, ActionState, HoldState } from './AnimationController';
+import { AnimationController, AnimationState, ActionState, HoldState, StrikeState } from './AnimationController';
 import { ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 
@@ -12,6 +12,7 @@ export const RUN_SPEED = 2.9;     // m/s
 const TURN_RATE = 9.0;            // rad/s response of the facing direction
 const ACCEL = 8.0;                // 1/s speed smoothing
 const TURN_IN_PLACE = 1.6;        // rad: larger direction changes play the turn clip
+const STRIKE_TURN_RATE = 28.0;    // rad/s response when a strike turns her towards the opponent
 
 type Weights = Record<string, number>;
 
@@ -58,8 +59,10 @@ export class Malfoid {
   private pausedAt = 0;
 
   // combat / movement moves
-  private action: ActionState | null = null;   // one-shot move in progress
+  private action: ActionState | null = null;   // jump in progress
   private hold: HoldState | null = null;       // crouch / block while the key is held
+  private strike: StrikeState | null = null;   // strike played by the combo system
+  private strikeFacing: number | null = null;  // auto-facing target during a strike
 
   // face
   private blinkTimer = 2.5;
@@ -122,22 +125,54 @@ export class Malfoid {
     this.moving = false;
   }
 
+  /** facing direction (rad, 0 = +z) */
+  get facingAngle(): number {
+    return this.facing;
+  }
+
   /**
-   * Start a one-shot move (jump, punches, kicks). Ignored while another move
-   * is still playing or while crouching / blocking. Counts as activity.
+   * Start a one-shot move (jump). Ignored while another move is playing or
+   * while crouching / blocking. Counts as activity.
    */
   trigger(action: ActionState): void {
     this.resetIdleTimer();
-    if (this.action || this.hold || !this.animation.has(action)) return;
+    if (this.action || this.hold || this.strike || !this.animation.has(action)) return;
     this.action = action;
     this.animation.restart(action);
+  }
+
+  /** free to start a strike (not jumping, crouching or blocking) */
+  get canStrike(): boolean {
+    return !this.action && !this.hold;
+  }
+
+  // --- strikes: started, sped up / slowed and ended by the combo system
+
+  playStrike(clip: StrikeState, startAt = 0, fade = 0.08): void {
+    this.strike = clip;
+    this.strikeFacing = null;
+    this.animation.restart(clip, fade, startAt);
+  }
+
+  setStrikeRate(rate: number): void {
+    if (this.strike) this.animation.setTimeScale(rate);
+  }
+
+  endStrike(): void {
+    this.strike = null;
+    this.strikeFacing = null;
+  }
+
+  /** turn quickly to this facing during the current strike */
+  faceToward(angle: number): void {
+    this.strikeFacing = angle;
   }
 
   /** crouch / block while the key is held */
   setHold(hold: HoldState, on: boolean): void {
     if (on) {
       this.resetIdleTimer();
-      if (!this.hold && !this.action) this.hold = hold;
+      if (!this.hold && !this.action && !this.strike) this.hold = hold;
     } else if (this.hold === hold) {
       this.hold = null;
     }
@@ -165,7 +200,7 @@ export class Malfoid {
   update(dt: number): void {
     // --- facing and speed
     // strikes, crouch and block plant her feet; a jump keeps its momentum
-    const busy = this.action !== null || this.hold !== null;
+    const busy = this.action !== null || this.hold !== null || this.strike !== null;
     const steer = this.moving && !busy;
     let target = steer ? (this.wantRunning ? RUN_SPEED : WALK_SPEED) : 0;
     if (this.action === 'jump') target = this.speed;
@@ -176,7 +211,13 @@ export class Malfoid {
       this.facing += turnDiff * (1 - Math.exp(-TURN_RATE * dt));
       if (Math.abs(turnDiff) > TURN_IN_PLACE && this.speed < WALK_SPEED * 0.6) target = 0;   // turn first
     }
-    this.speed += (target - this.speed) * (1 - Math.exp(-ACCEL * dt));
+    if (this.strike && this.strikeFacing !== null) {
+      const d = Math.atan2(Math.sin(this.strikeFacing - this.facing), Math.cos(this.strikeFacing - this.facing));
+      this.facing += d * (1 - Math.exp(-STRIKE_TURN_RATE * dt));
+    }
+    // strikes stop her quickly so the hitbox stays where she plants her feet
+    const accel = this.strike ? ACCEL * 2.5 : ACCEL;
+    this.speed += (target - this.speed) * (1 - Math.exp(-accel * dt));
     if (this.speed < 1e-3) this.speed = 0;
     this.root.rotation.y = this.facing;
     this.root.position.x += Math.sin(this.facing) * this.speed * dt;
@@ -184,7 +225,9 @@ export class Malfoid {
 
     // --- state machine
     let state: AnimationState;
-    if (this.action) {
+    if (this.strike) {
+      state = this.strike;                       // timed by the combo system
+    } else if (this.action) {
       state = this.action;                       // started by trigger(); ends via onActionDone
     } else if (this.hold) {
       state = this.hold;

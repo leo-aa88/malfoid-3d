@@ -199,10 +199,15 @@ def proc_object(name, md, info, wfn=None):
     arm = body().parent
     ob = md.to_object(name, bpy.data.materials, bone=None, rig=None)
     groups = {}
+    twin = getattr(md, 'twin', {})       # inner-shell vertex -> its outer-shell vertex
     for i, p in enumerate(md.v):
-        w = wfn(p) if wfn else None
+        # a shell's lining takes exactly the weights of the outer vertex beside it, so the
+        # two layers move as one and can't pass through each other when a joint bends far
+        # (a raised thigh in a kick); weights computed at the outer point
+        q = md.v[twin[i]] if i in twin else p
+        w = wfn(q) if wfn else None
         if w is None:
-            w = info.weights_near(p)
+            w = info.weights_near(q)
         tot = sum(w.values())
         for g, x in sorted(w.items(), key=lambda t: -t[1])[:4]:
             if x / tot < 0.01:
@@ -698,6 +703,11 @@ def _thick_grid(md, rows, th, mat, inner, closed=False, facing_cols=0):
         md.c.extend([(1.0, 1.0, 1.0)] * nj)
     O = lambda i, j: base + i * nj + j
     I = lambda i, j: ib + i * nj + j
+    if not hasattr(md, 'twin'):
+        md.twin = {}
+    for i in range(ni):
+        for j in range(nj):
+            md.twin[I(i, j)] = O(i, j)
     nc = nj if closed else nj - 1
 
     def add(f, m, out_ref):

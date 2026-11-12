@@ -1,4 +1,4 @@
-"""Combat and movement clips: jump, crouch, high/low punch, high/low kick, block.
+"""Combat and movement clips: combo openers and finishers, jump, crouch, block.
 
 Same pose language as anim2 (world-axis deltas + two-bone IK). Every clip
 starts and ends in (or, for the held ones, starts in) her plain idle pose so
@@ -6,7 +6,7 @@ the viewer can cross-fade in and out of it.
 
 Character space via V(x, fwd, z): +x is her left, fwd is in front of her.
 """
-from math import sin, pi
+from math import sin, cos, pi, radians
 from mathutils import Vector
 from . import anim2 as A
 from .anim2 import V, E, qx, qz, IDENT, sstep, lerp, mirx, rig
@@ -23,10 +23,20 @@ BLOCK = {
 }
 
 CLIPS = {             # name: duration (s)
-    'punch_high': 0.55,
-    'punch_low': 0.60,
-    'kick_high': 0.90,
-    'kick_low': 0.75,
+    # combo openers
+    'jab': 0.40,           # J  left lead jab to the head
+    'body_jab': 0.42,      # U  left jab to the body
+    'kick_low': 0.75,      # I  low shin kick
+    'kick_high': 0.90,     # K  high roundhouse
+    # combo finishers
+    'cross': 0.55,         # J>J
+    'body_hook': 0.60,     # U>U
+    'uppercut': 0.65,      # U>J
+    'heavy_body': 0.70,    # J>U
+    'leg_sweep': 0.85,     # I>I and K>I
+    'spin_kick': 0.95,     # K>K
+    'rising_kick': 0.85,   # I>K
+    # movement
     'jump': 0.95,
     'block': 0.22,    # held: plays once and stays in the last frame while the key is down
     'crouch': 0.30,   # held
@@ -87,23 +97,60 @@ def _twist(D, k, yaw, pitch=0.0):
 
 # --- strikes -----------------------------------------------------------------
 
-def punch_high(sk, t):
-    g = env(t, 0.0, 0.07, 0.40, 0.55)
-    s = env(t, 0.06, 0.15, 0.23, 0.42)                     # right cross to head height
-    spec = base(sk, g, g, arms={'R': (V(-0.015, 0.430, 1.300), V(-0.200, 0.120, 1.200), s, 'world')})
-    _twist(spec['D'], s, 32.0, 4.0)
-    spec['t'] = spec['t'] + Vector((0.0, -0.03 * s, 0.0))     # weight onto the front foot
-    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(18.0 * s)   # rear heel lifts
+def _strike(sk, t, side, target, elbow, guard, hit, twist, pitch=0.0, dip=0.0, fwd=0.0):
+    """one arm strike: guard=(in, out_start, out_end) envelope of the stance,
+    hit=(start, full, hold, back) envelope of the extension"""
+    g = env(t, 0.0, guard[0], guard[1], guard[2])
+    s = env(t, *hit)
+    spec = base(sk, g, g, arms={side: (target, elbow, s, 'world')})
+    _twist(spec['D'], s, twist, pitch)
+    spec['t'] = spec['t'] + Vector((0.0, -fwd * s, -dip * s))
+    rear = 'leg_R' if side == 'R' else 'leg_L'
+    spec[rear]['foot'] = spec[rear]['foot'] @ qx(14.0 * s)        # rear heel lifts into the punch
+    return spec, s, g
+
+
+def jab(sk, t):
+    spec, s, g = _strike(sk, t, 'L', V(0.050, 0.440, 1.300), V(0.200, 0.120, 1.200),
+                         (0.05, 0.28, 0.40), (0.03, 0.10, 0.14, 0.28), twist=-12.0, pitch=2.0, fwd=0.015)
     return spec
 
 
-def punch_low(sk, t):
-    g = env(t, 0.0, 0.08, 0.45, 0.60)
-    s = env(t, 0.07, 0.17, 0.26, 0.46)                     # right body blow, knees bent
-    spec = base(sk, g, g, arms={'R': (V(-0.010, 0.400, 1.000), V(-0.190, 0.120, 1.020), s, 'world')})
-    _twist(spec['D'], s, 26.0, 18.0)
-    spec['t'] = spec['t'] + Vector((0.0, -0.035 * s, -0.085 * s))
-    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(14.0 * s)
+def body_jab(sk, t):
+    spec, s, g = _strike(sk, t, 'L', V(0.040, 0.400, 1.020), V(0.190, 0.120, 1.020),
+                         (0.06, 0.30, 0.42), (0.04, 0.11, 0.16, 0.30), twist=-14.0, pitch=14.0, dip=0.07)
+    return spec
+
+
+def cross(sk, t):
+    spec, s, g = _strike(sk, t, 'R', V(-0.015, 0.430, 1.300), V(-0.200, 0.120, 1.200),
+                         (0.07, 0.40, 0.55), (0.06, 0.15, 0.23, 0.42), twist=32.0, pitch=4.0, fwd=0.03)
+    return spec
+
+
+def heavy_body(sk, t):
+    spec, s, g = _strike(sk, t, 'R', V(-0.010, 0.450, 1.000), V(-0.190, 0.130, 1.020),
+                         (0.07, 0.52, 0.70), (0.08, 0.22, 0.32, 0.55), twist=42.0, pitch=22.0, dip=0.10, fwd=0.06)
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(0.0, 0.08 * s, 0.0)    # step in
+    return spec
+
+
+def body_hook(sk, t):
+    a = sstep(0.06, 0.18, t)                                # fist travels round from the side
+    target = V(lerp(-0.30, -0.02, a), lerp(0.16, 0.33, a), 1.06)
+    spec, s, g = _strike(sk, t, 'R', target, V(-0.300, 0.220, 1.120),
+                         (0.07, 0.45, 0.60), (0.06, 0.18, 0.26, 0.45), twist=45.0, pitch=14.0, dip=0.06)
+    return spec
+
+
+def uppercut(sk, t):
+    load = env(t, 0.0, 0.10, 0.10, 0.24)                    # dip, then drive upwards
+    a = sstep(0.10, 0.24, t)
+    target = V(-0.060, lerp(0.20, 0.27, a), lerp(0.98, 1.31, a))
+    elbow = V(-0.110, 0.240, lerp(0.80, 0.98, a))           # elbow low, under the fist: forearm near vertical
+    spec, s, g = _strike(sk, t, 'R', target, elbow, (0.07, 0.50, 0.65), (0.05, 0.24, 0.32, 0.50),
+                         twist=28.0, pitch=14.0 * load - 12.0 * a)
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, -0.08 * load + 0.03 * a * s))
     return spec
 
 
@@ -134,6 +181,58 @@ def kick_high(sk, t):
 def kick_low(sk, t):
     return _kick(sk, t, chamber=V(-0.070, 0.220, 0.340), extend=V(-0.030, 0.600, 0.230),
                  times=(0.16, 0.27, 0.38, 0.56, 0.75), lean=6.0, foot_pitch=-10.0, drop=0.05)
+
+
+def rising_kick(sk, t):
+    spec = _kick(sk, t, chamber=V(-0.060, 0.260, 0.700), extend=V(-0.050, 0.600, 1.280),
+                 times=(0.18, 0.30, 0.44, 0.64, 0.85), lean=30.0, foot_pitch=-30.0, drop=0.0)
+    hop = env(t, 0.22, 0.30, 0.42, 0.54)                    # small hop off the support leg
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, 0.07 * hop))
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(0.0, 0.0, 0.07 * hop)
+    spec['leg_L']['foot'] = spec['leg_L']['foot'] @ qx(25.0 * hop)
+    return spec
+
+
+def _rz(v, deg):
+    """rotate a point about the vertical axis through her feet (+ towards her left)"""
+    return qz(deg) @ v
+
+
+def leg_sweep(sk, t):
+    c = env(t, 0.0, 0.14, 0.62, 0.85)                       # drop low
+    ex = env(t, 0.14, 0.22, 0.48, 0.64)                     # leg out
+    a = lerp(-95.0, 25.0, sstep(0.20, 0.48, t))             # sweep from her right side to the front
+    spec = base(sk, c, 0.0)
+    D = spec['D']
+    spec['t'] = spec['t'] + Vector((0.0, 0.03 * c, -0.33 * c))
+    out = V(0.58 * sin(radians(a)), 0.58 * cos(radians(a)), 0.09)    # a<0: her right side, a>0: front-left
+    rest = mirx(rig.ANKLE_L)
+    spec['leg_R'] = {'ankle': _vl(rest, out, ex), 'foot': qz(-a * 0.6 * ex) @ qx(-15.0 * ex), 'knee_out': 0.0}
+    spec['leg_L']['knee_out'] = 0.25 * c
+    D['hips'] = E(yaw=0.35 * a * ex, pitch=10.0 * c)
+    D['spine'] = E(pitch=14.0 * c, yaw=0.15 * a * ex)
+    D['chest'] = E(pitch=8.0 * c)
+    D['head'] = E(pitch=-14.0 * c, yaw=-0.4 * a * ex)
+    return spec
+
+
+def spin_kick(sk, t):
+    g = env(t, 0.0, 0.08, 0.80, 0.95)
+    y = -360.0 * sstep(0.10, 0.62, t)                       # full turn to her right
+    up = env(t, 0.16, 0.30, 0.66, 0.84)
+    ex = env(t, 0.30, 0.42, 0.60, 0.74)
+    spec = base(sk, g, 0.0)
+    D = spec['D']
+    pivot_l = V(0.03, 0.0, rig.ANKLE_L.z)                   # turn on the ball of the left foot
+    spec['leg_L'] = {'ankle': _rz(_vl(rig.ANKLE_L, pivot_l, g), y), 'foot': qz(y)}
+    rest_r = mirx(rig.ANKLE_L)
+    rel = _vl(rest_r, _vl(V(-0.080, 0.200, 0.620), V(-0.420, 0.420, 1.050), ex), up)
+    spec['leg_R'] = {'ankle': _rz(rel, y), 'foot': qz(y) @ qx(-25.0 * ex), 'knee_out': -0.2 * up}
+    D['hips'] = E(yaw=y + 18.0 * ex, pitch=-10.0 * ex)
+    D['spine'] = E(pitch=-6.0 * ex)
+    D['head'] = E(yaw=-14.0 * ex)
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, 0.02 * up))
+    return spec
 
 
 # --- held poses --------------------------------------------------------------
