@@ -19,6 +19,7 @@
   "leg_sweep": 0.85,
   "spin_kick": 0.95,
   "rising_kick": 0.85,
+  "cast_confringo": 0.65,
   "jump": 0.95,
   "block": 0.22,
   "crouch": 0.3

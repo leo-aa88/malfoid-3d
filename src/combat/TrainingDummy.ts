@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import type { Height, HitEffect } from './moves';
+import type { CombatTarget, HitBounds, HitReport, HitRequest, HitResult } from './CombatTarget';
 
+export type { HitResult } from './CombatTarget';
 export type Guard = 'none' | 'high' | 'low';
-export type HitResult = 'hit' | 'blocked' | 'immune';
 
 export const DUMMY_MAX_HP = 150;
 /** collision / hurtbox radius (m) */
@@ -13,6 +14,10 @@ const CHIP = 0.2;
 const DOWN_FALL = 0.35;          // s to topple over
 const DOWN_LIE = 1.0;            // s lying down
 const DOWN_RISE = 0.7;           // s to stand back up
+const KNOCKBACK = 2.6;           // default slide speed of a 'knockback' hit (m/s)
+const MAX_SLIDE = 1.0;           // the weighted base never slides further than this from its spot (m)
+const HEIGHT = 1.63;             // top of the head (m)
+const AIM_Y = 1.1;               // torso centre (m)
 
 /**
  * A padded training dummy on a weighted base. It has hit points, an
@@ -20,7 +25,8 @@ const DOWN_RISE = 0.7;           // s to stand back up
  * knockback (rocks and slides back, then returns to its spot) and knockdown
  * (topples over, lies down, rights itself; can't be hit meanwhile).
  */
-export class TrainingDummy {
+export class TrainingDummy implements CombatTarget {
+  readonly name = 'Training Dummy';
   readonly root = new THREE.Group();
   hp = DUMMY_MAX_HP;
   guard: Guard = 'none';
@@ -85,6 +91,29 @@ export class TrainingDummy {
     return this.downTime >= 0;
   }
 
+  // --- CombatTarget
+
+  get targetable(): boolean {
+    return this.vulnerable;
+  }
+
+  getBounds(out: HitBounds): HitBounds {
+    out.x = this.root.position.x;
+    out.z = this.root.position.z;
+    out.yMin = 0;
+    out.yMax = HEIGHT;
+    out.radius = DUMMY_RADIUS;
+    return out;
+  }
+
+  getAimPoint(out: THREE.Vector3): THREE.Vector3 {
+    return out.set(this.root.position.x, AIM_Y, this.root.position.z);
+  }
+
+  takeHit(hit: HitRequest): HitReport {
+    return this.receive(hit.damage, hit.height, hit.effect, hit.dir, hit.knockback);
+  }
+
   placeAt(p: THREE.Vector3, faceTowards: THREE.Vector3): void {
     this.anchor.set(p.x, 0, p.z);
     this.offset.set(0, 0, 0);
@@ -106,8 +135,9 @@ export class TrainingDummy {
   /**
    * Resolve a strike. dir: unit vector from the attacker to the dummy.
    * A guard at the strike's height blocks it (chip damage, no reaction).
+   * knockback: slide speed of a 'knockback' hit (m/s), KNOCKBACK by default.
    */
-  receive(damage: number, height: Height, effect: HitEffect, dir: THREE.Vector3): { result: HitResult; damage: number; ko: boolean } {
+  receive(damage: number, height: Height, effect: HitEffect, dir: THREE.Vector3, knockback = KNOCKBACK): { result: HitResult; damage: number; ko: boolean } {
     if (!this.vulnerable) return { result: 'immune', damage: 0, ko: false };
     this.tiltAxis.set(dir.z, 0, -dir.x).normalize();          // tip away from the attacker
     this.tiltAxis.applyAxisAngle(THREE.Object3D.DEFAULT_UP, -this.yaw);   // into the dummy's local frame
@@ -126,8 +156,10 @@ export class TrainingDummy {
     if (ko || effect === 'knockdown') {
       this.knockDown();
     } else if (effect === 'knockback') {
-      this.tiltVel += 4.2;
-      this.offsetVel.addScaledVector(dir, 2.6);
+      // rocks back and slides; harder hits rock it further and set it wobbling (stagger)
+      this.tiltVel += 4.2 * (knockback / KNOCKBACK);
+      this.offsetVel.addScaledVector(dir, knockback);
+      if (knockback > KNOCKBACK) this.wobbleVel += 2.0 * (Math.random() < 0.5 ? -1 : 1);
     } else if (effect === 'stagger') {
       this.tiltVel += 2.6;
       this.wobbleVel += 3.0 * (Math.random() < 0.5 ? -1 : 1);
@@ -177,6 +209,10 @@ export class TrainingDummy {
     // knockback slide, then the base drifts back to its spot
     this.offsetVel.addScaledVector(this.offset, -18 * dt).multiplyScalar(Math.exp(-6 * dt));
     this.offset.addScaledVector(this.offsetVel, dt);
+    if (this.offset.length() > MAX_SLIDE) {
+      this.offset.setLength(MAX_SLIDE);                     // the base drags on the floor
+      this.offsetVel.multiplyScalar(0.3);
+    }
     this.root.position.copy(this.anchor).add(this.offset);
 
     const q = new THREE.Quaternion().setFromAxisAngle(this.tiltAxis, this.tilt);

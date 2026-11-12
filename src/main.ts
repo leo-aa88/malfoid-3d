@@ -7,6 +7,9 @@ import { CharacterController } from './character/CharacterController';
 import { TrainingDummy, DUMMY_RADIUS, Guard } from './combat/TrainingDummy';
 import { ComboSystem } from './combat/ComboSystem';
 import { CombatHud } from './ui/CombatHud';
+import { SpellSystem } from './combat/spells/SpellSystem';
+import { ConfringoFx } from './combat/spells/ConfringoFx';
+import { CONFRINGO } from './combat/spells/Confringo';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -46,7 +49,13 @@ async function start(): Promise<void> {
   const hud = new CombatHud(sm.camera, document.getElementById('hud')!);
   combat.onEvent = (e) => hud.handle(e);
 
+  // spells: cast from her right palm at any combat target (the dummy for now)
+  const spellFx = new ConfringoFx(sm.scene);
+  const spells = new SpellSystem(malfoid, malfoid.rightHand, () => combat.busy, spellFx, { targets: [dummy], groundY: 0 });
+  spells.onEvent = (e) => hud.handleSpell(e);
+
   const input = new CharacterController(malfoid, combat);
+  input.onSpell = () => spells.cast(CONFRINGO);
   const guards: Guard[] = ['none', 'high', 'low'];
   input.onDummyGuard = () => dummy.setGuard(guards[(guards.indexOf(dummy.guard) + 1) % guards.length]);
   input.onDummyReset = () => placeDummy(0, DUMMY_DISTANCE);
@@ -76,11 +85,14 @@ async function start(): Promise<void> {
       input.update();
       combat.update(dt);
       malfoid.update(dt);
+      spells.update(dt);                    // after the pose update: the palm is where it is drawn
       keepApart(malfoid.position, dummy);
       dummy.update(dt, malfoid.position);
       hud.update(dt);
     }
     hud.setDummy(dummy.hp, dummy.guard);
+    hud.setSpell(CONFRINGO.name, CONFRINGO.key, spells.cooldownLeft(CONFRINGO), CONFRINGO.cooldown);
+    spellFx.setView(sm.camera, sm.renderer.domElement.height);
     cam.update(malfoid.position);
     sm.followShadow(malfoid.position);
     sm.render();
@@ -98,7 +110,7 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  Object.assign(window, { malfoid, cam, combat, dummy });
+  Object.assign(window, { malfoid, cam, combat, dummy, spells, spellFx, renderer: sm.renderer, scene: sm.scene, input });
 }
 
 start().catch((err) => {

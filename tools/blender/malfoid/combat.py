@@ -36,6 +36,8 @@ CLIPS = {             # name: duration (s)
     'leg_sweep': 0.85,     # I>I and K>I
     'spin_kick': 0.95,     # K>K
     'rising_kick': 0.85,   # I>K
+    # spells (no wand yet: cast from the right palm)
+    'cast_confringo': 0.65,   # palm thrust; the projectile leaves at CAST_RELEASE
     # movement
     'jump': 0.95,
     'block': 0.22,    # held: plays once and stays in the last frame while the key is down
@@ -232,6 +234,32 @@ def spin_kick(sk, t):
     D['spine'] = E(pitch=-6.0 * ex)
     D['head'] = E(yaw=-14.0 * ex)
     spec['t'] = spec['t'] + Vector((0.0, 0.0, 0.02 * up))
+    return spec
+
+
+# --- spells -------------------------------------------------------------------
+
+CAST_RELEASE = 0.42     # s: palm fully thrust, the spell leaves the hand (viewer: CONFRINGO_RELEASE)
+
+
+def cast_confringo(sk, t):
+    """Confringo without a wand: turn towards the target, raise the right arm, hold the open
+    palm in front of the chest while the fire gathers, thrust it forward, settle back."""
+    g = env(t, 0.0, 0.10, 0.50, 0.65)                      # stance
+    up = env(t, 0.03, 0.16, 0.46, 0.63)                    # arm raised, palm in front
+    thrust = env(t, 0.32, CAST_RELEASE, 0.47, 0.60)        # palm pushed out
+    charge_w, charge_e = V(-0.100, 0.300, 1.250), V(-0.250, 0.090, 1.110)
+    out_w, out_e = V(-0.060, 0.500, 1.300), V(-0.210, 0.250, 1.250)
+    wrist = _vl(charge_w, out_w, thrust)
+    elbow = _vl(charge_e, out_e, thrust)
+    spec = base(sk, 0.45 * g, g, arms={'R': (wrist, elbow, up, 'world')}, curl=lerp(16.0, 4.0, up))
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.0, 0.30, 1.0)                    # fingers up: the palm faces forward
+    arm['hand_k'] = up
+    _twist(spec['D'], up, 16.0 + 18.0 * thrust, pitch=3.0)
+    spec['t'] = spec['t'] + Vector((0.0, -0.025 * thrust, -0.01 * up))
+    spec['leg_L']['foot'] = spec['leg_L']['foot'] @ qx(8.0 * thrust)
+    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(12.0 * thrust)     # rear heel lifts into it
     return spec
 
 

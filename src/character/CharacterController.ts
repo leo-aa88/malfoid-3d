@@ -23,6 +23,7 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
  * | J / U        | high / low punch           |
  * | K / I        | high / low kick            |
  * | O            | block (held)               |
+ * | L            | cast Confringo             |
  * | B            | dummy guard none/high/low  |
  * | N            | dummy in front of her      |
  * | Esc          | pause                      |
@@ -35,6 +36,8 @@ export class CharacterController {
   /** training dummy: cycle its guard / bring it in front of her */
   onDummyGuard: (() => void) | null = null;
   onDummyReset: (() => void) | null = null;
+  /** spell keys (L: Confringo); called once per key press, never for auto-repeat */
+  onSpell: ((spell: 'confringo') => void) | null = null;
 
   constructor(private readonly character: Malfoid, private readonly combat: ComboSystem) {
     window.addEventListener('keydown', (e) => {
@@ -45,11 +48,13 @@ export class CharacterController {
       }
       if (e.code === 'Space' || e.code === 'ControlLeft') e.preventDefault();   // no page scroll
       if (this.paused) return;
+      const wasDown = this.keys.has(e.code);
       this.keys.add(e.code);
-      if (e.repeat) return;
+      if (e.repeat || wasDown) return;          // edge only: holding a key never repeats an action
       const attack = ATTACK_KEYS[e.code];
       if (attack) this.combat.press(attack);
       else if (e.code === 'Space') this.character.trigger('jump');
+      else if (e.code === 'KeyL') this.onSpell?.('confringo');
       else if (e.code === 'KeyB') this.onDummyGuard?.();
       else if (e.code === 'KeyN') this.onDummyReset?.();
     });

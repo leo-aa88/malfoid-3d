@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { AnimationController, AnimationState, ActionState, HoldState, StrikeState } from './AnimationController';
 import { ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
+import { palmEmitter, SpellEmitter } from '../combat/spells/SpellEmitter';
 
 /** Seconds without movement before she gets annoyed. */
 export const IDLE_ANNOYED_TIMEOUT = 10;
@@ -61,7 +62,11 @@ export class Malfoid {
   // combat / movement moves
   private action: ActionState | null = null;   // jump in progress
   private hold: HoldState | null = null;       // crouch / block while the key is held
-  private strike: StrikeState | null = null;   // strike played by the combo system
+  private strike: StrikeState | null = null;   // strike played by the combo or spell system
+  /** set by the spell system from the start of a cast to its release: no melee meanwhile */
+  castLock = false;
+  /** where spells leave from: in front of the right palm (no wand yet) */
+  rightHand!: SpellEmitter;
   private strikeFacing: number | null = null;  // auto-facing target during a strike
 
   // face
@@ -97,6 +102,13 @@ export class Malfoid {
       m.action = null;
     };
     m.hair = new HairSway(gltf.scene);
+    // the bones are still in their rest pose here (nothing has been animated yet)
+    let hand: THREE.Bone | null = null;
+    gltf.scene.traverse((o) => {
+      if ((o as THREE.Bone).isBone && o.name === 'hand_R') hand = o as THREE.Bone;
+    });
+    if (!hand) throw new Error('model has no hand_R bone');
+    m.rightHand = palmEmitter(hand, 'R');
     return m;
   }
 
@@ -141,9 +153,14 @@ export class Malfoid {
     this.animation.restart(action);
   }
 
-  /** free to start a strike (not jumping, crouching or blocking) */
+  /** free to start a strike (not jumping, crouching, blocking or casting) */
   get canStrike(): boolean {
-    return !this.action && !this.hold;
+    return !this.action && !this.hold && !this.castLock;
+  }
+
+  /** clip of the strike or spell being played (null when none) */
+  get currentStrike(): StrikeState | null {
+    return this.strike;
   }
 
   // --- strikes: started, sped up / slowed and ended by the combo system
