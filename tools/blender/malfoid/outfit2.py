@@ -14,6 +14,7 @@ import bmesh
 import bpy
 from mathutils import Vector
 from mathutils.kdtree import KDTree
+from mathutils.bvhtree import BVHTree
 from .meshutil import MeshData, sstep, lerp
 
 FRONT = Vector((0, -1, 0))     # the base model faces -Y
@@ -577,6 +578,65 @@ def robe_yoke(info, rows=20, cols=84):
     return ob
 
 
+HOOD_TOP_Z = 1.272            # rim at the back of the neck (just above the robe's neckline)
+HOOD_SIDE_Z = 1.245           # rim at its ends, over the shoulder slope
+HOOD_TIP_Z = 1.000            # point of the hood, mid-back
+HOOD_HALF_W = 0.155           # half width at the rim
+HOOD_RIM = 0.020              # black border; inside it the green lining of the opening shows
+
+
+def robe_hood(info, rows=18, cols=25):
+    """The hood hanging down her back (blueprint back views): a pointed V from the neckline
+    to mid-back, black outside, standing a little off the robe so the green lining of its
+    opening shows inside a black border."""
+    robe = bpy.data.objects.get('RobeUpper')
+    if robe is None:
+        return None
+    M = robe.matrix_world
+    me = robe.data
+    bvh = BVHTree.FromPolygons([M @ v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+    grid, params = [], []
+    for i in range(rows):
+        t = i / (rows - 1)
+        half = HOOD_HALF_W * (1.0 - t) ** 0.85 + 0.004
+        row, prow = [], []
+        for j in range(cols):
+            u = -1.0 + 2.0 * j / (cols - 1)
+            x = u * half
+            z_top = lerp(HOOD_TOP_Z, HOOD_SIDE_Z, u * u)
+            z = lerp(z_top, HOOD_TIP_Z, t)
+            hit = bvh.ray_cast(Vector((x, 0.6, z)), Vector((0.0, -1.0, 0.0)), 1.0)
+            y = hit[0].y if hit[0] is not None else 0.13
+            # stands off the back most in the middle of its length, least at the rim and tip
+            gap = 0.006 + 0.020 * sin(pi * min(1.0, t * 1.15)) ** 0.8 * (1.0 - 0.5 * u * u)
+            row.append(Vector((x, y + gap, z)))
+            prow.append((t, u, half))
+        grid.append(row)
+        params.append(prow)
+    md = MeshData()
+    f0 = len(md.f)
+    _thick_grid(md, grid, 0.003, 'mf_robe', 'mf_robe_lining')
+    # outer faces: black border along the outline, the opening's green lining inside it
+    nc = cols - 1
+    for i in range(rows - 1):
+        for j in range(nc):
+            t = (params[i][j][0] + params[i + 1][j][0]) / 2
+            u = (params[i][j][1] + params[i][j + 1][1]) / 2
+            half = (params[i][j][2] + params[i + 1][j][2]) / 2
+            from_side = (1.0 - abs(u)) * half
+            from_top = (t * (HOOD_TOP_Z - HOOD_TIP_Z))
+            inside = from_side > HOOD_RIM and from_top > 0.012
+            md.fm[f0 + 2 * (i * nc + j)] = 'mf_robe_lining' if inside else 'mf_robe'
+
+    def wfn(p):
+        c = sstep(1.02, 1.20, p.z)
+        return {'chest': c, 'spine': 1.0 - c} if c < 1.0 else {'chest': 1.0}
+    ob = proc_object('RobeHood', md, info, wfn)
+    for p in ob.data.polygons:
+        p.use_freestyle_mark = False
+    return ob
+
+
 def _facing(ob):
     """green facing along the front opening and the sleeve ends"""
     me = ob.data
@@ -1094,6 +1154,7 @@ def build(head, parts, arm, mats):
     shoes(info)
     robe_upper(info, extra=0.006 if purchased else 0.0)     # torso, shoulders and sleeves
     robe_lower(info)
+    robe_hood(info)
     crest(info)
     trims(info, vest_trim=not purchased)
     hide_covered_body(info)
