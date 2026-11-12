@@ -8,9 +8,9 @@ from mathutils import Vector
 FLAT = ('mf_highlight', 'mf_sclera', 'mf_iris', 'mf_pupil', 'mf_lash', 'mf_brow', 'mf_lidline',
         'mf_teeth', 'mf_lipline')
 FLAT += ('Eye', 'Highlight', 'Alpha', 'Tear')
-SHADE_TINT = {'mf_skin': (0.86, 0.74, 0.76), 'mf_skin_body': (0.86, 0.74, 0.76), 'mf_hair': (0.84, 0.76, 0.70),
+SHADE_TINT = {'mf_hair_tex': (0.84, 0.76, 0.70), 'mf_skin': (0.86, 0.74, 0.76), 'mf_skin_body': (0.86, 0.74, 0.76), 'mf_hair': (0.84, 0.76, 0.70),
               'mf_hair_dark': (0.84, 0.76, 0.70), 'Body': (0.88, 0.78, 0.80), 'Body_All': (0.88, 0.78, 0.80)}
-BASE_MATS = ('Body', 'Body_All', 'Eye', 'Highlight', 'Alpha', 'Tear', 'Underwear')
+BASE_MATS = ('Body', 'Body_All', 'Eye', 'Highlight', 'Alpha', 'Tear', 'Underwear', 'mf_hair_tex', 'mf_tie_tex')
 
 
 def _toon_on():
@@ -140,7 +140,7 @@ def setup(scene, lines=True, samples=8):
         ls.select_crease = False
         ls.select_external_contour = True
         ls.select_material_boundary = False
-        ls.select_by_face_marks = True                 # hidden effect meshes draw no lines
+        ls.select_by_face_marks = True                 # hidden effect meshes / hair cards draw no lines
         ls.face_mark_negation = 'EXCLUSIVE'
         ls.face_mark_condition = 'ONE'
         ls.linestyle.color = (0.22, 0.13, 0.11)
@@ -203,6 +203,16 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
             shot(scene, os.path.join(out_dir, tag + 'full_q.png'), (0, 0, 0.78), 35, 1.75, 4, res=(res, res))
             shot(scene, os.path.join(out_dir, tag + 'full_side.png'), (0, 0, 0.78), 90, 1.75, res=(res, res))
             shot(scene, os.path.join(out_dir, tag + 'full_back.png'), (0, 0, 0.78), 180, 1.75, res=(res, res))
+        if 'validation' in v:
+            for nm, yaw, pitch in (('1_front', 0, 0), ('2_three_quarter_front', 35, 4), ('3_side', 90, 0),
+                                   ('4_three_quarter_back', 145, 4), ('5_back', 180, 0)):
+                shot(scene, os.path.join(out_dir, tag + nm + '.png'), (0, 0, 0.80), yaw, 1.70, pitch,
+                     res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + '6_head_front.png'), (0, -0.02, 1.40), 0, 0.42, 0, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + '7_head_three_quarter.png'), (0, -0.02, 1.40), 35, 0.42, 4,
+                 res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + '8_crest_uniform.png'), (0.03, -0.1, 1.13), 15, 0.36, 3,
+                 res=(res, res))
         if 'qback' in v:
             shot(scene, os.path.join(out_dir, tag + 'qback.png'), (0, 0, cz - 0.12), 140, span * 2.0, 5,
                  res=(res, res))

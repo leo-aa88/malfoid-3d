@@ -9,8 +9,9 @@ npm install
 npm run dev
 ```
 
-The viewer loads `public/models/malfoid.glb`. Rebuild it from the purchased base mesh
-(`base_character.blend` and `Gumroad_Anime_Female_BaseMesh/` in the repo root, Blender 4.5):
+The viewer loads `public/models/malfoid.glb`. Rebuild it from the purchased assets in the repo
+root (not in git): `base_character.blend`, `Gumroad_Anime_Female_BaseMesh/`, `Bell_Hair_01/` and
+`Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/` (Blender 4.5):
 
 ```bash
 npm run model
@@ -35,8 +36,8 @@ shifts her weight, crosses her arms and pouts. Camera input does not reset the t
 - `blender/build_head.py` – stages: 1 face (shape-key expression only, geometry untouched),
   2 hair + earrings, 3 humanoid skeleton (weights remapped from the Auto-Rig Pro rig),
   4 uniform, 5 animations; `--glb` exports.
-- `blender/malfoid/hair2.py` – designed hairstyle (scalp-fitted underlayer, centre part,
-  curtain bangs, face-framing strands, layered wavy back).
-- `blender/malfoid/outfit2.py` – shirt, sweater vest, tie, pleated skirt, socks, loafers,
-  robe with green lining and Slytherin crest.
+- `blender/malfoid/assets.py` – purchased Bell_Hair_01 hair (fitted to her head, recoloured
+  platinum, physics bones kept) and the purchased uniform (shirt, vest, tie, skirt, socks fitted to her body).
+- `blender/malfoid/outfit2.py` – loafers, robe with green lining and Slytherin crest (not in the packs).
+- See `docs/integration/REPORT.md` for the integration details and validation renders.
 - `blender/malfoid/anim2.py` – idle, walk, run, turn, idle_annoyed(_start) clips.

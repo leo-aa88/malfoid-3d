@@ -162,3 +162,7 @@ Gumroad_Anime_Female_BaseMesh/
 public/models/*.glb
 node_modules/
 dist/
+
+# purchased asset packs (not redistributed)
+Bell_Hair_01/
+Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/

@@ -313,12 +313,25 @@ def shoes(info):
     return proc_object('Shoes', md, info, wfn)
 
 
+def _garment_bvh(names):
+    from mathutils.bvhtree import BVHTree
+    verts, polys = [], []
+    for nm in names:
+        ob = bpy.data.objects.get(nm)
+        if ob is None:
+            continue
+        base = len(verts)
+        verts += [ob.matrix_world @ v.co for v in ob.data.vertices]
+        polys += [[base + k for k in p.vertices] for p in ob.data.polygons]
+    return BVHTree.FromPolygons(verts, polys) if polys else None
+
+
 def robe_open(z):
     """half-width of the robe's front opening at height z"""
     return lerp(0.040, 0.062, sstep(1.25, 0.95, z))
 
 
-def robe_upper(info):
+def robe_upper(info, extra=0.0):
     def keep(i):
         c = info.co[i]
         if c.z < 0.975 or (c.z > COLLAR_Z + 0.004 and abs(c.x) < 0.10) or abs(c.x) > 0.465 \
@@ -330,11 +343,50 @@ def robe_upper(info):
         if co.y < 0.01 and abs(co.x) < 0.12 and co.z < COLLAR_Z - 0.004:
             co.x = math.copysign(robe_open(co.z), co.x)
 
-    def off(i):
+    under = _garment_bvh(('Shirt', 'Vest', 'Tie'))
+
+    def base_off(i):
         c = info.co[i]
         ax = abs(c.x)
-        torso = 0.017 + 0.004 * sstep(1.22, 1.26, c.z) * (1 - sstep(0.15, 0.2, ax))
-        return torso + 0.030 * sstep(0.22, 0.465, ax) ** 1.6
+        torso = 0.017 + extra + 0.004 * sstep(1.22, 1.26, c.z) * (1 - sstep(0.15, 0.2, ax))
+        o = torso + 0.030 * sstep(0.22, 0.465, ax) ** 1.6
+        if under is not None:
+            # stay clear of the clothing underneath (outermost layer along the normal)
+            n = info.no[i]
+            start, far = c + n * 0.0005, None
+            for _ in range(6):
+                hit = under.ray_cast(start, n, 0.08)
+                if hit[0] is None:
+                    break
+                far = (hit[0] - c).dot(n)
+                start = hit[0] + n * 0.0003
+            if far is not None:
+                o = max(o, far + 0.005)
+        return o
+
+    # smooth the clearance over the body surface so the robe stays even
+    me = body().data
+    raw = {}
+    for v in me.vertices:
+        if keep(v.index):
+            raw[v.index] = base_off(v.index)
+    nbr = {}
+    for e in me.edges:
+        a, b = e.vertices
+        if a in raw and b in raw:
+            nbr.setdefault(a, []).append(b)
+            nbr.setdefault(b, []).append(a)
+    sm_off = dict(raw)
+    for _ in range(6):
+        nxt = {}
+        for i, o in sm_off.items():
+            ns = nbr.get(i)
+            avg = (o + sum(sm_off[j] for j in ns) / len(ns)) / 2 if ns else o
+            nxt[i] = max(avg, raw[i] - 0.002)      # never sink back into the clothing
+        sm_off = nxt
+
+    def off(i):
+        return sm_off.get(i, base_off(i))
     ob = extract('RobeUpper', info, keep, off, 0.0035, 'mf_robe', inner_mat='mf_robe_lining', snap=snap,
                  cut=lambda c: c.y < 0.01 and abs(c.x) < robe_open(c.z))
     _facing(ob)
@@ -364,8 +416,14 @@ def robe_lower(info):
         if rx is not None:
             env_max = (max(env_max[0], rx), min(env_max[1], yf), max(env_max[2], yb)) if env_max else (rx, yf, yb)
         rx, yf, yb = env_max
-        skirt_out = 0.006 + 0.045 * sstep(0.985, 0.74, z) + 0.022 * sstep(0.98, 0.86, z)
-        fl = max(0.020 + 0.080 * sstep(1.12, 0.22, z) ** 1.2, skirt_out + 0.010)
+        sk = _skirt_extent(z)
+        if sk is not None:
+            # make the ring enclose the skirt: grow the body envelope to the skirt + margin
+            rx, yf, yb = max(rx, sk[0] - 0.012), min(yf, sk[1] + 0.012), max(yb, sk[2] - 0.012)
+            skirt_out = 0.0
+        else:
+            skirt_out = 0.006 + 0.045 * sstep(0.985, 0.74, z) + 0.022 * sstep(0.98, 0.86, z)
+        fl = max(0.020 + 0.080 * sstep(1.12, 0.22, z) ** 1.2, skirt_out + 0.010, 0.024)
         def wob(a, z=z):
             return 0.035 * sstep(0.95, 0.5, z) * cos(7 * a + 0.6 * sin(3 * a) + 0.3)
         ring = ring_pts(z, rx, yf, yb, n, flare=fl, wobble=wob)
@@ -400,6 +458,26 @@ def robe_lower(info):
             w = {'hips': 0.5 * (1 - u), 'spine': 0.5, 'chest': 0.5 * u}
         return w
     return proc_object('RobeLower', md, info, wfn)
+
+
+_SKIRT_CO = None
+
+
+def _skirt_extent(z, band=0.012):
+    """(half width, front, back) of the fitted skirt around height z"""
+    global _SKIRT_CO
+    ob = bpy.data.objects.get('Skirt')
+    if ob is None:
+        return None
+    if _SKIRT_CO is None:
+        _SKIRT_CO = [v.co.copy() for v in ob.data.vertices]
+    zmin = min(c.z for c in _SKIRT_CO)
+    if z < zmin - 0.01:
+        z = zmin + 0.004            # below the hem: keep the hem's girth
+    pts = [c for c in _SKIRT_CO if abs(c.z - z) < band]
+    if not pts:
+        return None
+    return max(abs(c.x) for c in pts), min(c.y for c in pts), max(c.y for c in pts)
 
 
 def _resample(pts, m):
@@ -678,15 +756,16 @@ def _strip(md, bvh, line, w_in, w_out, lift, th, mat, mat_back=None):
             md.fm.append(mat)
 
 
-def trims(info):
-    # vest V-neck rib
-    md = MeshData()
-    bvh = _bvh('Vest')
-    for sg in (1.0, -1.0):
-        line = [(sg * max((z - V_BOTTOM) * 0.42, 0.0015), z) for z in
-                [V_BOTTOM - 0.004 + k * (1.262 - V_BOTTOM) / 24 for k in range(25)]]
-        _strip(md, bvh, line, 0.0, 0.012, 0.0012, 0.002, 'mf_sweater_trim')
-    proc_object('VestTrim', md, info)
+def trims(info, vest_trim=True):
+    if vest_trim:
+        # vest V-neck rib
+        md = MeshData()
+        bvh = _bvh('Vest')
+        for sg in (1.0, -1.0):
+            line = [(sg * max((z - V_BOTTOM) * 0.42, 0.0015), z) for z in
+                    [V_BOTTOM - 0.004 + k * (1.262 - V_BOTTOM) / 24 for k in range(25)]]
+            _strip(md, bvh, line, 0.0, 0.012, 0.0012, 0.002, 'mf_sweater_trim')
+        proc_object('VestTrim', md, info)
     # robe front facings (green), covering the cut edge of the opening
     md = MeshData()
     bvh = _bvh('RobeUpper')
@@ -780,21 +859,33 @@ def hide_covered_body(info):
     print('MF outfit: removed %d covered body faces' % len(dead))
 
 
+PURCHASED_UNIFORM = True
+
+
 def build(head, parts, arm, mats):
+    import os
     info = Info()
-    shirt(info)
-    vest(info)
-    socks(info)
+    purchased = PURCHASED_UNIFORM and os.environ.get('MF_UNIFORM', 'asset') == 'asset'
+    if purchased:
+        # shirt, vest, tie, skirt and socks: the purchased uniform, fitted to her body
+        from . import assets
+        assets.import_uniform(info, arm)
+    else:
+        shirt(info)
+        vest(info)
+        socks(info)
+        skirt(info)
+        collar(info)
+        tie(info)
+    # not in the pack: shoes, robe, crest
     shoes(info)
-    robe_upper(info)
+    robe_upper(info, extra=0.006 if purchased else 0.0)
     robe_lower(info)
-    skirt(info)
-    collar(info)
-    tie(info)
     crest(info)
-    trims(info)
+    trims(info, vest_trim=not purchased)
     hide_covered_body(info)
-    reweight_hair()
+    if bpy.data.objects.get('Hair') and not any(g.name.startswith('hair_') for g in bpy.data.objects['Hair'].vertex_groups):
+        reweight_hair()
 
 
 def reweight_hair():

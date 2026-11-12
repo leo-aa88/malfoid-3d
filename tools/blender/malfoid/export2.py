@@ -28,8 +28,8 @@ def bake_hair_colour():
     """multiply the hair's vertex colours by the hair base colour and feed the
     colour attribute straight into Base Color (what glTF can express)"""
     ob = bpy.data.objects.get('Hair')
-    if ob is None:
-        return
+    if ob is None or 'Col' not in ob.data.color_attributes or 'mf_hair' not in bpy.data.materials:
+        return                      # purchased hair: colour comes from its texture
     me = ob.data
     m = bpy.data.materials['mf_hair']
     base = m.node_tree.nodes['Principled BSDF']

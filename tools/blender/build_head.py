@@ -56,8 +56,13 @@ def main():
     if stage >= 2:
         from malfoid import hair, hair2, earrings
         earrings.build(head, parts, m)
-        variant = os.environ.get('MF_HAIR', 'C')
-        if variant == 'old':
+        variant = os.environ.get('MF_HAIR', 'asset')
+        if variant == 'asset':
+            from malfoid import assets
+            hob = assets.import_hair(head, parts)     # purchased Bell_Hair_01
+            for poly in hob.data.polygons:            # alpha cards: no preview line art
+                poly.use_freestyle_mark = True
+        elif variant == 'old':
             hair.build(head, parts, m)
         else:
             hair2.build(head, parts, m, variant)
@@ -73,7 +78,8 @@ def main():
                 if stage >= 4:            # covered by the uniform from here on
                     skinned.remove(ob)
                     bpy.data.objects.remove(ob, do_unlink=True)
-        arm = rig2.convert(skinned)
+        from malfoid import assets
+        arm = rig2.convert(skinned, assets.HAIR_BONES)
         print('MF rig: %d bones, skinned %s' % (len(arm.data.bones), [o.name for o in skinned if o.name in bpy.data.objects]))
     if stage >= 4:
         from malfoid import outfit2

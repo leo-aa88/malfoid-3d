@@ -134,10 +134,10 @@ def bind(ob, arm):
     mod.object = arm
 
 
-def convert(objects):
+def convert(objects, extra_bones=()):
     """Create the new skeleton, move every skinned object onto it and remove
     the ARP rig and its widgets."""
-    arm = create()
+    arm = create(extra_bones)
     gmap = group_map()
     for ob in objects:
         remap_weights(ob, gmap)

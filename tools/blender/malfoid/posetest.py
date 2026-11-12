@@ -18,6 +18,11 @@ def apply(arm, name):
         _world_rot(arm, 'upperarm_R', (0, 1, 0), -72)
         _world_rot(arm, 'forearm_L', (1, 0, 0), -15)
         _world_rot(arm, 'forearm_R', (1, 0, 0), -15)
+    if name == 'arms_up':
+        _world_rot(arm, 'upperarm_L', (0, 1, 0), -35)
+        _world_rot(arm, 'upperarm_R', (0, 1, 0), 35)
+        _world_rot(arm, 'forearm_L', (0, 0, 1), -30)
+        _world_rot(arm, 'forearm_R', (0, 0, 1), 30)
     if name == 'walk':
         _world_rot(arm, 'thigh_L', (1, 0, 0), -35)
         _world_rot(arm, 'shin_L', (1, 0, 0), 40)
