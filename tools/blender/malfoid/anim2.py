@@ -221,6 +221,14 @@ def solve(sk, spec):
             arm['_fore'] = q_between(d, h_r, wr - el, hinge)
         elif base == 'forearm' and arm:
             Q[b] = arm['_fore'] @ D.get(b, IDENT)
+        elif base == 'hand' and arm and arm.get('hand_dir') is not None:
+            hd = arm['hand_dir']
+            if arm.get('space') == 'chest':
+                hd = Q['chest'] @ hd
+            rest = sk.R[b] @ Vector((0, 1, 0))
+            cur = (Q[p] @ rest).normalized()
+            q = cur.rotation_difference(hd.normalized())
+            Q[b] = IDENT.slerp(q, arm.get('hand_k', 1.0)) @ Q[p]
         elif base.startswith(FINGERS) and b not in D:
             # relaxed curl (fist when spec['curl'] is large); T-pose fingers point
             # along X with the palm down, so flexion is about the forward axis
@@ -410,11 +418,13 @@ def turn_pose(t):
 # --- annoyed idle ----------------------------------------------------------
 # arm targets in chest space (rest coordinates)
 _CROSS = {
-    # forearms folded across the body under the bust, her left arm over the
-    # right; each hand rests on the opposite upper arm / elbow
-    # elbows forward and in, under the bust; forearms run across the body
-    'L': {'wrist': V(-0.075, 0.152, 1.088), 'elbow': V(0.100, 0.092, 1.070)},
-    'R': {'wrist': V(0.072, 0.122, 1.062), 'elbow': V(-0.100, 0.076, 1.052)},
+    # forearms stacked across the body, left over right; each hand is bent
+    # back around the opposite upper arm so the fingers tuck in towards the
+    # body (hand_dir: where the fingers point, character space)
+    'L': {'wrist': V(-0.085, 0.160, 1.098), 'elbow': V(0.095, 0.105, 1.080),
+          'hand_dir': V(-0.30, -0.90, -0.30)},
+    'R': {'wrist': V(0.085, 0.110, 1.058), 'elbow': V(-0.095, 0.085, 1.050),
+          'hand_dir': V(0.30, -0.90, -0.25)},
 }
 
 
@@ -438,7 +448,7 @@ def annoyed_pose(sk, k_body, k_l, k_r, t_loop=None):
     spec = idle_pose(0.0 if t_loop is None else t_loop)
     D = spec['D']
     kb = k_body
-    spec['curl'] = lerp(16.0, 48.0, min(k_l, k_r))
+    spec['curl'] = lerp(16.0, 55.0, min(k_l, k_r))
     tl = 0.0 if t_loop is None else t_loop
     b = sin(2 * pi * tl / 3.0)                       # annoyed breathing, a little quicker
     # impatient toe tapping (left foot): two bursts in the loop
@@ -484,8 +494,13 @@ def annoyed_pose(sk, k_body, k_l, k_r, t_loop=None):
         e = a['elbow'] * (1 - ke) ** 2 + mid_e * (2 * ke * (1 - ke)) + c['elbow'] * ke ** 2
         if t_loop is not None:
             w = w + V(0, 0.003 * b, 0.002 * b)
-        spec['arm_' + side] = {'wrist': w, 'elbow': e, 'space': 'chest'}
-        D['hand_' + side] = qx(-4.0 * (1 - ke)) @ qz(sgn * 14.0 * ke) @ qx(8.0 * ke)
+        spec['arm_' + side] = {'wrist': w, 'elbow': e, 'space': 'chest', 'hand_dir': c['hand_dir'], 'hand_k': ke}
+        # hands wrap around the opposite arm: bent back towards the body at the
+        # wrist and turned palm-in (the left one rests on top of the right arm)
+        import os
+        yaw = float(os.environ.get('MF_HAND_YAW', '58'))
+        roll = float(os.environ.get('MF_HAND_ROLL', '35'))
+        D['hand_' + side] = qx(-4.0 * (1 - ke)) @ qz(sgn * yaw * ke) @ qx(sgn * roll * ke)
         D.pop('upperarm_' + side, None)
         D.pop('forearm_' + side, None)
     if t_loop is not None:

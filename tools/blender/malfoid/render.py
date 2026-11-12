@@ -213,6 +213,14 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
                  res=(res, res))
             shot(scene, os.path.join(out_dir, tag + '8_crest_uniform.png'), (0.03, -0.1, 1.13), 15, 0.36, 3,
                  res=(res, res))
+        if 'waist' in v:
+            shot(scene, os.path.join(out_dir, tag + 'waist_front.png'), (0, -0.05, 0.99), 0, 0.26, 5, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'waist_q.png'), (0, -0.05, 0.99), 30, 0.26, 8, res=(res, res))
+        if 'shoulder' in v:
+            shot(scene, os.path.join(out_dir, tag + 'shoulder_back.png'), (0.12, 0.03, 1.20), 150, 0.30, 15, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'shoulder_side.png'), (0.12, 0.03, 1.20), 100, 0.30, 10, res=(res, res))
+        if 'cuff' in v:
+            shot(scene, os.path.join(out_dir, tag + 'cuff.png'), (0.20, -0.02, 0.86), 25, 0.22, 0, res=(res, res))
         if 'neck' in v:
             shot(scene, os.path.join(out_dir, tag + 'neck_front.png'), (0, -0.04, 1.26), 0, 0.22, 8, res=(res, res))
             shot(scene, os.path.join(out_dir, tag + 'neck_q.png'), (0, -0.04, 1.26), 40, 0.22, 10, res=(res, res))

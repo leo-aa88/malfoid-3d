@@ -153,6 +153,11 @@ def extract(name, info, keep, offset, thick, mat, inner_mat=None, smooth=0, post
     for f in bm.faces:
         f.material_index = 0
         f.smooth = True
+    fl = bm.faces.layers.int.get('facing')
+    if inner_mat and fl is not None:
+        for f in bm.faces:
+            if f[fl]:
+                f.material_index = 1        # facing band: lining colour on the outside too
     if inner_mat:
         for f in bm.faces:
             c = f.calc_center_median()
@@ -326,48 +331,79 @@ def _garment_bvh(names):
     return BVHTree.FromPolygons(verts, polys) if polys else None
 
 
+# lapel line (half-width of the front opening): two straight segments, the
+# robe is cut along exactly these with bisect planes
+LAPEL = [(0.950, 0.062), (1.100, 0.050), (1.290, 0.110)]
+NECK_FRONT_Z, NECK_BACK_Z = 1.262, 1.282
+
+
 def robe_open(z):
-    """half-width of the robe's front opening at height z: straight below the
-    chest, opening into a V-shaped lapel towards the shoulders so the robe
-    sits below the shirt collar instead of bunching against the neck"""
-    return lerp(0.040, 0.062, sstep(1.25, 0.95, z)) + 0.058 * sstep(1.10, 1.285, z) ** 1.3
+    """half-width of the robe's front opening at height z"""
+    (z0, x0), (z1, x1), (z2, x2) = LAPEL
+    if z <= z0:
+        return x0
+    if z <= z1:
+        return lerp(x0, x1, (z - z0) / (z1 - z0))
+    return lerp(x1, x2, min((z - z1) / (z2 - z1), 1.2))
+
+
+FACING_W = 0.018
+
+
+def _lapel_cut(bm):
+    """cut the front opening with exact planes (clean straight edges) and
+    remove the faces inside it; a second, parallel cut marks the green facing
+    band along the edge (flagged in the 'facing' face layer)"""
+    for sg in (1.0, -1.0):
+        for (za, xa), (zb, xb) in zip(LAPEL, LAPEL[1:]):
+            d = Vector((sg * (xb - xa), 0.0, zb - za)).normalized()
+            n = Vector((d.z, 0.0, -d.x)).normalized()
+            for off in (0.0, FACING_W):
+                geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+                bmesh.ops.bisect_plane(bm, geom=geom, plane_co=Vector((sg * (xa + off), 0.0, za)), plane_no=n)
+    # neckline: one tilted plane, lower at the front, higher at the back
+    a, b = Vector((0.0, -0.05, NECK_FRONT_Z)), Vector((0.0, 0.06, NECK_BACK_Z))
+    d = (b - a).normalized()
+    nn = Vector((0.0, -d.z, d.y)).normalized()
+    geom = list(bm.verts) + list(bm.edges) + list(bm.faces)
+    bmesh.ops.bisect_plane(bm, geom=geom, plane_co=a, plane_no=nn)
+    dead = []
+    fl = bm.faces.layers.int.get('facing') or bm.faces.layers.int.new('facing')
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if c.y < 0.0 and c.z > 0.94 and abs(c.x) < robe_open(c.z) - 1e-5:
+            dead.append(f)
+        elif abs(c.x) < 0.115 and (c - a).dot(nn) > 0:
+            dead.append(f)
+        elif c.y < 0.0 and c.z > 0.94 and abs(c.x) < robe_open(c.z) + FACING_W:
+            f[fl] = 1
+    bmesh.ops.delete(bm, geom=dead, context='FACES')
+    loose = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose, context='VERTS')
 
 
 SLEEVE_X = 0.125          # below the shoulders the sleeves start here; the yoke covers the torso
-SHOULDER_X = 0.090        # over the shoulder tops the piece reaches in to here
+SHOULDER_X = 0.125        # over the shoulder tops the piece reaches in to here
 SHOULDER_Z = 1.212
 
 
 def _sleeve_x(c):
-    if c.z > SHOULDER_Z and c.y > -0.035:
-        return SHOULDER_X
-    return SLEEVE_X
+    """inner edge of the sleeve piece: over the shoulder tops it reaches in to
+    SHOULDER_X, blending smoothly to SLEEVE_X below the shoulder"""
+    k = sstep(SHOULDER_Z - 0.035, SHOULDER_Z + 0.015, c.z) * sstep(-0.075, -0.030, c.y)
+    return lerp(SLEEVE_X, SHOULDER_X, k)
 
 
 def robe_upper(info, extra=0.0):
     def keep(i):
         c = info.co[i]
         if c.z < 0.975 or (c.z > COLLAR_Z + 0.004 and abs(c.x) < 0.10) or abs(c.x) > 0.465 \
-                or info.is_(i, HANDS + ('head', 'neck')) or abs(c.x) < _sleeve_x(c):
+                or info.is_(i, HANDS + ('head', 'neck')):
             return False
         return True
 
     def snap(co):
-        ax = abs(co.x)
-        if co.z > SHOULDER_Z - 0.01 and abs(ax - SHOULDER_X) < 0.012:
-            co.x = math.copysign(SHOULDER_X, co.x)          # straight edge over the shoulder
-            return
-        if co.z > SHOULDER_Z - 0.01 and co.y > -0.05 and abs(co.y + 0.035) < 0.012 and ax < SLEEVE_X:
-            co.y = -0.035
-            return
-        if co.z < SHOULDER_Z + 0.01 and abs(ax - SLEEVE_X) < 0.012:
-            co.x = math.copysign(SLEEVE_X, co.x)
-            return
-        # only straighten edges that already lie close to the intended line;
-        # never drag far-away vertices (that stretches faces across the chest)
-        if co.y < 0.01 and abs(abs(co.x) - robe_open(co.z)) < 0.012 and co.z < COLLAR_Z - 0.004:
-            co.x = math.copysign(robe_open(co.z), co.x)
-        elif co.y > -0.03 and co.z > 1.225 and abs(co.x) < 0.14:
+        if co.y > -0.03 and co.z > 1.225 and abs(co.x) < 0.14:
             tz = 1.262 + 0.012 * sstep(-0.01, 0.05, co.y)
             if abs(co.z - tz) < 0.015:
                 co.z = tz       # smooth neckline round the back of the neck
@@ -416,8 +452,26 @@ def robe_upper(info, extra=0.0):
 
     def off(i):
         return sm_off.get(i, base_off(i))
-    ob = extract('RobeSleeves', info, keep, off, 0.0035, 'mf_robe', inner_mat='mf_robe_lining', snap=snap,
-                 cut=lambda c: c.y < 0.01 and abs(c.x) < robe_open(c.z))
+    ob = extract('RobeUpper', info, keep, off, 0.0035, 'mf_robe', inner_mat='mf_robe_lining', snap=snap,
+                 post=_lapel_cut)
+    # sleeves follow the forearm, never the hand (hand weights at the cuff
+    # dragged the lining into shards when the wrist bent)
+    for side in ('L', 'R'):
+        fg = ob.vertex_groups.get('forearm_' + side)
+        hands = [g for g in ob.vertex_groups if g.name.endswith('_' + side) and
+                 g.name.startswith(('hand', 'thumb', 'index', 'middle', 'ring', 'pinky'))]
+        if not hands:
+            continue
+        if fg is None:
+            fg = ob.vertex_groups.new(name='forearm_' + side)
+        hidx = {g.index for g in hands}
+        for v in ob.data.vertices:
+            extra = sum(g.weight for g in v.groups if g.group in hidx)
+            if extra > 0:
+                cur = next((g.weight for g in v.groups if g.group == fg.index), 0.0)
+                fg.add([v.index], min(1.0, cur + extra), 'REPLACE')
+        for g in hands:
+            ob.vertex_groups.remove(g)
     # green only inside the sleeve openings; the shoulder piece is black throughout
     for p in ob.data.polygons:
         ax = abs(p.center.x)
@@ -479,10 +533,13 @@ def robe_yoke(info, rows=20, cols=84):
         for j in range(cols):
             u = j / (cols - 1)
             back = 0.5 - 0.5 * math.cos(2 * math.pi * u)
-            z = lerp(z0, lerp(z_top_front, z_top_back, back), t)
             if to is None:
-                to = theta_open(z)
-            row.append(outer(z, to + u * (2 * math.pi - 2 * to)))
+                to = theta_open(lerp(z0, z_top_front, t))
+            th = to + u * (2 * math.pi - 2 * to)
+            # at the sides the top rows climb over the shoulders to the neck
+            side = math.sin(th) ** 2
+            z = lerp(z0, lerp(z_top_front, z_top_back, back) + 0.030 * side, t)
+            row.append(outer(z, th))
         grid.append(row)
     for _ in range(3):
         new = [r[:] for r in grid]
@@ -867,7 +924,9 @@ def _strip(md, bvh, line, w_in, w_out, lift, th, mat, mat_back=None):
         sg = 1.0 if x >= 0 else -1.0
         row = []
         for u in (x - sg * w_in, x, x + sg * w_out):
-            hit = bvh.ray_cast(Vector((u, -1, z)), Vector((0, 1, 0)))
+            # sample the surface just inside the garment (never through the opening)
+            us = u if sg * (u - x) > 0.0015 else x + sg * 0.0015
+            hit = bvh.ray_cast(Vector((us, -1, z)), Vector((0, 1, 0)))
             if hit[0] is None or hit[0].y > -0.03:          # went through the opening to the back
                 hit = bvh.ray_cast(Vector((x + sg * w_out, -1, z)), Vector((0, 1, 0)))
             if hit[0] is not None and hit[0].y < -0.03:
@@ -898,8 +957,7 @@ def trims(info, vest_trim=True):
                     [V_BOTTOM - 0.004 + k * (1.262 - V_BOTTOM) / 24 for k in range(25)]]
             _strip(md, bvh, line, 0.0, 0.012, 0.0012, 0.002, 'mf_sweater_trim')
         proc_object('VestTrim', md, info)
-    # (the robe's green facings are the first/last columns of the yoke and the
-    #  lower robe, so no separate strips are needed)
+    # (the green facing is a band cut into the robe itself, see _lapel_cut)
 
 
 def hood(info):
@@ -1005,14 +1063,43 @@ def build(head, parts, arm, mats):
         tie(info)
     # not in the pack: shoes, robe, crest
     shoes(info)
-    robe_yoke(info)
-    robe_upper(info, extra=0.006 if purchased else 0.0)     # sleeves (RobeSleeves)
+    robe_upper(info, extra=0.006 if purchased else 0.0)     # torso, shoulders and sleeves
     robe_lower(info)
     crest(info)
     trims(info, vest_trim=not purchased)
     hide_covered_body(info)
+    no_hand_weights()
     if bpy.data.objects.get('Hair') and not any(g.name.startswith('hair_') for g in bpy.data.objects['Hair'].vertex_groups):
         reweight_hair()
+
+
+HAND_PREFIX = ('hand', 'thumb', 'index', 'middle', 'ring', 'pinky')
+
+
+def no_hand_weights():
+    """Garments never follow the hand or finger bones: those weights move to
+    the forearm, so cuffs and sleeve linings cannot be dragged over the hand
+    when the wrist bends."""
+    for ob in bpy.data.objects:
+        if ob.type != 'MESH' or ob.name in ('Body', 'Body_All', 'Hair', 'Earrings') or not ob.vertex_groups:
+            continue
+        moved = 0
+        for side in ('L', 'R'):
+            hands = [g for g in ob.vertex_groups if g.name.endswith('_' + side) and g.name.startswith(HAND_PREFIX)]
+            if not hands:
+                continue
+            fg = ob.vertex_groups.get('forearm_' + side) or ob.vertex_groups.new(name='forearm_' + side)
+            hidx = {g.index for g in hands}
+            for v in ob.data.vertices:
+                extra = sum(g.weight for g in v.groups if g.group in hidx)
+                if extra > 0:
+                    cur = next((g.weight for g in v.groups if g.group == fg.index), 0.0)
+                    fg.add([v.index], min(1.0, cur + extra), 'REPLACE')
+                    moved += 1
+            for g in hands:
+                ob.vertex_groups.remove(g)
+        if moved:
+            print('MF outfit: %s: %d verts moved from hand to forearm weights' % (ob.name, moved))
 
 
 def reweight_hair():

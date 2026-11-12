@@ -403,7 +403,7 @@ OBJECT_OF = {
 }
 # minimum distance outside the body skin after fitting (metres)
 CLEAR = {'shirt': 0.0030, 'sleeve': 0.0035, 'collar': 0.0030, 'button': 0.0045, 'placket': 0.0040,
-         'vest': 0.0075, 'vest_rib': 0.0085, 'tie': 0.0060, 'skirt': 0.0050, 'skirt_band': 0.0050,
+         'vest': 0.0078, 'vest_rib': 0.0070, 'tie': 0.0060, 'skirt': 0.0050, 'skirt_band': 0.0050,
          'socks': 0.0018}
 
 
@@ -415,6 +415,8 @@ def classify_part(mn, mx, n):
         return 'button'
     if mx.z < 90 and c in ('torso', 'button', 'placket'):
         return 'skirt'                       # small pieces along the skirt hem
+    if c == 'collar' and (mx.x - mn.x) < 5.0 and mn.y < -4.5:
+        return 'tie'                         # the tie knot (short pieces at the collar)
     if c == 'torso':
         return 'shirt' if mn.z < 100 else 'vest'
     if c == 'band':
@@ -790,9 +792,12 @@ def import_uniform(info, arm):
     objs = {}
     for obname in sorted(set(OBJECT_OF.values())):
         keep_cls = [c for c, o in OBJECT_OF.items() if o == obname]
-        vsel = np.where(np.isin(cls, keep_cls))[0]
+        sel = np.isin(cls, keep_cls)
+        if obname == 'Tie':
+            sel &= pos[:, 2] > 1.072        # the tail below the vest neckline is never visible
+        vsel = np.where(sel)[0]
         remap = {int(v): i for i, v in enumerate(vsel)}
-        polys = [p for p in me_src.polygons if p.vertices[0] in remap]
+        polys = [p for p in me_src.polygons if all(v in remap for v in p.vertices)]
         me = bpy.data.meshes.new(obname)
         me.from_pydata([tuple(pos[v]) for v in vsel], [], [[remap[v] for v in p.vertices] for p in polys])
         uv = me.uv_layers.new(name='UVMap')
@@ -820,7 +825,7 @@ def import_uniform(info, arm):
             if c in ('skirt', 'skirt_band'):
                 # each part of the skirt follows the leg it covers, more towards
                 # the hem; the waistband stays on the hips
-                share = 0.78 * sstep(0.965, 0.80, p[2])
+                share = 0.70 * sstep(0.905, 0.76, p[2])
                 wl = math.exp(-((p[0] - 0.076) / 0.075) ** 2)
                 wr = math.exp(-((p[0] + 0.076) / 0.075) ** 2)
                 tot_lr = wl + wr + 1e-6

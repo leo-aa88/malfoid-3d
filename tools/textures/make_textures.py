@@ -90,6 +90,22 @@ def remove_blush(img):
         reg[..., :3] = reg[..., :3] * (1 - a) + fill * a
 
 
+SCALP_RGB = np.array([237, 193, 185], np.float32)   # flat scalp colour of the base texture
+HAIR_RGB = np.array([214, 191, 163], np.float32)    # root tone of her hair
+EAR_UV_X = 3480                                     # the ear islands sit right of this (not under hair)
+
+
+def paint_scalp(img):
+    """The scalp is painted one flat pink in the base texture; gaps between
+    the hair cards would show it. Recolour it to her hair's root tone (ears
+    excluded)."""
+    d = np.abs(img[..., :3] - SCALP_RGB).max(-1)
+    m = (d <= 6) & (img[..., 3] > 0)
+    m[:, EAR_UV_X:] = False
+    img[m, :3] = HAIR_RGB
+    print('scalp recoloured: %d px' % m.sum())
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     pre = os.path.join(ASSET, 'Preset')
@@ -113,6 +129,7 @@ def main():
     sel = (reg[..., 3:4] > 0) & (lum[..., None] < 0.92)
     reg[..., :3] = np.where(sel, col, reg[..., :3])
     remove_blush(head)
+    paint_scalp(head)
     Image.fromarray(np.clip(head, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, 'Malfoid_Head_BaseColor.png'))
     body = load(os.path.join(ASSET, 'PNG', 'Body_All_BaseColor.png'))
     body = over(body, load(os.path.join(pre, 'Body_Texture_Presets', 'BodyAll_BaseColor2_NeutralFair.png')))
