@@ -60,9 +60,12 @@ def main():
         from malfoid import face
         face.apply(head, parts, fparts)
     if stage >= 2:
-        from malfoid import hair, hair2, earrings
+        from malfoid import earrings
         earrings.build(head, parts, m)
         variant = os.environ.get('MF_HAIR', 'asset')
+        if variant != 'asset':
+            # the earlier procedural hair is kept locally only (not in git)
+            from malfoid import hair, hair2
         if variant == 'asset':
             from malfoid import assets
             hob = assets.import_hair(head, parts)     # purchased Bell_Hair_01

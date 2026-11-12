@@ -159,10 +159,20 @@ base_character.blend
 *.Zone.Identifier
 *:Zone.Identifier
 Gumroad_Anime_Female_BaseMesh/
-public/models/*.glb
 node_modules/
 dist/
 
 # purchased asset packs (not redistributed)
 Bell_Hair_01/
 Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/
+
+# rejected iteration renders and superseded procedural hair (kept locally, not tracked)
+docs/head_validation/
+tools/blender/malfoid/hair.py
+tools/blender/malfoid/hair2.py
+
+# local reference art and sounds (not committed)
+/blueprint.png
+/facial_atlas.png
+/facial_atlas2.png
+public/sfx/

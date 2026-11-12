@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "model": "python3 tools/textures/make_textures.py && ~/.local/opt/blender-4.5.16-linux-x64/blender -b base_character.blend -P tools/blender/build_head.py -- --stage 5 --save build/malfoid.blend --glb public/models/malfoid.glb"
+    "model": "make model"
   },
   "dependencies": {
     "three": "0.170.0"
