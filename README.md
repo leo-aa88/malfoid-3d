@@ -107,7 +107,8 @@ Blender runs with 4 threads (`-t 4`).
 - `blender/malfoid/face.py` – resting expression (shape-key values) and the added face shape keys.
 - `blender/malfoid/bust.py`, `hands.py`, `legs.py` – smaller bust, 10% smaller hands, 10% thinner
   legs.
-- `blender/malfoid/assets.py` – the purchased hair (fitted to her head, recoloured platinum, strand
+- `blender/malfoid/assets.py` – the purchased hair (fitted to her head, crown flattened onto the
+  skull and the sides slimmed towards the face to match the atlas, recoloured platinum, strand
   bones kept) and uniform (shirt, vest, tie, skirt, socks fitted to her body).
 - `blender/malfoid/outfit2.py` – robe (black outside, green lining), loafers and crest.
 - `blender/malfoid/rig2.py` – standard humanoid skeleton with the base mesh's weights remapped,

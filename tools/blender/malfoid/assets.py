@@ -258,6 +258,9 @@ def import_hair(head, parts):
     for o in (hair_ob, arm):
         bpy.data.objects.remove(o, do_unlink=True)
     shrinkwrap_cap(me, skull, centre)
+    flatten_crown(me, skull, centre)
+    slim_hair(me)
+    HAIR_BONES[:] = [(n, slim_point(h), slim_point(t), par) for n, h, t, par in HAIR_BONES]
     _hair_clearance(ob, skull, centre)
     if parts is not None:
         hm = head.data
@@ -269,6 +272,65 @@ def import_hair(head, parts):
         _hair_clearance(ob, skull, centre)
     print('MF hair: %d verts, %d faces, %d secondary bones' % (len(me.vertices), len(me.polygons), len(HAIR_BONES)))
     return ob
+
+
+# the pack's hair stands far out at the sides (eye level 14.9 cm from the centre line,
+# 17.5-18 cm from the jaw down: nearly as wide as her shoulders). The atlas has it falling
+# close to the face: hair beyond SLIM_X keeps only SLIM_K of its excess width.
+SLIM_X = 0.088          # m from the centre line (just outside the head and ears)
+SLIM_K = 0.5
+
+
+def slim_point(p):
+    """hair point pulled in towards the centre line (sides only; the crown and the part
+    are left alone, the long hair below the chest eases back towards its own fullness)"""
+    ax = abs(p.x)
+    if ax <= SLIM_X:
+        return p.copy()
+    w = 1.0 - sstep(1.42, 1.47, p.z)                         # nothing above the brow line
+    k = 1.0 - (1.0 - SLIM_K) * w
+    k = k + (1.0 - k) * 0.3 * sstep(1.20, 1.00, p.z)        # fuller again at the ends
+    x = SLIM_X + (ax - SLIM_X) * k
+    return Vector((x if p.x > 0 else -x, p.y, p.z))
+
+
+def flatten_crown(me, skull, centre, gap=0.004, keep=0.5):
+    """The atlas has the hair lying flat on top of the head. shrinkwrap_cap pulls the
+    innermost layer onto the skull but keeps the layers stacked on it, so the crown stood
+    high and the straight-cut card ends stuck up along it. Above the brow line the stack
+    is halved (radially, towards the skull)."""
+    n, worst = 0, 0.0
+    for v in me.vertices:
+        p = v.co
+        w = sstep(1.44, 1.50, p.z)
+        if w <= 0:
+            continue
+        d = p - centre
+        if d.length < 1e-6:
+            continue
+        dn = d.normalized()
+        hit = skull.ray_cast(centre + dn * 0.4, -dn)
+        if hit[0] is None:
+            continue
+        rs = (hit[0] - centre).length
+        excess = d.length - rs - gap
+        if excess <= 0:
+            continue
+        cut = excess * (1.0 - keep) * w
+        v.co = p - dn * cut
+        n += 1
+        worst = max(worst, cut)
+    print('MF hair: %d crown verts flattened towards the skull (max %.1f mm)' % (n, worst * 1000))
+
+
+def slim_hair(me):
+    n = 0
+    for v in me.vertices:
+        q = slim_point(v.co)
+        if q.x != v.co.x:
+            v.co = q
+            n += 1
+    print('MF hair: %d verts slimmed towards the face' % n)
 
 
 def _hair_clearance(ob, skull, centre, margin=0.0015, radius=0.025):
