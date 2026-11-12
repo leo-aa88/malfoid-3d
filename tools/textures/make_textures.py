@@ -129,10 +129,18 @@ def black_lashes(img):
         h, w = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
         if comp.sum() > 5000 and comp.sum() / float(h * w) < 0.15:
             crease[sl] |= comp
-    lash = sel & ~crease
+    # the small stroke above the inner eye (between brow and lid) is not in the
+    # atlas and reads as a third brow: make it fully transparent
+    sx0, sy0, sx1, sy1 = 2580 - x0, 2998 - y0, 3095 - x0, 3232 - y0
+    stroke = np.zeros_like(sel)
+    stroke[sy0:sy1, sx0:sx1] = reg[sy0:sy1, sx0:sx1, 3] > 0
+    stroke &= ~crease
+    reg[stroke, 3] = 0
+    lash = sel & ~crease & ~stroke
     reg[lash, :3] = LASH_INK + (reg[lash, :3] - LASH_INK) * 0.18
     reg[crease, :3] = CREASE_RGB
-    print('lashes recoloured: %d px, crease softened: %d px' % (lash.sum(), crease.sum()))
+    print('lashes recoloured: %d px, crease softened: %d px, inner-lid stroke removed: %d px'
+          % (lash.sum(), crease.sum(), stroke.sum()))
 
 
 NOSE_BOX = (2440, 3260, 2580, 3590)       # pink nose-tip card in the head texture
