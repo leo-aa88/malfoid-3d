@@ -77,8 +77,7 @@ and goes back up the sleeve as soon as she punches or kicks.
 She turns towards the dummy if it is within 60°, raises the wand while fire gathers at its tip,
 and thrusts it at the target. At 0.42 s a fiery bolt leaves the tip, flies at 18 m/s with a
 flame trail and sparks, and explodes on the first thing it touches: a target, a solid, or the
-ground. If it
-touches nothing, it fizzles out at 25 m.
+ground. If it touches nothing, it fizzles out at 25 m.
 
 - **Damage:** a direct hit does 20 damage and a strong knockback. Anyone else within 2.5 m of
   the blast takes splash damage, up to 10 and less with distance, with a weaker knockback away
