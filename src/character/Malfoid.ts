@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AnimationController, AnimationState } from './AnimationController';
+import { AnimationController, AnimationState, ActionState, HoldState } from './AnimationController';
 import { ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 
@@ -55,6 +55,11 @@ export class Malfoid {
   private speed = 0;
   private facing = 0;
   private idleSince = performance.now();
+  private pausedAt = 0;
+
+  // combat / movement moves
+  private action: ActionState | null = null;   // one-shot move in progress
+  private hold: HoldState | null = null;       // crouch / block while the key is held
 
   // face
   private blinkTimer = 2.5;
@@ -85,6 +90,9 @@ export class Malfoid {
     for (const fm of m.faceMeshes) Object.keys(fm.morphTargetDictionary ?? {}).forEach((k) => keys.add(k));
     m.faceKeys.push(...keys);
     m.animation = new AnimationController(gltf.scene, gltf.animations);
+    m.animation.onActionDone = () => {
+      m.action = null;
+    };
     m.hair = new HairSway(gltf.scene);
     return m;
   }
@@ -114,6 +122,37 @@ export class Malfoid {
     this.moving = false;
   }
 
+  /**
+   * Start a one-shot move (jump, punches, kicks). Ignored while another move
+   * is still playing or while crouching / blocking. Counts as activity.
+   */
+  trigger(action: ActionState): void {
+    this.resetIdleTimer();
+    if (this.action || this.hold || !this.animation.has(action)) return;
+    this.action = action;
+    this.animation.restart(action);
+  }
+
+  /** crouch / block while the key is held */
+  setHold(hold: HoldState, on: boolean): void {
+    if (on) {
+      this.resetIdleTimer();
+      if (!this.hold && !this.action) this.hold = hold;
+    } else if (this.hold === hold) {
+      this.hold = null;
+    }
+  }
+
+  /** pausing must not count towards the inactivity timer */
+  pause(): void {
+    this.pausedAt = performance.now();
+  }
+
+  resume(): void {
+    if (this.pausedAt) this.idleSince += performance.now() - this.pausedAt;
+    this.pausedAt = 0;
+  }
+
   resetIdleTimer(): void {
     this.idleSince = performance.now();
   }
@@ -125,9 +164,13 @@ export class Malfoid {
 
   update(dt: number): void {
     // --- facing and speed
-    let target = this.moving ? (this.wantRunning ? RUN_SPEED : WALK_SPEED) : 0;
+    // strikes, crouch and block plant her feet; a jump keeps its momentum
+    const busy = this.action !== null || this.hold !== null;
+    const steer = this.moving && !busy;
+    let target = steer ? (this.wantRunning ? RUN_SPEED : WALK_SPEED) : 0;
+    if (this.action === 'jump') target = this.speed;
     let turnDiff = 0;
-    if (this.moving) {
+    if (steer) {
       const want = Math.atan2(this.desiredDir.x, this.desiredDir.z);
       turnDiff = Math.atan2(Math.sin(want - this.facing), Math.cos(want - this.facing));
       this.facing += turnDiff * (1 - Math.exp(-TURN_RATE * dt));
@@ -141,7 +184,11 @@ export class Malfoid {
 
     // --- state machine
     let state: AnimationState;
-    if (this.moving && Math.abs(turnDiff) > TURN_IN_PLACE * 0.5 && this.speed < WALK_SPEED * 0.6) {
+    if (this.action) {
+      state = this.action;                       // started by trigger(); ends via onActionDone
+    } else if (this.hold) {
+      state = this.hold;
+    } else if (this.moving && Math.abs(turnDiff) > TURN_IN_PLACE * 0.5 && this.speed < WALK_SPEED * 0.6) {
       state = 'turn';
     } else if (this.speed > (WALK_SPEED + RUN_SPEED) * 0.5 || (this.moving && this.wantRunning && this.speed > 0.4)) {
       state = 'run';

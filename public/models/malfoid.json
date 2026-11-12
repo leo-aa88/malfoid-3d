@@ -7,7 +7,14 @@
   "run": 0.62,
   "turn": 0.8,
   "idle_annoyed_start": 1.5,
-  "idle_annoyed": 6.0
+  "idle_annoyed": 6.0,
+  "punch_high": 0.55,
+  "punch_low": 0.6,
+  "kick_high": 0.9,
+  "kick_low": 0.75,
+  "jump": 0.95,
+  "block": 0.22,
+  "crouch": 0.3
  },
  "rest_expression": {
   "vrc.blink": 0.0,

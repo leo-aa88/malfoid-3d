@@ -21,6 +21,11 @@ async function start(): Promise<void> {
   });
   document.getElementById('loading')!.remove();
 
+  const pausedEl = document.getElementById('paused')!;
+  input.onPauseChange = (p) => {
+    pausedEl.hidden = !p;
+  };
+  pausedEl.addEventListener('click', () => input.setPaused(false));
   const stateEl = document.getElementById('state')!;
   const fpsEl = document.getElementById('fps')!;
   const clock = new THREE.Clock();
@@ -30,8 +35,10 @@ async function start(): Promise<void> {
 
   sm.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
-    input.update();
-    malfoid.update(dt);
+    if (!input.paused) {
+      input.update();
+      malfoid.update(dt);
+    }
     cam.update(malfoid.position);
     sm.followShadow(malfoid.position);
     sm.render();

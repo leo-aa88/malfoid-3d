@@ -18,3 +18,10 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
   background: rgba(20, 24, 30, 0.5); border-radius: 8px; text-align: center; opacity: 0.85;
 }
 #loading { position: fixed; inset: 0; display: grid; place-items: center; font-size: 16px; pointer-events: none; }
+#paused {
+  position: fixed; inset: 0; display: grid; place-items: center; cursor: pointer;
+  background: rgba(15, 18, 24, 0.45);
+}
+#paused .box { padding: 18px 28px; background: rgba(20, 24, 30, 0.8); border-radius: 10px; text-align: center; }
+#paused .big { font-size: 24px; font-weight: 600; letter-spacing: 0.06em; color: #9fe0bb; margin-bottom: 6px; }
+#paused[hidden] { display: none; }

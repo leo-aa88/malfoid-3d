@@ -20,6 +20,12 @@ site in `dist/`.
 |---|---|
 | W / A / S / D | walk away / towards / left / right (fixed to the starting view, so orbiting the camera doesn't steer her) |
 | Shift + WASD | run |
+| Space | jump |
+| Left Ctrl | crouch (hold) |
+| J / U | high / low punch |
+| K / I | high / low kick |
+| O | block (hold) |
+| Esc | pause (click or Esc to resume) |
 | Left drag | orbit |
 | Right drag | pan |
 | Wheel | zoom (towards the cursor) |
@@ -33,8 +39,10 @@ timer; moving blends her back into walking.
 
 - `character/Malfoid.ts` – loads the model, locomotion, idle → annoyed state machine, blinking and
   facial expression weights.
-- `character/AnimationController.ts` – clip cross-fades (`idle`, `walk`, `run`, `turn`,
-  `idle_annoyed_start`, `idle_annoyed`).
+- `character/AnimationController.ts` – clip cross-fades: locomotion (`idle`, `walk`, `run`,
+  `turn`, `idle_annoyed`), one-shot moves (`jump`, `punch_high`, `punch_low`, `kick_high`,
+  `kick_low`) and held poses (`crouch`, `block`).
+- `character/CharacterController.ts` – key bindings and pause.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
 - `character/ToonMaterials.ts` – cel shading and outlines.
 - `camera/CameraController.ts`, `scene/SceneManager.ts` – orbit camera, lights, shadows.
@@ -68,7 +76,8 @@ Blender runs with 4 threads (`-t 4`).
   bones kept) and uniform (shirt, vest, tie, skirt, socks fitted to her body).
 - `blender/malfoid/outfit2.py` – robe (black outside, green lining), loafers and crest.
 - `blender/malfoid/rig2.py` – standard humanoid skeleton with the base mesh's weights remapped.
-- `blender/malfoid/anim2.py` – the animation clips.
+- `blender/malfoid/anim2.py` – locomotion and idle clips; `combat.py` – jump, crouch, punches,
+  kicks and block.
 - `qa/` – screenshot tools that capture the face in the real viewer for side-by-side comparison
   with the design references.
 
