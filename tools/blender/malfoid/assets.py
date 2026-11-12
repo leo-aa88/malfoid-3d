@@ -88,8 +88,11 @@ def _hair_texture():
     lo, hi = np.percentile(g, 3), np.percentile(g, 97)
     t = np.clip((g - lo) / max(hi - lo, 1e-3), 0, 1)
     ramp_t = [0.0, 0.35, 0.7, 0.92, 1.0]
-    ramp_c = np.array([[0x9e, 0x86, 0x6c], [0xd9, 0xc2, 0xa6], [0xf2, 0xe2, 0xcd], [0xfb, 0xf1, 0xe4],
-                       [0xff, 0xfb, 0xf4]], np.float32)
+    # top of the ramp at the atlas platinum (#F7E5D4) instead of near-white: the pack's
+    # highlight bands (and the top of one strip, used on the crown) are cut into straight-edged
+    # sections by the cards and showed as pale white blocks
+    ramp_c = np.array([[0x9e, 0x86, 0x6c], [0xd9, 0xc2, 0xa6], [0xf0, 0xdf, 0xc9], [0xf5, 0xe6, 0xd3],
+                       [0xf9, 0xec, 0xdc]], np.float32)
     # the loaded pixels are linear floats; build the ramp in sRGB and convert
     rgb = np.stack([np.interp(t, ramp_t, ramp_c[:, c]) for c in range(3)], -1) / 255.0
     img = np.concatenate([rgb, a[..., None]], -1)
