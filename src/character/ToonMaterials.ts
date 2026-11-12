@@ -18,6 +18,10 @@ const HIDDEN = new Set(['Tear']);
 const NO_OUTLINE = new Set(['Body', 'Eye', 'Highlight', 'Alpha', 'Tear', 'mf_earring', 'mf_crest_silver',
   'mf_crest_green', 'mf_tie', 'mf_tie_stripe', 'mf_tie_tex', 'mf_hair_tex', 'mf_crest_tex']);
 
+// no shadow-map shadows on the face or the hair: hair cards shadowing each other (and the
+// face) read as grey dirt patches in cel shading
+const NO_SHADOW_RECEIVE = new Set(['Body', 'mf_hair_tex', 'mf_hair']);
+
 const OUTLINE_COLOR = new THREE.Color('#3a2a28');
 
 export class ToonMaterials {
@@ -82,7 +86,7 @@ export class ToonMaterials {
       mesh.material = this.convert(mesh.material as THREE.Material, mesh);
       mesh.castShadow = !FACE_DECALS.has(name);
       // the face stays clean: hair/cards casting dithered shadow onto it reads as dirt in toon shading
-      mesh.receiveShadow = !(name === 'Body' || FACE_DECALS.has(name));
+      mesh.receiveShadow = !(NO_SHADOW_RECEIVE.has(name) || FACE_DECALS.has(name));
       mesh.frustumCulled = false;            // skinned bounds are unreliable while animating
       if (!NO_OUTLINE.has(name) && (mesh as THREE.SkinnedMesh).isSkinnedMesh) {
         outlined.push(mesh as THREE.SkinnedMesh);

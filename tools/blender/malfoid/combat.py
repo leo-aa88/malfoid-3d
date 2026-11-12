@@ -283,9 +283,14 @@ def jump(sk, t):
     D['spine'] = E(pitch=10.0 * pre + 6.0 * land - 4.0 * air)
     D['chest'] = E(pitch=4.0 * pre + 3.0 * land - 3.0 * air)
     D['head'] = E(pitch=-6.0 * pre - 4.0 * land + 2.0 * air)
-    # arms swing back while loading, up and forward on take-off
-    swing = -30.0 * pre + 28.0 * air
-    A.arms_down(spec, swing_l=swing, swing_r=swing, add=17.0 + 8.0 * air, elbow=14.0 + 50.0 * air)
+    # arms swing back while loading, then forward-up and out to the sides in the air
+    # (balance); elbows stay only lightly bent so the hands stay outside her shoulders
+    # instead of meeting in front of her chest
+    swing = -32.0 * pre + 32.0 * air - 8.0 * land
+    spread = 24.0 * air                                     # away from the body
+    A.arms_down(spec, swing_l=swing, swing_r=swing, add=17.0 - spread, elbow=14.0 + 16.0 * air + 12.0 * land)
+    D['hand_L'] = qx(-6.0 * air)
+    D['hand_R'] = qx(-6.0 * air)
     return spec
 
 
