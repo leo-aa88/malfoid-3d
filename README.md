@@ -110,11 +110,15 @@ Blender runs with 4 threads (`-t 4`).
 - `blender/malfoid/assets.py` – the purchased hair (fitted to her head, recoloured platinum, strand
   bones kept) and uniform (shirt, vest, tie, skirt, socks fitted to her body).
 - `blender/malfoid/outfit2.py` – robe (black outside, green lining), loafers and crest.
-- `blender/malfoid/rig2.py` – standard humanoid skeleton with the base mesh's weights remapped.
+- `blender/malfoid/rig2.py` – standard humanoid skeleton with the base mesh's weights remapped,
+  plus two robe helper bones at the hips that the lower robe follows instead of the thighs (they
+  copy the thigh's swing up to 40° and ease off towards 70°, so high kicks don't fold the robe).
 - `blender/malfoid/anim2.py` – locomotion and idle clips; `combat.py` – combo openers and
   finishers, jump, crouch and block.
 - `qa/` – screenshot tools that capture the face in the real viewer for side-by-side comparison
   with the design references.
+  `qa/robe_folds.py` (run in Blender on `build/malfoid.blend`) measures how much of the lower
+  robe folds over in each clip that moves the legs; all zeros is clean.
 
 All body and face changes are **shape keys** on top of the original base mesh: its own geometry,
 normals and authored shape keys are never modified.

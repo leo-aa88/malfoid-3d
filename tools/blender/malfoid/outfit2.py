@@ -632,8 +632,14 @@ def robe_lower(info):
     _thick_grid(md, md_rows, 0.0035, 'mf_robe', 'mf_robe_lining', facing_cols=0)
 
     def wfn(p):
-        side = 'thigh_L' if p.x > 0 else 'thigh_R'
-        t = 0.38 * sstep(0.95, 0.55, p.z) * sstep(0.02, 0.10, abs(p.x))
+        side = 'robe_L' if p.x > 0 else 'robe_R'         # helper bones that follow the thighs
+        # the thigh's share fades out towards the centre only at the back, where the left and
+        # right halves meet; a narrow fade there (or any fade at the open front edges) made
+        # neighbouring columns move very differently when a thigh swings high (kicks) and the
+        # robe folded over itself, showing its lining in stripes
+        back = sstep(-0.06, 0.06, p.y)
+        across = lerp(sstep(0.0, 0.03, abs(p.x)), sstep(0.0, 0.32, abs(p.x)), back)
+        t = 0.38 * sstep(0.95, 0.55, p.z) * across
         w = {'hips': 1.0 - t}
         if t > 0:
             w[side] = t
