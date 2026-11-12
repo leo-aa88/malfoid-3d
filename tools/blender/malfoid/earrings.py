@@ -19,7 +19,7 @@ def build(head, parts, mats):
         axis = Vector((0.62 * sgn, -0.78, 0.0)).normalized()     # ring faces front-outward
         up = Vector((0, 0, 1))
         sidev = axis.cross(up).normalized()
-        centre = lobe + Vector((0.0008 * sgn, 0, -(R_MAJOR - 0.0030)))
+        centre = lobe + Vector((0.0030 * sgn, 0, -(R_MAJOR - 0.0030)))
         rows = []
         for i in range(36):
             t = 2 * pi * i / 36

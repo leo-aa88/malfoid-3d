@@ -18,20 +18,24 @@ from mathutils.bvhtree import BVHTree
 
 # --- tunables ---------------------------------------------------------------
 # vertical feature remap: (base height, upward shift). Chin/neck and crown stay.
-Z_REMAP = [(1.290, 0.0), (1.304, 0.0), (1.3327, 0.0085), (1.361, 0.0108), (1.384, 0.0160),
-           (1.4227, 0.0105), (1.470, 0.0000), (1.500, -0.0055), (1.534, -0.0100)]
-FACE_WIDEN = 0.045                # the atlas face is a little broader across the cheeks
+Z_REMAP = [(1.290, 0.0), (1.304, 0.0), (1.3327, 0.0090), (1.361, 0.0120), (1.384, 0.0225),
+           (1.4227, 0.0120), (1.470, -0.0010), (1.500, -0.0080), (1.534, -0.0140)]
+FACE_WIDEN = 0.105                # the atlas face is broader across the cheeks
+EYE_INSET = 0.0010                # eyes sit a little closer together
+EYE_SLANT_OUTER = 1.28            # extra upsweep on the outer half: sharp corners
+WING = 0.0024                     # longer, sharper outer lash wing
 CHIN_SOFTEN = 0.14                # widen the very tip of the chin a little
 EYE_C = (0.0420, 1.3843)          # eye centre (x, z) in the base
-EYE_SLANT = 0.17                  # shear: outer corner up (tsurime)
-IRIS_SCALE = 0.76
-BROW_DROP = 0.0115                # brows sit closer to the eyes
-BROW_TILT = 0.27                  # inner end lower, outer end higher
+EYE_SLANT = 0.15                  # shear: outer corner up (tsurime)
+IRIS_SCALE = 0.73
+BROW_DROP = 0.0080                # brows sit closer to the eyes
+BROW_TILT = 0.23                  # inner end lower, outer end higher
 CANINE = 0.0013                   # extra canine length (subtle, human)
 # resting expression, from the base's own keys
 EXPR = {
-    'lids': {'vrc.blink_Straight': 0.50},
-    'mouth': {'mouthSmileLeft': 0.90, 'mouthSmileRight': 0.20, 'mouthDimpleLeft': 0.40},
+    'lids': {'vrc.blink_Straight': 0.57},
+    'mouth': {'mouthSmileLeft': 1.10, 'mouthSmileRight': 0.15, 'mouthDimpleLeft': 0.70, 'mouthLeft': 0.20,
+              '口横広げ': 0.55},
     'brow': {},
 }
 LID_STATE_KEYS = ['vrc.blink', 'vrc.blink_Joy', 'vrc.blink_Straight', 'eyeBlinkLeft', 'eyeBlinkRight',
@@ -121,7 +125,16 @@ def structural(head, parts, fparts, B):
         dzz = P[:, 2] - zc_new
         r = np.sqrt((dx / 0.031) ** 2 + (dzz / 0.024) ** 2)
         w = (1.0 - sm(1.0, 2.0, r)) * mask * (P[:, 0] * sgn > 0)
-        P[:, 2] += EYE_SLANT * dx * w
+        slope = EYE_SLANT * (1.0 + (EYE_SLANT_OUTER - 1.0) * sm(0.0, 0.020, dx))
+        P[:, 2] += slope * dx * w
+        P[:, 0] -= sgn * EYE_INSET * w
+        # outer lash wing: drawn out and upwards to a point
+        wing = np.zeros(n, bool)
+        wing[idx(parts, 'lash_upper' + ('_L' if sgn > 0 else '_R'), 'lash_tail' + ('_L' if sgn > 0 else '_R'))] = True
+        u = np.clip((dx - 0.016) / 0.016, 0.0, 1.3) ** 1.5 * wing
+        P[:, 0] += sgn * WING * u
+        P[:, 2] += WING * 0.62 * u
+        P[:, 1] += WING * 0.55 * u
 
     # 3. smaller irises (the base has very large, round moe irises)
     for side, sgn in (('_L', 1.0), ('_R', -1.0)):
