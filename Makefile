@@ -48,12 +48,12 @@ model: $(GLB) ## Build build/malfoid.blend and public/models/malfoid.glb
 
 $(GLB) $(BLEND_OUT) &: $(TEXTURES) $(TOOLS_PY) $(BASE_BLEND) | check-assets
 	@mkdir -p build public/models
-	"$(BLENDER)" -b "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
+	"$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
 		--stage 5 --save $(BLEND_OUT) --glb $(GLB)
 
 renders: $(TEXTURES) | check-assets ## Render the validation set into docs/integration
 	@mkdir -p $(RENDER_DIR)
-	MF_FRAME=fixed "$(BLENDER)" -b "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
+	MF_FRAME=fixed "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
 		--stage 5 --res 1000 --views validation --posetest idle:40 --out $(RENDER_DIR)
 
 # --- web viewer -------------------------------------------------------------

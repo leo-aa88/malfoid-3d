@@ -242,6 +242,7 @@ REST_KEYS = {
     # the real viewer (tools/qa/face_batch.mjs): heavy flat upper lids, low
     # brows angled down towards the nose, small flat mouth slightly down
     'mf_cheek_slim': 1.0,
+    'mf_eyes_up': 1.0,              # eyes and brows ~5% higher (added key, basis untouched)
     'vrc.blink_Straight': 0.36,
     'browDownLeft': 1.4,
     'browDownRight': 1.4,
@@ -286,10 +287,42 @@ def add_cheek_slim(head, parts):
     print('MF face: cheek-slim key on %d verts (basis untouched)' % moved)
 
 
+EYES_UP = 0.0085        # ~5% of the face height (chin to hairline ~0.17 m)
+EYE_CENTRES = ((0.042, 1.384), (-0.042, 1.384))
+
+
+def add_eyes_up(head, parts):
+    """Shape key moving the eyes and brows up by EYES_UP. Full shift over the
+    eye socket and brow, fading smoothly into the surrounding skin; the
+    Basis and every authored key stay untouched."""
+    import math
+    me = head.data
+    if 'mf_eyes_up' in me.shape_keys.key_blocks:
+        return
+    kb = head.shape_key_add(name='mf_eyes_up', from_mix=False)
+    ears = set(parts['ear_L']) | set(parts['ear_R'])
+    moved = 0
+    for i, v in enumerate(me.vertices):
+        if i in ears or v.co.y > 0.02:
+            continue
+        w = 0.0
+        for cx, cz in EYE_CENTRES:
+            dx = (v.co.x - cx) / 0.034
+            dz = (v.co.z - (cz + 0.018)) / 0.040          # region spans the eye and the brow
+            r = math.sqrt(dx * dx + dz * dz)
+            w = max(w, 1.0 - float(sm(1.0, 1.9, r)))
+        if w <= 0:
+            continue
+        kb.data[i].co.z = v.co.z + EYES_UP * w
+        moved += 1
+    print('MF face: eyes-up key on %d verts (+%.1f mm, basis untouched)' % (moved, EYES_UP * 1000))
+
+
 def apply(head, parts, fparts):
     import os
     if not RESHAPE and os.environ.get('MF_RESHAPE') != '1':
         add_cheek_slim(head, parts)
+        add_eyes_up(head, parts)
         kb = head.data.shape_keys.key_blocks
         for k in kb:
             k.value = 0.0

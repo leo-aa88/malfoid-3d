@@ -22,6 +22,11 @@ await page.evaluate(() => new Promise((r) => { let n = 0; const f = () => (++n >
 // the very first shot of a session is stale in the headless compositor: take one and discard it
 sets.unshift({ name: '_warmup', weights: sets[0].weights });
 for (const s of sets) {
+  if (s.view) {                          // per-shot camera (one browser session for all views)
+    await page.evaluate(([c, f, y]) => { const k = window.cam.controls.object; k.fov = f; k.updateProjectionMatrix();
+      k.position.set(...c); window.cam.controls.target.set(0, y, 0); window.cam.controls.update(); },
+      [cams[s.view], fovs[s.view], tgtY[s.view]]);
+  }
   await page.evaluate((w) => { window.malfoid.debugFace(w, false); window.malfoid.resetIdleTimer(); }, s.weights);
   // wait until at least 3 frames have been drawn with the new weights
   // the headless compositor lags: wait, take a throw-away shot, wait, then the real one
