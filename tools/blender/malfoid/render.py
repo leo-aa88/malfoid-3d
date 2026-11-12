@@ -171,6 +171,10 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
         cz = (lm['crown'].z + lm['chin_bottom'].z) / 2 + 0.005
         span = (lm['crown'].z - lm['chin_bottom'].z) * 1.42
         ey = (lm['eye_L'].z + lm['eye_R'].z) / 2
+        if os.environ.get('MF_FRAME') == 'fixed':
+            # identical cameras for every variant, independent of the mesh
+            cz, span, ey = 1.425, 0.355, 1.388
+            lm = dict(lm, mouth=Vector((0, 0, 1.337)))
         v = views.split(',')
         if 'front' in v:
             shot(scene, os.path.join(out_dir, tag + 'front.png'), (0, 0, cz), 0, span, res=(res, res))
