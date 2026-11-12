@@ -15,8 +15,8 @@ from mathutils import Vector  # noqa: E402
 
 def args():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-    o = {'out': None, 'views': 'front,side,q,eyes,mouth', 'stage': '9', 'save': None, 'res': '900', 'tag': '',
-         'keys': None}
+    o = {'out': None, 'views': 'front,side,q,eyes,mouth', 'stage': '2', 'save': None, 'res': '900', 'tag': '',
+         'keys': None, 'posetest': None, 'glb': None}
     i = 0
     while i < len(argv):
         if argv[i].startswith('--'):
@@ -33,7 +33,7 @@ def main():
     from malfoid import base, mats, render
     head = bpy.data.objects[base.HEAD_OBJ]
     for ob in bpy.data.objects:                       # rig widgets etc. never render
-        if ob.name.startswith('cs_') or ob.type == 'EMPTY' or ob.name.startswith('Outfit_'):
+        if ob.name.startswith('cs_') or ob.type == 'EMPTY':
             ob.hide_render = True
     parts, fparts = base.classify(head)
     print('PARTS', {k: len(v) for k, v in sorted(parts.items())})
@@ -62,12 +62,44 @@ def main():
         else:
             hair2.build(head, parts, m, variant)
 
+    arm = None
+    if stage >= 3:
+        from malfoid import rig2
+        skinned = [ob for ob in bpy.data.objects if ob.type == 'MESH' and
+                   any(m.type == 'ARMATURE' for m in ob.modifiers)]
+        for name in ('Outfit_Underwear_Top',):
+            ob = bpy.data.objects.get(name)
+            if ob is not None:
+                if stage >= 4:            # covered by the uniform from here on
+                    skinned.remove(ob)
+                    bpy.data.objects.remove(ob, do_unlink=True)
+        arm = rig2.convert(skinned)
+        print('MF rig: %d bones, skinned %s' % (len(arm.data.bones), [o.name for o in skinned if o.name in bpy.data.objects]))
+    if stage >= 4:
+        from malfoid import outfit2
+        outfit2.build(head, parts, arm, m)
+    anim_info = None
+    if stage >= 5:
+        from malfoid import anim2
+        anim_info = anim2.build_all(arm)
+        print('MF anim:', anim_info)
+    if o['posetest'] and arm is not None:
+        if ':' in o['posetest']:
+            from malfoid import anim2
+            name, frame = o['posetest'].split(':')
+            anim2.show(arm, name, int(frame))
+        else:
+            from malfoid import posetest
+            posetest.apply(arm, o['posetest'])
+
     if o['keys']:
         kb = head.data.shape_keys.key_blocks
         for kv in o['keys'].split(','):
             k, _, v = kv.partition('=')
             kb[k].value = float(v) if v else 1.0
 
+    if os.environ.get('MF_NOHAIR') == '1' and bpy.data.objects.get('Hair'):
+        bpy.data.objects['Hair'].hide_render = True
     lm = base.landmarks(head, parts)
     H = lm['crown'].z - lm['chin_bottom'].z
     print('LANDMARKS')
@@ -83,6 +115,9 @@ def main():
             json.dump({'lm': {k: list(p) for k, p in lm.items()}, 'hair_top': top}, f, indent=1)
     if o['save']:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(o['save']))
+    if o['glb']:
+        from malfoid import export2
+        export2.export(o['glb'], arm, anim_info or {})
     print('DONE %.1fs' % (time.time() - t0))
 
 

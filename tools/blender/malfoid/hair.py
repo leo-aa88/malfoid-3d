@@ -83,8 +83,11 @@ class Fit:
         xs = abs(hit[0].x) if hit[0] is not None else 0.0
         return Vector((sgn * max(xs + lift, xmin), y, z))
 
+    EXTRA = 0.0               # extra clearance (set when the robe is worn)
+
     def b(self, x, z, clear, where, default_y=None):
         """point hanging in front of / behind the body at (x, z)"""
+        clear += self.EXTRA
         if self.body is not None:
             if where == 'front':
                 hit = self.body.ray_cast(Vector((x, -1.0, z)), Vector((0, 1, 0)))

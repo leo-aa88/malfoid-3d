@@ -159,3 +159,6 @@ base_character.blend
 *.Zone.Identifier
 *:Zone.Identifier
 Gumroad_Anime_Female_BaseMesh/
+public/models/*.glb
+node_modules/
+dist/

@@ -22,6 +22,19 @@ PALETTE = {
     'mf_hair':      ('#fff3e3', 0.70, 0.0),     # x vertex colour (~0.93) = #F7E5D4
     'mf_hair_dark': ('#d8c0a6', 0.75, 0.0),
     'mf_earring':   ('#1b1b1b', 0.35, 0.8),
+    'mf_shirt':        ('#f5f0ef', 0.85, 0.0),
+    'mf_sweater':      ('#5c595e', 0.95, 0.0),
+    'mf_sweater_trim': ('#4a474c', 0.95, 0.0),
+    'mf_tie':          ('#1f5c40', 0.75, 0.0),
+    'mf_tie_stripe':   ('#c3c3c6', 0.60, 0.0),
+    'mf_skirt':        ('#2e2c30', 0.90, 0.0),
+    'mf_skirt_inner':  ('#1e1d20', 0.90, 0.0),
+    'mf_sock':         ('#18171a', 0.90, 0.0),
+    'mf_shoe':         ('#111012', 0.35, 0.0),
+    'mf_robe':         ('#252324', 0.90, 0.0),
+    'mf_robe_lining':  ('#1d5a3c', 0.85, 0.0),
+    'mf_crest_silver': ('#cfcac0', 0.40, 0.6),
+    'mf_crest_green':  ('#226b47', 0.60, 0.0),
     'mf_fx':        ('#ffffff', 1.00, 0.0),     # hidden effect meshes
 }
 

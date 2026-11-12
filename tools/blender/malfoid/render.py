@@ -198,6 +198,11 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
             shot(scene, os.path.join(out_dir, tag + 'q.png'), (0, 0, cz), 38, span, 4, res=(res, res))
         if 'back' in v:
             shot(scene, os.path.join(out_dir, tag + 'back.png'), (0, 0, cz - 0.1), 180, span * 1.9, res=(res, res))
+        if 'full' in v:
+            shot(scene, os.path.join(out_dir, tag + 'full_front.png'), (0, 0, 0.78), 0, 1.75, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'full_q.png'), (0, 0, 0.78), 35, 1.75, 4, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'full_side.png'), (0, 0, 0.78), 90, 1.75, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'full_back.png'), (0, 0, 0.78), 180, 1.75, res=(res, res))
         if 'qback' in v:
             shot(scene, os.path.join(out_dir, tag + 'qback.png'), (0, 0, cz - 0.12), 140, span * 2.0, 5,
                  res=(res, res))

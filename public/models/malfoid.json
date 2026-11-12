@@ -1,0 +1,32 @@
+{
+ "walk_speed": 1.0333,
+ "run_speed": 2.6728,
+ "clips": {
+  "idle": 8.0,
+  "walk": 1.0,
+  "run": 0.62,
+  "turn": 0.8,
+  "idle_annoyed_start": 1.5,
+  "idle_annoyed": 6.0
+ },
+ "rest_expression": {
+  "vrc.blink": 0.0,
+  "vrc.blink_Straight": 0.5,
+  "browInnerUp": 0.0,
+  "browDownLeft": 0.2,
+  "browDownRight": 0.5,
+  "browOuterUpLeft": 0.45,
+  "eyeSquintLeft": 0.0,
+  "eyeSquintRight": 0.0,
+  "mouthPucker": 0.0,
+  "mouthSmileLeft": 0.8,
+  "mouthSmileRight": 0.0,
+  "mouthFrownLeft": 0.0,
+  "mouthFrownRight": 0.0,
+  "mouthDimpleLeft": 0.6,
+  "mouthPressLeft": 0.0,
+  "mouthPressRight": 0.5,
+  "Sulk": 0.0,
+  "Angry": 0.0
+ }
+}

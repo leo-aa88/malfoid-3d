@@ -1,4 +1,8 @@
-"""Procedural animation authoring.
+"""Procedural animation authoring for the base-mesh skeleton (rig2).
+
+Adapted from the first pipeline's animation code: same pose language
+(world-axis deltas, two-bone IK for legs and crossed arms), with the joint
+positions read from the new skeleton and the arms posed from its T-pose.
 
 Poses are described in character space and solved with a tiny FK/IK solver;
 the result is written as Blender actions (one NLA track each) so the glTF
@@ -10,8 +14,72 @@ import math
 from math import sin, cos, pi, radians, degrees, atan2, sqrt
 import bpy
 from mathutils import Vector, Quaternion, Matrix
-from . import rig
-from .core import V, lerp, clamp, smoothstep, Prof
+from mathutils import Vector as _V
+from .meshutil import lerp, sstep as smoothstep
+from types import SimpleNamespace
+
+
+def clamp(x, lo=0.0, hi=1.0):
+    return max(lo, min(hi, x))
+
+
+def V(x, fwd, z):
+    return _V((x, -fwd, z))
+
+
+class Prof:
+    """monotone cubic through keys [(t, v0, v1, ...)]"""
+
+    def __init__(self, keys):
+        keys = sorted(keys)
+        self.t = [k[0] for k in keys]
+        self.n = len(keys[0]) - 1
+        self.v = [[k[i + 1] for k in keys] for i in range(self.n)]
+        self.m = [self._tan(v) for v in self.v]
+
+    def _tan(self, y):
+        t = self.t
+        d = [(y[i + 1] - y[i]) / (t[i + 1] - t[i]) for i in range(len(t) - 1)]
+        m = [d[0]] + [0.0] * (len(t) - 2) + [d[-1]]
+        for i in range(1, len(t) - 1):
+            if d[i - 1] * d[i] > 0:
+                w1 = 2 * (t[i + 1] - t[i]) + (t[i] - t[i - 1])
+                w2 = (t[i + 1] - t[i]) + 2 * (t[i] - t[i - 1])
+                m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i])
+        return m
+
+    def __call__(self, x):
+        t = self.t
+        x = clamp(x, t[0], t[-1])
+        lo = max(i for i in range(len(t) - 1) if t[i] <= x) if x > t[0] else 0
+        hi = lo + 1
+        h = t[hi] - t[lo]
+        u = (x - t[lo]) / h
+        h00, h10 = 2 * u ** 3 - 3 * u ** 2 + 1, u ** 3 - 2 * u ** 2 + u
+        h01, h11 = -2 * u ** 3 + 3 * u ** 2, u ** 3 - u ** 2
+        out = [h00 * v[lo] + h10 * h * m[lo] + h01 * v[hi] + h11 * h * m[hi] for v, m in zip(self.v, self.m)]
+        return out[0] if self.n == 1 else tuple(out)
+
+
+rig = SimpleNamespace()
+
+
+def init_rig(arm_ob):
+    """read joint positions from the exported skeleton"""
+    b = arm_ob.data.bones
+    M = arm_ob.matrix_world
+    H = lambda n: M @ b[n].head_local
+    T = lambda n: M @ b[n].tail_local
+    rig.SHOULDER_L = H('upperarm_L')
+    rig.ELBOW_L = H('forearm_L')
+    rig.WRIST_L = H('hand_L')
+    rig.ARM_DIR_L = (rig.ELBOW_L - rig.SHOULDER_L).normalized()
+    rig.UPPERARM_LEN = (rig.ELBOW_L - rig.SHOULDER_L).length
+    rig.FOREARM_LEN = (rig.WRIST_L - rig.ELBOW_L).length
+    rig.HIP_L = H('thigh_L')
+    rig.KNEE_L = H('shin_L')
+    rig.ANKLE_L = H('foot_L')
+    rig.DZ = rig.ANKLE_L.z - 0.085            # the run keys were authored for an ankle at 0.085
 
 FPS = 30
 AX = Vector((1, 0, 0))
@@ -111,7 +179,6 @@ def solve(sk, spec):
     """spec: {'t': hips translation, 'D': {bone: quat}, 'leg_L'/'leg_R': {...},
     'arm_L'/'arm_R': {...}, 'robe': {...}}. Returns world delta rotations Q
     and joint positions P."""
-    from .robe import ROBE, robe_at_x
     D = spec.get('D', {})
     Q, P = {}, {}
     for b in sk.order:
@@ -154,63 +221,42 @@ def solve(sk, spec):
             arm['_fore'] = q_between(d, h_r, wr - el, hinge)
         elif base == 'forearm' and arm:
             Q[b] = arm['_fore'] @ D.get(b, IDENT)
-        elif b.startswith('skirt_') or (b.startswith('robe_') and not b.endswith('_2')):
-            Q[b] = Q[p] @ _panel(sk, spec, b, Q, P, ROBE, robe_at_x)
+        elif base.startswith(FINGERS) and b not in D:
+            # relaxed curl (fist when spec['curl'] is large); T-pose fingers point
+            # along X with the palm down, so flexion is about the forward axis
+            c = spec.get('curl', 16.0)
+            k = int(base[-1]) if base[-1].isdigit() else 1
+            if base.startswith('thumb'):
+                Q[b] = Q[p] @ qz(sgn * c * 0.4) @ qy(sgn * c * 0.3)
+            else:
+                Q[b] = Q[p] @ qy(sgn * c * (1.0 if k == 1 else 1.25))
         else:
             Q[b] = Q[p] @ D.get(b, IDENT)
     return Q, P
 
 
-def _panel(sk, spec, b, Q, P, ROBE, robe_at_x):
-    """secondary rotation for skirt / robe panel bones, derived from the legs"""
-    kind, pos, side = b.split('_')
-    sgn = 1.0 if side == 'L' else -1.0
-    qh_inv = Q['hips'].inverted()
-    rest = rig.KNEE_L - rig.HIP_L
-    if side == 'R':
-        rest = mirx(rest)
-    v = qh_inv @ (Q['thigh_' + side] @ rest)
-    dphi = degrees(atan2(-v.y, -v.z) - atan2(-rest.y, -rest.z))        # + forward
-    dab = degrees(atan2(sgn * v.x, -v.z) - atan2(sgn * rest.x, -rest.z))  # + outward
-    extra = spec.get('robe', {})
-    if kind == 'skirt':
-        if pos == 'F':
-            return qx(-0.92 * softpos(dphi)) @ qy(-sgn * 0.5 * softpos(dab))
-        if pos == 'B':
-            return qx(0.88 * softpos(-dphi))
-        return qx(-0.45 * dphi) @ qy(-sgn * 0.8 * softpos(dab))
-    # robe
-    hips0 = sk.head['hips']
-    piv = rig.ROBE_PIVOT_Z
-
-    def rel(name):
-        r = qh_inv @ (P[name] - P['hips'])
-        return r.x, -r.y, hips0.z + r.z          # x, fwd, z in the hips frame
-
-    ax_, af, az = rel('foot_' + side)
-    kx, kf, kz = rel('shin_' + side)
-    back = -af + 0.085 - ROBE(clamp(az, 0.17, 1.0))[2]
-    psi_b = softpos(degrees(back / max(0.30, piv - az)), 4.0)
-    xe = ROBE(clamp(kz, 0.17, 1.0))[3]
-    need = kf + 0.060 + robe_at_x(0.115, clamp(kz, 0.17, 1.0)).y   # .y is -fwd
-    lat = smoothstep(xe - 0.035, xe + 0.01, abs(kx) + 0.045)
-    psi_f = softpos(degrees(need / max(0.30, piv - kz)), 4.0) * lat
-    if pos == 'B':
-        return qx(psi_b + extra.get('B', 0.0)) @ qy(-sgn * extra.get('flare', 0.0) * 0.4)
-    if pos == 'F':
-        return qx(-psi_f + extra.get('F', 0.0)) @ qy(-sgn * extra.get('open', 0.0))
-    return qx(0.45 * psi_b - 0.4 * psi_f + extra.get('S', 0.0)) @ qy(-sgn * extra.get('flare', 0.0))
-
-
 # ---------------------------------------------------------------------------
 # pose pieces
 
+T_DROP = 63.0       # T-pose -> the old bind pose (arms 27 deg from vertical)
+
+
+def arm_q(sgn, add, swing, twist=0.0):
+    """upper-arm delta from the T-pose: hang the arm down (add), then swing
+    it forward/back about the shoulder line"""
+    return qx(-swing) @ qy(sgn * (T_DROP + add)) @ qx(sgn * twist)
+
+
+def elbow_q(sgn, deg):
+    return qz(-sgn * deg)
+
+
 def arms_down(spec, swing_l=0.0, swing_r=0.0, elbow=12.0, add=17.0, breathe=0.0):
     D = spec['D']
-    D['upperarm_L'] = qy(add + breathe) @ qx(-swing_l)
-    D['upperarm_R'] = qy(-add - breathe) @ qx(-swing_r)
-    D['forearm_L'] = qx(-elbow)
-    D['forearm_R'] = qx(-elbow)
+    D['upperarm_L'] = arm_q(1, add + breathe, swing_l)
+    D['upperarm_R'] = arm_q(-1, add + breathe, swing_r)
+    D['forearm_L'] = elbow_q(1, elbow)
+    D['forearm_R'] = elbow_q(-1, elbow)
 
 
 def stand_legs(spec, lx=0.0, rx=0.0):
@@ -266,7 +312,7 @@ def _walk_foot(ph, sgn):
         toe = -dn * (1 - sstep(0.0, 0.35, s))
     z = rig.ANKLE_L.z + 0.045 * sin(radians(up)) + 0.112 * sin(radians(dn)) + lift
     y += 0.025 * (1 - cos(radians(dn)))
-    return {'ankle': V(sgn * 0.036, y, z), 'foot': qz(sgn * 5.0) @ qx(dn - up), 'toe': toe}
+    return {'ankle': V(sgn * 0.050, y, z), 'foot': qz(sgn * 5.0) @ qx(dn - up), 'toe': toe}
 
 
 def walk_pose(t):
@@ -281,15 +327,14 @@ def walk_pose(t):
     D['head'] = E(pitch=-1.5, yaw=-2.3 * c, roll=-0.4 * s)
     sw_l = -c
     arms_down(spec, swing_l=17.0 * sw_l + 2.0, swing_r=-17.0 * sw_l + 2.0, add=15.0)
-    D['forearm_L'] = qx(-(15.0 + 11.0 * sstep(-1, 1, sw_l)))
-    D['forearm_R'] = qx(-(15.0 + 11.0 * sstep(-1, 1, -sw_l)))
+    D['forearm_L'] = elbow_q(1, 15.0 + 11.0 * sstep(-1, 1, sw_l))
+    D['forearm_R'] = elbow_q(-1, 15.0 + 11.0 * sstep(-1, 1, -sw_l))
     D['shoulder_L'] = qy(-0.8) @ qz(-2.0 * sw_l)
     D['shoulder_R'] = qy(0.8) @ qz(-2.0 * sw_l)
     for side, sgn, off in (('L', 1.0, 0.0), ('R', -1.0, 0.5)):
         f = _walk_foot((ph + off) % 1.0, sgn)
         spec['leg_' + side] = f
         D['toe_' + side] = qx(f['toe'])
-    spec['robe'] = {'B': 2.5, 'S': 1.0}
     return spec
 
 
@@ -322,20 +367,20 @@ def run_pose(t):
     D['neck'] = E(pitch=-6.0, yaw=-4.5 * c)
     D['head'] = E(pitch=-7.0, yaw=-4.5 * c)
     sw_l = -c
-    D['upperarm_L'] = qy(12.0) @ qx(-(34.0 * sw_l - 10.0)) @ qz(8.0 * sstep(-1, 1, sw_l))
-    D['upperarm_R'] = qy(-12.0) @ qx(-(-34.0 * sw_l - 10.0)) @ qz(-8.0 * sstep(-1, 1, -sw_l))
-    D['forearm_L'] = qx(-(82.0 + 16.0 * sw_l))
-    D['forearm_R'] = qx(-(82.0 - 16.0 * sw_l))
+    D['upperarm_L'] = arm_q(1, 9.0, 34.0 * sw_l - 10.0)
+    D['upperarm_R'] = arm_q(-1, 9.0, -34.0 * sw_l - 10.0)
+    D['forearm_L'] = elbow_q(1, 82.0 + 16.0 * sw_l)
+    D['forearm_R'] = elbow_q(-1, 82.0 - 16.0 * sw_l)
     D['shoulder_L'] = qz(-5.0 * sw_l) @ qy(-2.0)
     D['shoulder_R'] = qz(-5.0 * sw_l) @ qy(2.0)
     D['hand_L'] = qx(-8.0)
     D['hand_R'] = qx(-8.0)
     for side, sgn, off in (('L', 1.0, 0.0), ('R', -1.0, 0.5)):
         y, z, pitch = _run_foot(ph + off)
-        spec['leg_' + side] = {'ankle': V(sgn * 0.045, y, z), 'foot': qz(sgn * 3.0) @ qx(pitch)}
+        z = 0.085 + (z - 0.085) * 0.72        # lower knee lift than the first rig's run
+        spec['leg_' + side] = {'ankle': V(sgn * 0.055, y, z + rig.DZ), 'foot': qz(sgn * 3.0) @ qx(pitch)}
         php = (ph + off) % 1.0
         D['toe_' + side] = qx(-clamp(pitch, 0.0, 45.0) * (1 - sstep(0.35, 0.47, php)))
-    spec['robe'] = {'B': 13.0 + 3.0 * sin(4 * pi * ph), 'S': 7.0, 'F': 3.0, 'open': 7.0, 'flare': 3.0}
     return spec
 
 
@@ -365,8 +410,8 @@ def turn_pose(t):
 # --- annoyed idle ----------------------------------------------------------
 # arm targets in chest space (rest coordinates)
 _CROSS = {
-    'L': {'wrist': V(-0.030, 0.158, 1.212), 'elbow': V(0.175, 0.050, 1.115)},
-    'R': {'wrist': V(0.040, 0.128, 1.186), 'elbow': V(-0.175, 0.045, 1.110)},
+    'L': {'wrist': V(-0.050, 0.170, 1.055), 'elbow': V(0.165, 0.070, 0.965)},
+    'R': {'wrist': V(0.055, 0.150, 1.035), 'elbow': V(-0.165, 0.065, 0.960)},
 }
 
 
@@ -390,6 +435,7 @@ def annoyed_pose(sk, k_body, k_l, k_r, t_loop=None):
     spec = idle_pose(0.0 if t_loop is None else t_loop)
     D = spec['D']
     kb = k_body
+    spec['curl'] = lerp(16.0, 48.0, min(k_l, k_r))
     tl = 0.0 if t_loop is None else t_loop
     b = sin(2 * pi * tl / 3.0)                       # annoyed breathing, a little quicker
     # impatient toe tapping (left foot): two bursts in the loop
@@ -444,7 +490,6 @@ def annoyed_pose(sk, k_body, k_l, k_r, t_loop=None):
         u = (tl - 1.9) / 0.3
         if 0.0 <= u < 3.0:
             D['hand_L'] = D['hand_L'] @ qx(-7.0 * sin(pi * (u % 1.0)))
-    spec['robe'] = {'S': 0.0}
     return spec
 
 
@@ -477,8 +522,11 @@ def _clips(sk):
     ]
 
 
+FINGERS = ('index', 'middle', 'ring', 'pinky', 'thumb')
+
+
 def _skip(b):
-    return b == 'root' or b.startswith('hair_') or (b.startswith('robe_') and b.endswith('_2'))
+    return b == 'root'
 
 
 def local_pose(sk, spec):
@@ -496,6 +544,7 @@ def local_pose(sk, spec):
 
 
 def build_all(arm_ob):
+    init_rig(arm_ob)
     sk = Skel(arm_ob)
     scene = bpy.context.scene
     scene.render.fps = FPS
@@ -544,6 +593,7 @@ def build_all(arm_ob):
         tr.name = name
         st = tr.strips.new(name, 0, act)
         st.name = name
+        assign(st, act)
         tr.mute = True
         info['clips'][name] = round(dur, 4)
     scene.frame_start = 0
@@ -551,7 +601,16 @@ def build_all(arm_ob):
     return info
 
 
+def assign(ad_or_strip, act):
+    if hasattr(ad_or_strip, 'action_slot') and len(getattr(act, 'slots', [])):
+        ad_or_strip.action_slot = act.slots[0]
+
+
 def show(arm_ob, name, frame):
-    arm_ob.animation_data.action = bpy.data.actions[name]
+    for tr in arm_ob.animation_data.nla_tracks:
+        tr.mute = True
+    act = bpy.data.actions[name]
+    arm_ob.animation_data.action = act
+    assign(arm_ob.animation_data, act)
     bpy.context.scene.frame_set(frame)
     bpy.context.view_layer.update()

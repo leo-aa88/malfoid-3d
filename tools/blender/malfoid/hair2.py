@@ -241,6 +241,8 @@ def sheet(md, grid, thick_fn, cols_fn, mat='mf_hair'):
 class Design:
     def __init__(self, head, parts, variant='C', seed=5):
         self.fit = Fit(head, parts, bpy.data.objects.get('Body_All'))
+        import os
+        self.fit.EXTRA = float(os.environ.get('MF_HAIR_CLEAR', '0.016'))     # room for the robe
         self.scalp = Scalp(head, parts)
         self.variant = variant
         self.rnd = random.Random(seed)
