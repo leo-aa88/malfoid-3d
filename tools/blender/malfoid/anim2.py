@@ -410,8 +410,11 @@ def turn_pose(t):
 # --- annoyed idle ----------------------------------------------------------
 # arm targets in chest space (rest coordinates)
 _CROSS = {
-    'L': {'wrist': V(-0.050, 0.170, 1.055), 'elbow': V(0.165, 0.070, 0.965)},
-    'R': {'wrist': V(0.055, 0.150, 1.035), 'elbow': V(-0.165, 0.065, 0.960)},
+    # forearms folded across the body under the bust, her left arm over the
+    # right; each hand rests on the opposite upper arm / elbow
+    # elbows forward and in, under the bust; forearms run across the body
+    'L': {'wrist': V(-0.075, 0.152, 1.088), 'elbow': V(0.100, 0.092, 1.070)},
+    'R': {'wrist': V(0.072, 0.122, 1.062), 'elbow': V(-0.100, 0.076, 1.052)},
 }
 
 

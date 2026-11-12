@@ -12,7 +12,7 @@ async function start(): Promise<void> {
   const cam = new CameraController(sm.camera, sm.renderer.domElement);
   const malfoid = await Malfoid.load(`${BASE}models/malfoid.glb`, `${BASE}models/malfoid.json`);
   sm.scene.add(malfoid.root);
-  const input = new CharacterController(malfoid, cam);
+  const input = new CharacterController(malfoid);
   cam.reset(malfoid.position);
   malfoid.resetIdleTimer();          // the countdown starts when she appears
   document.getElementById('reset-camera')!.addEventListener('click', (e) => {

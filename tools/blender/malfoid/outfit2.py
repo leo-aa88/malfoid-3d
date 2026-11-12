@@ -327,21 +327,50 @@ def _garment_bvh(names):
 
 
 def robe_open(z):
-    """half-width of the robe's front opening at height z"""
-    return lerp(0.040, 0.062, sstep(1.25, 0.95, z))
+    """half-width of the robe's front opening at height z: straight below the
+    chest, opening into a V-shaped lapel towards the shoulders so the robe
+    sits below the shirt collar instead of bunching against the neck"""
+    return lerp(0.040, 0.062, sstep(1.25, 0.95, z)) + 0.058 * sstep(1.10, 1.285, z) ** 1.3
+
+
+SLEEVE_X = 0.125          # below the shoulders the sleeves start here; the yoke covers the torso
+SHOULDER_X = 0.090        # over the shoulder tops the piece reaches in to here
+SHOULDER_Z = 1.212
+
+
+def _sleeve_x(c):
+    if c.z > SHOULDER_Z and c.y > -0.035:
+        return SHOULDER_X
+    return SLEEVE_X
 
 
 def robe_upper(info, extra=0.0):
     def keep(i):
         c = info.co[i]
         if c.z < 0.975 or (c.z > COLLAR_Z + 0.004 and abs(c.x) < 0.10) or abs(c.x) > 0.465 \
-                or info.is_(i, HANDS + ('head', 'neck')):
+                or info.is_(i, HANDS + ('head', 'neck')) or abs(c.x) < _sleeve_x(c):
             return False
         return True
 
     def snap(co):
-        if co.y < 0.01 and abs(co.x) < 0.12 and co.z < COLLAR_Z - 0.004:
+        ax = abs(co.x)
+        if co.z > SHOULDER_Z - 0.01 and abs(ax - SHOULDER_X) < 0.012:
+            co.x = math.copysign(SHOULDER_X, co.x)          # straight edge over the shoulder
+            return
+        if co.z > SHOULDER_Z - 0.01 and co.y > -0.05 and abs(co.y + 0.035) < 0.012 and ax < SLEEVE_X:
+            co.y = -0.035
+            return
+        if co.z < SHOULDER_Z + 0.01 and abs(ax - SLEEVE_X) < 0.012:
+            co.x = math.copysign(SLEEVE_X, co.x)
+            return
+        # only straighten edges that already lie close to the intended line;
+        # never drag far-away vertices (that stretches faces across the chest)
+        if co.y < 0.01 and abs(abs(co.x) - robe_open(co.z)) < 0.012 and co.z < COLLAR_Z - 0.004:
             co.x = math.copysign(robe_open(co.z), co.x)
+        elif co.y > -0.03 and co.z > 1.225 and abs(co.x) < 0.14:
+            tz = 1.262 + 0.012 * sstep(-0.01, 0.05, co.y)
+            if abs(co.z - tz) < 0.015:
+                co.z = tz       # smooth neckline round the back of the neck
 
     under = _garment_bvh(('Shirt', 'Vest', 'Tie'))
 
@@ -387,9 +416,93 @@ def robe_upper(info, extra=0.0):
 
     def off(i):
         return sm_off.get(i, base_off(i))
-    ob = extract('RobeUpper', info, keep, off, 0.0035, 'mf_robe', inner_mat='mf_robe_lining', snap=snap,
+    ob = extract('RobeSleeves', info, keep, off, 0.0035, 'mf_robe', inner_mat='mf_robe_lining', snap=snap,
                  cut=lambda c: c.y < 0.01 and abs(c.x) < robe_open(c.z))
-    _facing(ob)
+    # green only inside the sleeve openings; the shoulder piece is black throughout
+    for p in ob.data.polygons:
+        ax = abs(p.center.x)
+        if ax > 0.448:
+            p.material_index = 1                    # turned-back cuff facing
+        elif ax < 0.30:
+            p.material_index = 0
+    return ob
+
+
+def robe_yoke(info, rows=20, cols=84):
+    """Robe torso as a smooth parametric surface: for each height a horizontal
+    ring of rays from outside finds the outermost layer (body + shirt + vest +
+    tie); the robe sits a clearance outside it. Open at the front along the
+    lapel line robe_open(z); its first/last columns are the green facing.
+    The shoulder tops are covered by the sleeve piece (robe_upper)."""
+    from mathutils.bvhtree import BVHTree
+    verts, polys = [], []
+    for nm in ('Body_All', 'Shirt', 'Vest', 'Tie'):
+        ob = bpy.data.objects.get(nm)
+        if ob is None:
+            continue
+        b0 = len(verts)
+        verts += [ob.matrix_world @ v.co for v in ob.data.vertices]
+        polys += [[b0 + k for k in p.vertices] for p in ob.data.polygons]
+    under = BVHTree.FromPolygons(verts, polys)
+    z0, z_top_front, z_top_back = 1.150, 1.258, 1.276
+    clear = 0.016
+
+    def axis_y(z):
+        _, yf, yb = info.envelope(min(z, 1.24))
+        return (yf + yb) / 2
+
+    def outer(z, th):
+        yc = axis_y(z)
+        d = Vector((math.sin(th), -math.cos(th), 0.0))
+        o = Vector((0.0, yc, z)) + d * 0.6
+        hit = under.ray_cast(o, -d, 0.6)
+        if hit[0] is None:
+            return Vector((0.0, yc, z)) + d * 0.09
+        return hit[0] + d * clear
+
+    def theta_open(z):
+        lo, hi = 0.02, 1.45
+        target = robe_open(min(z, 1.262))
+        for _ in range(22):
+            mid = (lo + hi) / 2
+            if abs(outer(z, mid).x) < target:
+                lo = mid
+            else:
+                hi = mid
+        return (lo + hi) / 2
+
+    grid = []
+    for i in range(rows):
+        t = i / (rows - 1)
+        row = []
+        to = None
+        for j in range(cols):
+            u = j / (cols - 1)
+            back = 0.5 - 0.5 * math.cos(2 * math.pi * u)
+            z = lerp(z0, lerp(z_top_front, z_top_back, back), t)
+            if to is None:
+                to = theta_open(z)
+            row.append(outer(z, to + u * (2 * math.pi - 2 * to)))
+        grid.append(row)
+    for _ in range(3):
+        new = [r[:] for r in grid]
+        for i in range(1, rows - 1):
+            for j in range(1, cols - 1):
+                avg = (grid[i - 1][j] + grid[i + 1][j] + grid[i][j - 1] + grid[i][j + 1]) / 4
+                p = grid[i][j].lerp(avg, 0.5)
+                yc = axis_y(p.z)
+                d = Vector((p.x, p.y - yc, 0)).normalized()
+                ref = Vector((grid[i][j].x, grid[i][j].y - yc, 0)).length
+                cur = Vector((p.x, p.y - yc, 0)).length
+                if cur < ref - 0.001:
+                    p = p + d * (ref - 0.001 - cur)
+                new[i][j] = p
+        grid = new
+    md = MeshData()
+    _thick_grid(md, grid, 0.0035, 'mf_robe', 'mf_robe_lining', facing_cols=2)
+    ob = proc_object('RobeUpper', md, info)
+    for p in ob.data.polygons:
+        p.use_freestyle_mark = False
     return ob
 
 
@@ -419,7 +532,7 @@ def robe_lower(info):
         sk = _skirt_extent(z)
         if sk is not None:
             # make the ring enclose the skirt: grow the body envelope to the skirt + margin
-            rx, yf, yb = max(rx, sk[0] - 0.012), min(yf, sk[1] + 0.012), max(yb, sk[2] - 0.012)
+            rx, yf, yb = max(rx, sk[0] - 0.004), min(yf, sk[1] + 0.004), max(yb, sk[2] - 0.004)
             skirt_out = 0.0
         else:
             skirt_out = 0.006 + 0.045 * sstep(0.985, 0.74, z) + 0.022 * sstep(0.98, 0.86, z)
@@ -673,51 +786,70 @@ def tie(info):
 
 
 def crest(info):
+    """Slytherin crest: a painted texture (crest_tex) on a decal that follows
+    the robe's surface over the left chest"""
+    import os
+    import numpy as np
     from mathutils.bvhtree import BVHTree
+    from . import crest_tex
+    from .assets import _save_png, BUILT
     ob = bpy.data.objects['RobeUpper']
     me = ob.data
     bvh = BVHTree.FromPolygons([v.co.copy() for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
-    cx, cz = 0.088, 1.150
-    hit = bvh.ray_cast(Vector((cx, -1, cz)), Vector((0, 1, 0)))
-    p0, n = hit[0], hit[1]
-    if n.y > 0:
-        n = -n
-    eu = Vector((1, 0, 0)) - n * n.x
-    eu.normalize()
-    ev = n.cross(eu).normalized()
-    if ev.z < 0:
-        ev = -ev
-    P = lambda u, v, h: p0 + eu * u + ev * v + n * h
+    cx, cz, w, h = 0.104, 1.150, 0.060, 0.066
+    n = 14
     md = MeshData()
-    half = [(0.0, 0.021), (0.006, 0.019), (0.012, 0.021), (0.017, 0.024), (0.0195, 0.021),
-            (0.019, 0.010), (0.0185, 0.000), (0.0165, -0.009), (0.0120, -0.017), (0.006, -0.0225),
-            (0.0, -0.0255)]
-    outline = half + [(-u, v) for u, v in reversed(half[1:-1])]
-
-    def plate(sc, h0, h1, mat):
-        top = [P(u * sc, v * sc, h1) for u, v in outline]
-        bot = [P(u * sc * 1.03, v * sc * 1.03, h0) for u, v in outline]
-        md.add_grid([bot, top], mat, closed=True, cap_end=P(0, 0, h1 + 0.0004))
-    plate(1.0, -0.0004, 0.0018, 'mf_crest_silver')
-    plate(0.80, 0.0014, 0.0030, 'mf_crest_green')
-    # serpent
-    pts = []
-    for i in range(25):
-        t = i / 24
-        v = lerp(0.0115, -0.0140, t)
-        u = -0.0060 * sin(2 * pi * t * 1.02 + 0.25) * lerp(0.75, 1.0, t)
-        pts.append(P(u, v, 0.0037))
-    rows = []
-    for i, p in enumerate(pts):
-        t = (pts[min(i + 1, 24)] - pts[max(i - 1, 0)]).normalized()
-        s = t.cross(n).normalized()
-        k = i / 24
-        r = 0.0017 * (1.5 if k < 0.08 else 1.0) * lerp(1.0, 0.35, sstep(0.75, 1.0, k))
-        rows.append([p + s * (r * cos(2 * pi * q / 6)) + n * (r * 0.8 * sin(2 * pi * q / 6)) for q in range(6)])
-    md.add_grid(rows, 'mf_crest_silver', closed=True, cap_start=pts[0] + (pts[0] - pts[1]) * 0.6,
-                cap_end=pts[-1] + (pts[-1] - pts[-2]) * 0.5)
-    w = info.weights_near(p0)
-    return proc_object('Crest', md, info, lambda p: dict(w))
+    rows, uvs = [], []
+    for i in range(n + 1):
+        row = []
+        for j in range(n + 1):
+            x = cx + (j / n - 0.5) * w
+            z = cz + (i / n - 0.5) * h
+            hit = bvh.ray_cast(Vector((x, -1.0, z)), Vector((0, 1, 0)))
+            p = hit[0] if hit[0] is not None else Vector((x, -0.14, z))
+            nn = hit[1] if hit[0] is not None else Vector((0, -1, 0))
+            if nn.y > 0:
+                nn = -nn
+            row.append(p + nn * 0.0016)
+        rows.append(row)
+    base = len(md.v)
+    for i, row in enumerate(rows):
+        for j, p in enumerate(row):
+            md.v.append(p)
+            md.c.append((1.0, 1.0, 1.0))
+            uvs.append((j / n, i / n))
+    for i in range(n):
+        for j in range(n):
+            a = base + i * (n + 1) + j
+            md.f.append((a, a + 1, a + n + 2, a + n + 1))
+            md.fm.append('mf_crest_tex')
+    os.makedirs(BUILT, exist_ok=True)
+    path = os.path.join(BUILT, 'Malfoid_Crest.png')
+    _save_png(np.ascontiguousarray(crest_tex.paint()[::-1]), path, 'mf_crest_png')
+    m = bpy.data.materials.get('mf_crest_tex') or bpy.data.materials.new('mf_crest_tex')
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    o = nt.nodes.new('ShaderNodeOutputMaterial')
+    bsdf = nt.nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.name = 'Principled BSDF'
+    t = nt.nodes.new('ShaderNodeTexImage')
+    t.image = bpy.data.images.load(path, check_existing=False)
+    t.image.name = 'Malfoid_Crest'
+    t.image.colorspace_settings.name = 'sRGB'
+    t.image.alpha_mode = 'STRAIGHT'
+    nt.links.new(t.outputs['Color'], bsdf.inputs['Base Color'])
+    nt.links.new(t.outputs['Alpha'], bsdf.inputs['Alpha'])
+    nt.links.new(bsdf.outputs[0], o.inputs[0])
+    bsdf.inputs['Roughness'].default_value = 0.5
+    wgt = info.weights_near(Vector((cx, -0.12, cz)))
+    cob = proc_object('Crest', md, info, lambda p: dict(wgt))
+    uvl = cob.data.uv_layers.new(name='UVMap')
+    for poly in cob.data.polygons:
+        poly.use_freestyle_mark = True
+        for li in poly.loop_indices:
+            uvl.data[li].uv = uvs[cob.data.loops[li].vertex_index - base]
+    return cob
 
 
 def _bvh(name):
@@ -766,14 +898,8 @@ def trims(info, vest_trim=True):
                     [V_BOTTOM - 0.004 + k * (1.262 - V_BOTTOM) / 24 for k in range(25)]]
             _strip(md, bvh, line, 0.0, 0.012, 0.0012, 0.002, 'mf_sweater_trim')
         proc_object('VestTrim', md, info)
-    # robe front facings (green), covering the cut edge of the opening
-    md = MeshData()
-    bvh = _bvh('RobeUpper')
-    for sg in (1.0, -1.0):
-        zs = [0.975 + k * (1.25 - 0.975) / 20 for k in range(21)]
-        line = [(sg * robe_open(z), z) for z in zs]
-        _strip(md, bvh, line, 0.002, 0.020, 0.0016, 0.003, 'mf_robe_lining')
-    proc_object('RobeFacing', md, info)
+    # (the robe's green facings are the first/last columns of the yoke and the
+    #  lower robe, so no separate strips are needed)
 
 
 def hood(info):
@@ -879,7 +1005,8 @@ def build(head, parts, arm, mats):
         tie(info)
     # not in the pack: shoes, robe, crest
     shoes(info)
-    robe_upper(info, extra=0.006 if purchased else 0.0)
+    robe_yoke(info)
+    robe_upper(info, extra=0.006 if purchased else 0.0)     # sleeves (RobeSleeves)
     robe_lower(info)
     crest(info)
     trims(info, vest_trim=not purchased)

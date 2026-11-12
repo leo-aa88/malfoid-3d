@@ -257,6 +257,7 @@ def import_hair(head, parts):
         mod.object = rig
     for o in (hair_ob, arm):
         bpy.data.objects.remove(o, do_unlink=True)
+    shrinkwrap_cap(me, skull, centre)
     _hair_clearance(ob, skull, centre)
     if parts is not None:
         hm = head.data
@@ -301,6 +302,66 @@ def _hair_clearance(ob, skull, centre, margin=0.0015, radius=0.025):
         me.vertices[i].co = co[i] + dn * push[i]
     print('MF hair clearance: %d verts inside the head (max %.1f mm); %d verts eased outwards'
           % (len(need), max(need.values(), default=0) * 1000, int((push > 0).sum())))
+
+
+def shrinkwrap_cap(me, skull, centre, gap=0.0040, z_full=1.40, z_free=1.29):
+    """Pull the crown of the hair in onto her skull. For every direction from
+    the head centre the gap between the skull and the innermost hair layer is
+    measured; all hair along that direction moves in by the excess gap, so the
+    strand layering is preserved. Full effect above z_full, none below z_free
+    (the hanging hair keeps its authored fall)."""
+    hair_bvh = BVHTree.FromPolygons([v.co.copy() for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+    na, ne = 72, 37
+    G = np.full((ne, na), np.nan)
+    for i in range(ne):
+        el = radians(-60 + 150 * i / (ne - 1))
+        for j in range(na):
+            az = radians(-180 + 360 * j / na)
+            d = Vector((sin(az) * cos(el), -cos(az) * cos(el), sin(el)))
+            hs = skull.ray_cast(centre + d * 0.4, -d)
+            hh = hair_bvh.ray_cast(centre, d, 0.4)
+            if hs[0] is None or hh[0] is None:
+                continue
+            G[i, j] = hh[3] - (hs[0] - centre).length
+    # fill holes (face opening) with 0, then smooth around the sphere
+    G = np.where(np.isnan(G), 0.0, G)
+    G = np.clip(G - gap, 0.0, 0.08)
+    from math import exp
+    k = np.array([exp(-0.5 * (t / 1.6) ** 2) for t in range(-4, 5)])
+    k /= k.sum()
+    for _ in range(2):
+        G = np.array([np.convolve(np.r_[r[-4:], r, r[:4]], k, 'valid') for r in G])
+        G = np.array([np.convolve(np.r_[[c[0]] * 4, c, [c[-1]] * 4], k, 'valid') for c in G.T]).T
+    moved = 0
+    worst = 0.0
+    for v in me.vertices:
+        p = v.co
+        # front and sides (fringe, locks beside the face) are drawn in down to the
+        # jaw; the long hair at the back keeps its authored fall
+        d = p - centre
+        az_v = abs(math.degrees(math.atan2(d.x, -d.y)))
+        front = 1.0 - sstep(38.0, 62.0, az_v)
+        w = max(sstep(z_free, z_full, p.z), front * sstep(1.25, 1.35, p.z))
+        if w <= 0:
+            continue
+        if d.length < 1e-6:
+            continue
+        dn = d.normalized()
+        el = math.degrees(math.asin(max(-1.0, min(1.0, dn.z))))
+        az = math.degrees(math.atan2(dn.x, -dn.y))
+        fi = (el + 60) / 150 * (ne - 1)
+        fj = (az + 180) / 360 * na
+        i0 = int(np.clip(np.floor(fi), 0, ne - 2))
+        ti = float(np.clip(fi - i0, 0, 1))
+        j0 = int(np.floor(fj)) % na
+        tj = fj - np.floor(fj)
+        j1 = (j0 + 1) % na
+        g = ((1 - ti) * ((1 - tj) * G[i0, j0] + tj * G[i0, j1]) + ti * ((1 - tj) * G[i0 + 1, j0] + tj * G[i0 + 1, j1]))
+        if g > 0:
+            v.co = p - dn * (g * w)
+            moved += 1
+            worst = max(worst, g * w)
+    print('MF hair shrink-wrap: %d verts pulled in towards the skull (max %.1f mm)' % (moved, worst * 1000))
 
 
 def tuck_behind_ears(ob, ears):
@@ -350,8 +411,10 @@ def classify_part(mn, mx, n):
     from .uniform_parts import classify
     c = classify(mn, mx, n)
     small = max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) < 2.0
-    if small and n <= 30 and c not in ('socks',):
+    if small and n <= 30 and c not in ('socks', 'skirt'):
         return 'button'
+    if mx.z < 90 and c in ('torso', 'button', 'placket'):
+        return 'skirt'                       # small pieces along the skirt hem
     if c == 'torso':
         return 'shirt' if mn.z < 100 else 'vest'
     if c == 'band':
@@ -755,11 +818,16 @@ def import_uniform(info, arm):
             c = cls[v]
             p = pos[v]
             if c in ('skirt', 'skirt_band'):
-                side = 'thigh_L' if p[0] > 0 else 'thigh_R'
-                t = 0.45 * sstep(0.95, 0.72, p[2]) * sstep(0.01, 0.07, abs(p[0]))
-                w = {'hips': 1.0 - t}
-                if t > 0:
-                    w[side] = t
+                # each part of the skirt follows the leg it covers, more towards
+                # the hem; the waistband stays on the hips
+                share = 0.78 * sstep(0.965, 0.80, p[2])
+                wl = math.exp(-((p[0] - 0.076) / 0.075) ** 2)
+                wr = math.exp(-((p[0] + 0.076) / 0.075) ** 2)
+                tot_lr = wl + wr + 1e-6
+                w = {'hips': 1.0 - share}
+                if share > 0:
+                    w['thigh_L'] = share * wl / tot_lr
+                    w['thigh_R'] = share * wr / tot_lr
             else:
                 w = surf_w(p)
             tot = sum(w.values()) or 1.0

@@ -1,15 +1,12 @@
 import * as THREE from 'three';
 import type { Malfoid } from './Malfoid';
-import type { CameraController } from '../camera/CameraController';
 
-/** Keyboard input -> camera-relative movement commands. */
+/** Keyboard input -> world-fixed movement commands. */
 export class CharacterController {
   private readonly keys = new Set<string>();
   private readonly dir = new THREE.Vector3();
-  private readonly fwd = new THREE.Vector3();
-  private readonly right = new THREE.Vector3();
 
-  constructor(private readonly character: Malfoid, private readonly camera: CameraController) {
+  constructor(private readonly character: Malfoid) {
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
       this.keys.add(e.code);
@@ -26,11 +23,10 @@ export class CharacterController {
       this.character.stop();
       return;
     }
-    // forward = away from the camera, on the ground plane
-    const yaw = this.camera.getYaw();
-    this.fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
-    this.right.set(-this.fwd.z, 0, this.fwd.x);
-    this.dir.copy(this.fwd).multiplyScalar(f).addScaledVector(this.right, r);
+    // world-fixed directions (as seen from the initial camera): W away from it,
+    // S towards it, A left, D right. Orbiting the camera never changes where
+    // she walks, so you can watch her walk or run from any side.
+    this.dir.set(r, 0, -f);
     const running = k.has('ShiftLeft') || k.has('ShiftRight');
     this.character.move(this.dir, running);
   }

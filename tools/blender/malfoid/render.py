@@ -5,12 +5,12 @@ import bpy
 from mathutils import Vector
 
 
-FLAT = ('mf_highlight', 'mf_sclera', 'mf_iris', 'mf_pupil', 'mf_lash', 'mf_brow', 'mf_lidline',
+FLAT = ('mf_crest_tex', 'mf_highlight', 'mf_sclera', 'mf_iris', 'mf_pupil', 'mf_lash', 'mf_brow', 'mf_lidline',
         'mf_teeth', 'mf_lipline')
 FLAT += ('Eye', 'Highlight', 'Alpha', 'Tear')
 SHADE_TINT = {'mf_hair_tex': (0.84, 0.76, 0.70), 'mf_skin': (0.86, 0.74, 0.76), 'mf_skin_body': (0.86, 0.74, 0.76), 'mf_hair': (0.84, 0.76, 0.70),
               'mf_hair_dark': (0.84, 0.76, 0.70), 'Body': (0.88, 0.78, 0.80), 'Body_All': (0.88, 0.78, 0.80)}
-BASE_MATS = ('Body', 'Body_All', 'Eye', 'Highlight', 'Alpha', 'Tear', 'Underwear', 'mf_hair_tex', 'mf_tie_tex')
+BASE_MATS = ('Body', 'Body_All', 'Eye', 'Highlight', 'Alpha', 'Tear', 'Underwear', 'mf_hair_tex', 'mf_tie_tex', 'mf_crest_tex')
 
 
 def _toon_on():
@@ -213,6 +213,14 @@ def head_views(out_dir, lm, views='front,side,q,eyes,mouth', res=900, lines=True
                  res=(res, res))
             shot(scene, os.path.join(out_dir, tag + '8_crest_uniform.png'), (0.03, -0.1, 1.13), 15, 0.36, 3,
                  res=(res, res))
+        if 'neck' in v:
+            shot(scene, os.path.join(out_dir, tag + 'neck_front.png'), (0, -0.04, 1.26), 0, 0.22, 8, res=(res, res))
+            shot(scene, os.path.join(out_dir, tag + 'neck_q.png'), (0, -0.04, 1.26), 40, 0.22, 10, res=(res, res))
+        if 'chest' in v:
+            for nm, yaw, pitch in (('chest_front', 0, 0), ('chest_q', 35, 10), ('chest_side', 90, 0),
+                                   ('chest_top', 10, 55)):
+                shot(scene, os.path.join(out_dir, tag + nm + '.png'), (0, -0.02, 1.13), yaw, 0.55, pitch,
+                     res=(res, res))
         if 'qback' in v:
             shot(scene, os.path.join(out_dir, tag + 'qback.png'), (0, 0, cz - 0.12), 140, span * 2.0, 5,
                  res=(res, res))

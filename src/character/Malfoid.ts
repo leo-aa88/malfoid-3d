@@ -44,7 +44,6 @@ export class Malfoid {
   private faceMeshes: THREE.Mesh[] = [];
   private meta!: ModelMeta;
   private hair!: HairSway;
-  private lastFacing = 0;
 
   // locomotion
   private readonly desiredDir = new THREE.Vector3();
@@ -151,9 +150,8 @@ export class Malfoid {
     if (state === 'walk') this.animation.setTimeScale(Math.max(this.speed, 0.35) / this.meta.walk_speed);
     if (state === 'run') this.animation.setTimeScale(Math.max(this.speed, 1.2) / this.meta.run_speed);
     this.animation.update(dt);
-    const turnRate = dt > 0 ? Math.atan2(Math.sin(this.facing - this.lastFacing), Math.cos(this.facing - this.lastFacing)) / dt : 0;
-    this.lastFacing = this.facing;
-    this.hair.update(dt, this.speed, turnRate, this.root.quaternion);
+    this.root.updateMatrixWorld();
+    this.hair.update(dt);
 
     this.updateFace(dt, state === 'idle_annoyed');
   }

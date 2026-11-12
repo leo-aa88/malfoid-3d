@@ -38,9 +38,21 @@ Uniform weights are interpolated from the nearest body surface; the skirt uses h
 - `10`–`11`: walk;
 - `0`: the untouched source assets, rendered independently.
 
+## Later fixes
+
+- **Hair motion**: per-strand damped springs on the hair pack's own chain bones. They are reset to rest every frame and bend at most 24° per bone. A browser test measured about 11° while walking and 17° while running, settling within about 2.5 s with no accumulation.
+- **Hair fit**: the crown and the fringe in front of the face are shrink-wrapped onto her skull, so the hair no longer sits like a helmet. The locks beside the ears are left free so both hoops stay visible.
+- **Cheeks**: added a `mf_cheek_slim` shape key and switched it on in her resting expression. The head's base geometry and authored keys are untouched.
+- **Robe**: the torso is now a smooth surface built around her clothes, with a clean V lapel and green facing. Separate pieces cover the sleeves and shoulder tops.
+- **Crest**: painted texture with an ornate frame, crown, shield and a serpent with scales, eye and forked tongue.
+- **Skirt**: each part is weighted to the leg it covers, so the walking leg no longer passes through it.
+- **Stray fragments**: hem pieces that were misclassified as shirt are fixed, which removes the floating dashes.
+- **Crossed arms**: retargeted so her left forearm goes over the right and each hand reaches the opposite elbow.
+- **Controls**: WASD is fixed to the world (as seen from the initial camera), so you can orbit to watch her walk or run from any side.
+
 ## Remaining limitations
 
-- **Robe**: built for this project and plainer than the reference: no hood, simple folds. The front facing edge is slightly uneven.
+- **Robe**: built for this project and plainer than the reference: no hood, simple folds.
 - **Hair fringe**: one lock falls across her right eye in three-quarter view; this is part of the asset's design.
 - **Hair sway**: driven procedurally, not cloth simulation.
 - **Shoes and crest**: simple, built for this project.

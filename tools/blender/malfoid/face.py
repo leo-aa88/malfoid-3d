@@ -238,6 +238,7 @@ def _env_expr():
 # landmark-driven reshape (kept only for comparison).
 RESHAPE = False
 REST_KEYS = {
+    'mf_cheek_slim': 1.0,           # slimmer cheeks (added key, basis untouched)
     'vrc.blink_Straight': 0.50,     # heavy, half-lidded
     'browDownLeft': 0.20,
     'browDownRight': 0.50,          # one brow lowered ...
@@ -248,9 +249,40 @@ REST_KEYS = {
 }
 
 
+CHEEK_SLIM = 0.11      # how much narrower the cheeks get (fraction of their width)
+
+
+def add_cheek_slim(head, parts):
+    """Adds a shape key that slims the cheeks and lower face. The Basis and
+    every authored key stay untouched; the key is only switched on in her
+    resting expression (and can be dialled down or off)."""
+    me = head.data
+    if 'mf_cheek_slim' in me.shape_keys.key_blocks:
+        return
+    kb = head.shape_key_add(name='mf_cheek_slim', from_mix=False)
+    ears = set(parts['ear_L']) | set(parts['ear_R'])
+    moved = 0
+    for i, v in enumerate(me.vertices):
+        if i in ears:
+            continue
+        p = v.co
+        ax = abs(p.x)
+        # cheeks between the jaw and the lower eyelid, front half of the face only
+        wz = float(sm(1.296, 1.316, p.z) * (1.0 - sm(1.350, 1.372, p.z)))
+        wy = float(1.0 - sm(-0.030, 0.002, p.y))
+        wx = float(sm(0.012, 0.045, ax))
+        w = wz * wy * wx
+        if w <= 0:
+            continue
+        kb.data[i].co.x = p.x * (1.0 - CHEEK_SLIM * w)
+        moved += 1
+    print('MF face: cheek-slim key on %d verts (basis untouched)' % moved)
+
+
 def apply(head, parts, fparts):
     import os
     if not RESHAPE and os.environ.get('MF_RESHAPE') != '1':
+        add_cheek_slim(head, parts)
         kb = head.data.shape_keys.key_blocks
         for k in kb:
             k.value = 0.0
