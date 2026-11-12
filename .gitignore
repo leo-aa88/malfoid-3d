@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Python / Blender build output
+__pycache__/
+*.pyc
+/build/
+*.blend1
