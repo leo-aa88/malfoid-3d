@@ -49,7 +49,8 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  (window as unknown as { malfoid: Malfoid }).malfoid = malfoid;
+  (window as unknown as { malfoid: Malfoid; cam: CameraController }).malfoid = malfoid;
+  (window as unknown as { malfoid: Malfoid; cam: CameraController }).cam = cam;
 }
 
 start().catch((err) => {

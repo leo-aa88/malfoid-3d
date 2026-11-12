@@ -402,8 +402,10 @@ OBJECT_OF = {
     'vest': 'Vest', 'vest_rib': 'Vest', 'tie': 'Tie', 'skirt': 'Skirt', 'skirt_band': 'Skirt', 'socks': 'Socks',
 }
 # minimum distance outside the body skin after fitting (metres)
+SKIRT_TOP_Z = 0.995       # top of the skirt waistband (fitted)
+SKIRT_FLARE = 0.45        # fraction of the pack's skirt flare that is kept
 CLEAR = {'shirt': 0.0030, 'sleeve': 0.0035, 'collar': 0.0030, 'button': 0.0045, 'placket': 0.0040,
-         'vest': 0.0078, 'vest_rib': 0.0070, 'tie': 0.0060, 'skirt': 0.0050, 'skirt_band': 0.0050,
+         'vest': 0.0078, 'vest_rib': 0.0070, 'tie': 0.0035, 'skirt': 0.0050, 'skirt_band': 0.0050,
          'socks': 0.0018, 'drop': 0.003}
 
 
@@ -412,11 +414,17 @@ def classify_part(mn, mx, n):
     c = classify(mn, mx, n)
     small = max(mx.x - mn.x, mx.y - mn.y, mx.z - mn.z) < 2.0
     if small and n <= 30 and c not in ('socks', 'skirt'):
-        return 'button'
+        return 'drop'                        # buttons: hidden by vest/robe, only showed as outline marks
     if mx.z < 90 and c in ('torso', 'button', 'placket'):
         return 'skirt'                       # small pieces along the skirt hem
+    if c in ('sleeve', 'button') and n <= 160 and abs((mn.x + mx.x) / 2) > 42:
+        return 'drop'                        # cuff flap / buttons at the wrist (poke out of the robe sleeve)
+    if c in ('placket', 'button'):
+        return 'drop'                        # front button strip: hidden by vest and tie, only peeks out beside the tie
+    if c == 'tie' and mn.z < 100:
+        return 'drop'                        # the tie's narrow back blade (only showed as a second, split blade)
     if c == 'collar' and (mx.x - mn.x) < 5.0 and mn.y < -4.5:
-        return 'drop'                        # the pack's knot slivers (replaced by a modelled knot)
+        return 'tie'                         # the pack's own tie knot
     if c == 'torso':
         return 'shirt' if mn.z < 100 else 'vest'
     if c == 'band':
@@ -436,6 +444,36 @@ def _uniform_source():
     for comp, mn, mx in comps:
         c = classify_part(mn, mx, len(comp))
         cls[comp] = c
+    # The pack models most panels twice (an outer and an inner layer ~1 mm
+    # apart). After fitting they cross and z-fight (dark blotches), so only
+    # the outer layer (larger surface area) of each pair is kept.
+    comp_of = np.empty(len(co), dtype=np.int64)
+    for k, (comp, mn, mx) in enumerate(comps):
+        comp_of[comp] = k
+    area = np.zeros(len(comps))
+    for p in me.polygons:
+        area[comp_of[p.vertices[0]]] += p.area
+    byn = {}
+    for k, (comp, mn, mx) in enumerate(comps):
+        byn.setdefault(len(comp), []).append(k)
+    used, dropped = set(), 0
+    for ids in byn.values():
+        for a in ids:
+            if a in used:
+                continue
+            for b in ids:
+                if b <= a or b in used:
+                    continue
+                if max((comps[a][1] - comps[b][1]).length, (comps[a][2] - comps[b][2]).length) < 0.35:
+                    if cls[comps[a][0][0]] == 'tie':
+                        used |= {a, b}              # the knot needs both layers (no holes)
+                        break
+                    inner = a if area[a] < area[b] else b
+                    cls[comps[inner][0]] = 'drop'
+                    used |= {a, b}
+                    dropped += 1
+                    break
+    print('MF uniform: dropped the inner layer of %d duplicated panel pairs' % dropped)
     return src, co, cls
 
 
@@ -609,6 +647,11 @@ def fit_uniform(co, cls, body):
 
     idx_up = np.where(upper)[0]
     res = torso_map(idx_up)
+    # the vest hem reaches ~2 cm further down so it overlaps the skirt band
+    vest = np.isin(cls[idx_up], ['vest', 'vest_rib'])
+    zz = z[idx_up]
+    drop = 0.020 * np.clip((112.0 - zz) / 6.0, 0, 1)
+    res[vest, 2] -= drop[vest]
     for side, sg in (('L', 1), ('R', -1)):
         sel = np.where(x[idx_up] * sg > 4.0)[0]
         if len(sel) == 0:
@@ -626,7 +669,7 @@ def fit_uniform(co, cls, body):
         if bs is None:
             continue
         xo, yfo, ybo = bs
-        c = 0.0035                       # tucked in: just over the skin, under the skirt band
+        c = 0.0040                       # tucked in: just over the skin, under the skirt band
         res[i, 0] = np.clip(res[i, 0], -(xo + c), xo + c)
         res[i, 1] = np.clip(res[i, 1], yfo - c, ybo + c)
     out[idx_up] = res
@@ -639,6 +682,7 @@ def fit_uniform(co, cls, body):
     prof = []
     prev = None
     s_top = None
+    waist = None
     for zz in zs_u:
         m = sk & (np.abs(z - zz) < 0.75)
         if m.sum() < 12:
@@ -658,9 +702,17 @@ def fit_uniform(co, cls, body):
         co_ = (yfo + ybo) / 2
         if s_top is None:                                   # waistband: snug on the waist
             s_top = ((xo + 0.0065) / xu, (co_ - yfo + 0.0065) / (cu - yfu), (ybo - co_ + 0.0065) / (ybu - cu))
-        X = max(xu * s_top[0], xo + 0.008)
-        F = max((cu - yfu) * s_top[1], co_ - yfo + 0.008)
-        Bk = max((ybu - cu) * s_top[2], ybo - co_ + 0.008)
+        # the pack's skirt flares strongly; keep only part of that flare so the
+        # skirt stays close to her (slim) hips instead of standing out like a bell
+        Xs, Fs, Bs = xu * s_top[0], (cu - yfu) * s_top[1], (ybu - cu) * s_top[2]
+        if waist is None:
+            waist = (Xs, Fs, Bs)
+        Xs = waist[0] + (Xs - waist[0]) * SKIRT_FLARE
+        Fs = waist[1] + (Fs - waist[1]) * SKIRT_FLARE
+        Bs = waist[2] + (Bs - waist[2]) * SKIRT_FLARE
+        X = max(Xs, xo + 0.008)
+        F = max(Fs, co_ - yfo + 0.008)
+        Bk = max(Bs, ybo - co_ + 0.008)
         if prev is not None:                                # flare never closes in
             X, F, Bk = max(X, prev[0]), max(F, prev[1]), max(Bk, prev[2])
         prev = (X, F, Bk)
@@ -726,6 +778,9 @@ def push_out(pos, cls, body_ob, faces):
         nv = hit[1]
         d = (p - hit[0]).dot(nv)
         req = CLEAR[cls[i]]
+        if cls[i] in ('vest', 'vest_rib'):
+            # over the skirt band (6.5 mm + band thickness), ramped smoothly
+            req = max(req, 0.0078 + (0.0125 - 0.0078) * sstep(1.035, 0.995, pos[i][2]))
         if d < req:
             need[i] = req - d
             nrm[i] = tuple(nv)
@@ -799,6 +854,10 @@ def import_uniform(info, arm):
         vsel = np.where(sel)[0]
         remap = {int(v): i for i, v in enumerate(vsel)}
         polys = [p for p in me_src.polygons if all(v in remap for v in p.vertices)]
+        if obname == 'Shirt':
+            # the tucked-in part is under the skirt: never visible, only able to poke through
+            polys = [p for p in polys if not all(pos[v][2] < SKIRT_TOP_Z - 0.006 and abs(pos[v][0]) < 0.2
+                                                 for v in p.vertices)]
         me = bpy.data.meshes.new(obname)
         me.from_pydata([tuple(pos[v]) for v in vsel], [], [[remap[v] for v in p.vertices] for p in polys])
         uv = me.uv_layers.new(name='UVMap')
@@ -838,6 +897,10 @@ def import_uniform(info, arm):
                     w['thigh_R'] = share * wr / tot_lr
             else:
                 w = surf_w(p)
+                if c in ('vest', 'vest_rib', 'shirt', 'placket', 'button') and p[2] < 1.04:
+                    k = sstep(1.04, 0.995, p[2])     # waist: move with the skirt band (hips)
+                    w = {g: x * (1 - k) for g, x in w.items()}
+                    w['hips'] = w.get('hips', 0.0) + k
             tot = sum(w.values()) or 1.0
             for g, x in sorted(w.items(), key=lambda kv: -kv[1])[:4]:
                 if x / tot < 0.01:
@@ -852,47 +915,230 @@ def import_uniform(info, arm):
         print('MF uniform: %-6s %6d verts, materials %s' % (obname, len(me.vertices), mats))
     bpy.data.objects.remove(src, do_unlink=True)
     tie_stripes(objs['Tie'])
-    tie_knot(objs['Tie'], objs['Shirt'], arm)
     return objs
 
 
+TIE_GREEN = (0x1f, 0x5c, 0x40)
+TIE_SILVER = (0xc6, 0xc6, 0xc9)
+
+
+def _tie_texture():
+    """diagonal green/silver stripes; UV = (x, z) in metres (see build_tie)"""
+    path = os.path.join(BUILT, 'Malfoid_Tie_Stripes.png')
+    n = 512
+    v, u = np.mgrid[0:n, 0:n].astype(np.float64)
+    X = (u + 0.5) / n * 0.08 - 0.04                 # 8 cm wide
+    Z = (v + 0.5) / n * 0.32 + 1.00                 # 1.00 .. 1.32 m (row 0 = bottom)
+    d = X * 0.9 + Z                                 # stripes run down towards her right
+    period, w = 0.024, 0.0060
+    ph = np.mod(d, period)
+    aa = 0.0006
+    a = np.clip((w - ph) / aa + 0.5, 0, 1) * np.clip(ph / aa + 0.5, 0, 1)
+    thin = np.abs(ph - w * 1.95) - w * 0.22
+    a = np.maximum(a, np.clip(-thin / aa + 0.5, 0, 1))
+    g, sv = np.array(TIE_GREEN) / 255.0, np.array(TIE_SILVER) / 255.0
+    rgb = g * (1 - a[..., None]) + sv * a[..., None]
+    img = np.concatenate([rgb, np.ones((n, n, 1))], -1)
+    os.makedirs(BUILT, exist_ok=True)
+    _save_png(img, path, 'mf_tie_stripes_png')
+    m = bpy.data.materials.get('mf_tie_tex') or bpy.data.materials.new('mf_tie_tex')
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.clear()
+    o = nt.nodes.new('ShaderNodeOutputMaterial')
+    b = nt.nodes.new('ShaderNodeBsdfPrincipled')
+    b.name = 'Principled BSDF'
+    t = nt.nodes.new('ShaderNodeTexImage')
+    t.image = bpy.data.images.load(path, check_existing=False)
+    t.image.name = 'Malfoid_Tie_Stripes'
+    t.image.colorspace_settings.name = 'sRGB'
+    t.extension = 'EXTEND'
+    nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
+    nt.links.new(b.outputs[0], o.inputs[0])
+    b.inputs['Roughness'].default_value = 0.6
+    return m
+
+
+def build_tie(shirt, ztop, cx, arm):
+    """one clean tie: a rounded knot in the collar opening and a single
+    blade lying on the shirt, tucked under the knot at the top and into the
+    vest at the bottom"""
+    me = shirt.data
+    sb = BVHTree.FromPolygons([shirt.matrix_world @ v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+
+    def surf(x, z):
+        hit = sb.ray_cast(Vector((x, -1.0, z)), Vector((0, 1, 0)))
+        return hit[0].y if hit[0] is not None else -0.08
+
+    verts, faces, uvs = [], [], []
+
+    def uv_of(p):
+        return ((p.x + 0.04) / 0.08, (p.z - 1.00) / 0.32)
+
+    def grid(rows, flip=False, closed=False):
+        nr, nc = len(rows), len(rows[0])
+        b0 = len(verts)
+        for r in rows:
+            for p in r:
+                verts.append(p)
+                uvs.append(uv_of(p))
+        cols = nc if closed else nc - 1
+        for i in range(nr - 1):
+            for j in range(cols):
+                j2 = (j + 1) % nc
+                f = (b0 + i * nc + j, b0 + i * nc + j2, b0 + (i + 1) * nc + j2, b0 + (i + 1) * nc + j)
+                faces.append(tuple(reversed(f)) if flip else f)
+        return b0
+
+    # --- blade (front and back skin, closed edges)
+    z_top, z_bot = ztop - 0.012, 1.020
+    nz, nx = 60, 9
+    front, back = [], []
+    for i in range(nz):
+        t = i / (nz - 1)
+        z = z_top + (z_bot - z_top) * t
+        hw = 0.0072 + (0.0190 - 0.0072) * min(1.0, t * 1.15)
+        fr, bk = [], []
+        for j in range(nx):
+            u = -1 + 2 * j / (nx - 1)
+            x = cx + u * hw
+            y = surf(x, z) - 0.0032 - 0.0012 * (1 - u * u)
+            fr.append(Vector((x, y, z)))
+            bk.append(Vector((x, y + 0.0014, z)))
+        front.append(fr)
+        back.append(bk)
+    grid(front)
+    grid(back, flip=True)
+    # side and end strips
+    for j in (0, nx - 1):
+        rows = [[front[i][j], back[i][j]] for i in range(nz)]
+        grid(rows, flip=(j == 0))
+    grid([front[-1], back[-1]], flip=True)
+    grid([front[0], back[0]])
+    # --- knot: rounded, tapered, slightly forward of the blade top
+    z1, z0 = ztop + 0.004, ztop - 0.018
+    krows = []
+    nk, na = 8, 20
+    for i in range(nk):
+        t = i / (nk - 1)
+        z = z1 + (z0 - z1) * t
+        hw = 0.0102 - 0.0040 * t
+        dep = 0.0085 - 0.0020 * t
+        yb = surf(cx, z) - 0.0010
+        ring = []
+        for j in range(na):
+            a = 2 * math.pi * j / na
+            ca, sa = math.cos(a), math.sin(a)
+            ring.append(Vector((cx + hw * math.copysign(abs(ca) ** 0.7, ca),
+                                yb - dep * 0.5 - dep * 0.5 * math.copysign(abs(sa) ** 0.8, sa), z)))
+        krows.append(ring)
+    kb = grid(krows, closed=True)
+    for zz, r in ((z1 + 0.0012, krows[0]), (z0 - 0.0012, krows[-1])):
+        c = sum(r, Vector()) / len(r)
+        ci = len(verts)
+        verts.append(Vector((c.x, c.y, zz)))
+        uvs.append(uv_of(c))
+        base = kb if r is krows[0] else kb + (nk - 1) * na
+        for j in range(na):
+            f = (base + j, base + (j + 1) % na, ci)
+            faces.append(f if r is krows[-1] else tuple(reversed(f)))
+    # consistent outward winding for the knot (its centre line is known)
+    kc = Vector((cx, surf(cx, (z0 + z1) / 2) - 0.0055, (z0 + z1) / 2))
+    k_first = len(faces) - (nk - 1) * na - 2 * na
+    for fi in range(k_first, len(faces)):
+        f = faces[fi]
+        a, b, c = verts[f[0]], verts[f[1]], verts[f[2]]
+        if (b - a).cross(c - a).dot((a + b + c) / 3 - kc) < 0:
+            faces[fi] = tuple(reversed(f))
+    mesh = bpy.data.meshes.new('Tie')
+    mesh.from_pydata([tuple(v) for v in verts], [], faces)
+    uvl = mesh.uv_layers.new(name='UVMap')
+    for p in mesh.polygons:
+        p.use_smooth = True
+        for li in p.loop_indices:
+            uvl.data[li].uv = uvs[mesh.loops[li].vertex_index]
+    mesh.materials.append(_tie_texture())
+    mesh.update()
+    ob = bpy.data.objects.new('Tie', mesh)
+    bpy.context.scene.collection.objects.link(ob)
+    gc, gs, gn = ob.vertex_groups.new(name='chest'), ob.vertex_groups.new(name='spine'), ob.vertex_groups.new(name='neck')
+    for i, v in enumerate(verts):
+        if v.z > ztop - 0.02:
+            gc.add([i], 0.7, 'REPLACE')
+            gn.add([i], 0.3, 'REPLACE')
+        elif v.z > 1.16:
+            gc.add([i], 1.0, 'REPLACE')
+        else:
+            gc.add([i], 0.7, 'REPLACE')
+            gs.add([i], 0.3, 'REPLACE')
+    ob.parent = arm
+    mod = ob.modifiers.new('Armature', 'ARMATURE')
+    mod.object = arm
+    print('MF uniform: Tie rebuilt (%d verts), knot z %.3f-%.3f' % (len(verts), z0, z1))
+    return ob
+
+
 def tie_knot(tie, shirt, arm):
-    """A clean four-in-hand knot at the top of the tie: a rounded, slightly
-    tapered block sitting in the collar opening over the top of the blade."""
+    """A rounded four-in-hand knot at the top of the tie blade: tapered,
+    domed on top, sitting just in front of the blade and inside the collar."""
     from .meshutil import MeshData
     co = [tie.matrix_world @ v.co for v in tie.data.vertices]
+    tb = BVHTree.FromPolygons(co, [tuple(p.vertices) for p in tie.data.polygons])
     ztop = max(c.z for c in co)
     top = [c for c in co if c.z > ztop - 0.012]
     cx = sum(c.x for c in top) / len(top)
-    yf = min(c.y for c in top)
-    me = shirt.data
-    sb = BVHTree.FromPolygons([shirt.matrix_world @ v.co for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
+
+    def front(z):
+        hit = tb.ray_cast(Vector((cx, -1.0, z)), Vector((0, 1, 0)))
+        if hit[0] is not None:
+            return hit[0].y
+        return min(c.y for c in top)
+    body = bpy.data.objects['Body_All']
+    from .bust import body_co
+    bb = BVHTree.FromPolygons([Vector(c) for c in body_co(body)], [tuple(p.vertices) for p in body.data.polygons])
+
+    def neck(z):
+        hit = bb.ray_cast(Vector((cx, -1.0, z)), Vector((0, 1, 0)))
+        return hit[0].y if hit[0] is not None else front(z) + 0.02
     md = MeshData()
     rows = []
-    n = 16
-    z1, z0 = ztop + 0.006, ztop - 0.016
-    for k in range(7):
-        t = k / 6
+    na = 24
+    z1, z0 = ztop + 0.003, ztop - 0.020
+    yf0 = min(front(z0), front(ztop - 0.004))                           # one straight front plane
+    for k in range(9):
+        t = k / 8
         z = z1 + (z0 - z1) * t
-        hw = 0.0115 - 0.0045 * t                      # wider at the top, narrowing down
-        hit = sb.ray_cast(Vector((cx, -1.0, z)), Vector((0, 1, 0)))
-        yb = min(hit[0].y if hit[0] is not None else yf, yf + 0.004)
-        depth = 0.0065 * (1.0 - 0.25 * t)
-        ycen = yb - depth * 0.55
+        hw = 0.0100 - 0.0040 * t
+        dome = math.sin(math.pi * 0.5 * min(1.0, t / 0.18 + 0.05))      # rounded top
+        y_front = yf0 - 0.0030                                          # just in front of the blade
+        y_back = min(neck(z) - 0.0015, y_front + 0.0110)                # a real knot is ~1 cm deep
+        yc, dep = (y_front + y_back) / 2, (y_back - y_front)
         ring = []
-        for j in range(n):
-            a = 2 * math.pi * j / n
-            ring.append(Vector((cx + hw * math.cos(a) * (1 + 0.15 * abs(math.sin(a))),
-                                ycen - depth * 0.5 * math.sin(a), z)))
+        for j in range(na):
+            a = 2 * math.pi * j / na
+            ca, sa = math.cos(a), math.sin(a)
+            x = cx + hw * dome * math.copysign(abs(ca) ** 0.8, ca)
+            y = yc - dep * 0.5 * math.copysign(abs(sa) ** 0.5, sa)
+            ring.append(Vector((x, y, z)))
         rows.append(ring)
-    md.add_grid(rows, 'mf_tie', closed=True, cap_start=Vector((cx, rows[0][0].y - 0.0, z1 + 0.0015)),
-                cap_end=Vector((cx, rows[-1][0].y, z0 - 0.002)))
-    # outward-facing winding
-    cen = Vector((cx, sum(r[0].y for r in rows) / len(rows), (z0 + z1) / 2))
+    md.add_grid(rows, 'mf_tie', closed=True, cap_start=sum(rows[0], Vector()) / na + Vector((0, 0, 0.0008)),
+                cap_end=sum(rows[-1], Vector()) / na - Vector((0, 0, 0.0008)))
+    cen = Vector((cx, sum(r[0].y + r[na // 2].y for r in rows) / (2 * len(rows)) - 0.002, (z0 + z1) / 2))
     for fi, f in enumerate(md.f):
         a, b, c = md.v[f[0]], md.v[f[1]], md.v[f[2]]
         if (b - a).cross(c - a).dot((a + b + c) / 3 - cen) < 0:
             md.f[fi] = tuple(reversed(f))
+    # white filler behind the knot: closes the shirt's opening at the throat
+    # (that hole was what showed as a gap around the knot)
+    fz0, fz1 = z0 - 0.004, z1 + 0.004
+    frow = []
+    for k in range(6):
+        t = k / 5
+        z = fz0 + (fz1 - fz0) * t
+        hw = 0.006 + 0.005 * t                                          # only as wide as the knot's back
+        yb = min(neck(z) - 0.0012, yf0 + 0.0115)
+        frow.append([Vector((cx + hw * (2 * j / 8 - 1), yb, z)) for j in range(9)])
+    md.add_grid(frow, 'mf_shirt', closed=False)                    # single sheet (viewer is double-sided)
     ob = md.to_object('TieKnot', bpy.data.materials, bone=None, rig=None)
     for nm, w in (('chest', 0.6), ('neck', 0.4)):
         ob.vertex_groups.new(name=nm).add(list(range(len(md.v))), w, 'REPLACE')

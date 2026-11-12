@@ -11,6 +11,7 @@ exporter emits them as separate clips:
   idle, walk, run, turn, idle_annoyed_start, idle_annoyed
 """
 import math
+import os
 from math import sin, cos, pi, radians, degrees, atan2, sqrt
 import bpy
 from mathutils import Vector, Quaternion, Matrix
@@ -418,13 +419,13 @@ def turn_pose(t):
 # --- annoyed idle ----------------------------------------------------------
 # arm targets in chest space (rest coordinates)
 _CROSS = {
-    # forearms stacked across the body, left over right; each hand is bent
-    # back around the opposite upper arm so the fingers tuck in towards the
-    # body (hand_dir: where the fingers point, character space)
-    'L': {'wrist': V(-0.085, 0.160, 1.098), 'elbow': V(0.095, 0.105, 1.080),
-          'hand_dir': V(-0.30, -0.90, -0.30)},
-    'R': {'wrist': V(0.085, 0.110, 1.058), 'elbow': V(-0.095, 0.085, 1.050),
-          'hand_dir': V(0.30, -0.90, -0.25)},
+    # real crossed arms: elbows low at her sides, forearms crossing under the
+    # bust close to the body (left over right); the left hand grips the
+    # outside of her right upper arm, the right hand tucks under the left arm
+    'L': {'wrist': V(-0.050, 0.150, 1.072), 'elbow': V(0.118, 0.085, 1.030),
+          'hand_dir': V(-0.85, -0.40, 0.20)},
+    'R': {'wrist': V(0.052, 0.118, 1.048), 'elbow': V(-0.118, 0.070, 1.020),
+          'hand_dir': V(0.80, -0.55, 0.25)},
 }
 
 
@@ -494,10 +495,13 @@ def annoyed_pose(sk, k_body, k_l, k_r, t_loop=None):
         e = a['elbow'] * (1 - ke) ** 2 + mid_e * (2 * ke * (1 - ke)) + c['elbow'] * ke ** 2
         if t_loop is not None:
             w = w + V(0, 0.003 * b, 0.002 * b)
-        spec['arm_' + side] = {'wrist': w, 'elbow': e, 'space': 'chest', 'hand_dir': c['hand_dir'], 'hand_k': ke}
+        hd = c['hand_dir']
+        ev = os.environ.get('MF_H' + side)
+        if ev:
+            hd = V(*[float(t) for t in ev.split(',')])
+        spec['arm_' + side] = {'wrist': w, 'elbow': e, 'space': 'chest', 'hand_dir': hd, 'hand_k': ke}
         # hands wrap around the opposite arm: bent back towards the body at the
         # wrist and turned palm-in (the left one rests on top of the right arm)
-        import os
         yaw = float(os.environ.get('MF_HAND_YAW', '58'))
         roll = float(os.environ.get('MF_HAND_ROLL', '35'))
         D['hand_' + side] = qx(-4.0 * (1 - ke)) @ qz(sgn * yaw * ke) @ qx(sgn * roll * ke)

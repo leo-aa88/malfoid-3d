@@ -90,6 +90,8 @@ def main():
     if stage >= 4:
         from malfoid import outfit2
         outfit2.build(head, parts, arm, m)
+        from malfoid import bust as _bust
+        _bust.report()
     anim_info = None
     if stage >= 5:
         from malfoid import anim2

@@ -55,15 +55,35 @@ def add_key():
 
 
 def body_co(ob=None):
-    """body vertex positions with its shape keys applied at their values
-    (smaller bust, smaller hands), rest pose"""
+    """body vertex positions with its mf_ shape keys applied at their values
+    (smaller bust, smaller hands, thinner legs), rest pose. Each key's
+    offset is measured from the Basis, so the keys add up."""
     ob = ob or bpy.data.objects['Body_All']
     me = ob.data
-    co = np.array([tuple(v.co) for v in me.vertices])
+    base = np.array([tuple(v.co) for v in me.vertices])
+    co = base.copy()
     if me.shape_keys:
         for kb in list(me.shape_keys.key_blocks)[1:]:
             if kb.value > 0 and kb.name.startswith('mf_'):
                 K = np.empty(len(me.vertices) * 3)
                 kb.data.foreach_get('co', K)
-                co = co + (K.reshape(-1, 3) - co) * kb.value
+                co += (K.reshape(-1, 3) - base) * kb.value
     return co
+
+
+def report():
+    """bust projection over the underbust for each chest layer (mm); printed
+    on every build so a regression cannot go unnoticed"""
+    out = {}
+    for name in ('Shirt', 'Vest', 'RobeUpper'):
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            continue
+        V = np.array([tuple(ob.matrix_world @ v.co) for v in ob.data.vertices])
+
+        def fwd(z):
+            s = (np.abs(V[:, 2] - z) < 0.005) & (np.abs(V[:, 0]) < 0.11)
+            return -V[s, 1].min() * 1000 if s.any() else float('nan')
+        out[name] = fwd(1.135) - fwd(1.085)
+    print('MF CHECK bust projection over underbust (mm): ' + ', '.join('%s %.1f' % kv for kv in out.items()))
+    return out

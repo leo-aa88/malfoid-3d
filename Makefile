@@ -15,7 +15,8 @@ HAIR_PACK    := Bell_Hair_01
 UNIFORM_PACK := Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND
 
 TOOLS_PY     := $(wildcard tools/blender/*.py tools/blender/malfoid/*.py)
-TEXTURES     := build/textures/Malfoid_Head_BaseColor.png build/textures/Malfoid_Body_BaseColor.png
+TEXTURES     := build/textures/Malfoid_Head_BaseColor.png build/textures/Malfoid_Body_BaseColor.png \
+                build/textures/Malfoid_Crest.png
 GLB          := public/models/malfoid.glb
 BLEND_OUT    := build/malfoid.blend
 RENDER_DIR   := docs/integration
@@ -39,8 +40,9 @@ check-assets: ## Verify Blender and the purchased asset packs are present
 
 textures: $(TEXTURES) ## Build skin/eye/brow textures from the base mesh pack
 
-$(TEXTURES) &: tools/textures/make_textures.py | check-assets
+$(TEXTURES) &: tools/textures/make_textures.py tools/textures/make_crest.py | check-assets
 	$(PYTHON) tools/textures/make_textures.py
+	$(PYTHON) tools/textures/make_crest.py
 
 model: $(GLB) ## Build build/malfoid.blend and public/models/malfoid.glb
 

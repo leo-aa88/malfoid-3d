@@ -172,7 +172,7 @@ def extract(name, info, keep, offset, thick, mat, inner_mat=None, smooth=0, post
     if inner_mat and fl is not None:
         for f in bm.faces:
             if f[fl]:
-                f.material_index = 1        # facing band: lining colour on the outside too
+                f.material_index = 0        # outside of the robe is black everywhere
     if inner_mat:
         for f in bm.faces:
             c = f.calc_center_median()
@@ -487,13 +487,7 @@ def robe_upper(info, extra=0.0):
                 fg.add([v.index], min(1.0, cur + extra), 'REPLACE')
         for g in hands:
             ob.vertex_groups.remove(g)
-    # green only inside the sleeve openings; the shoulder piece is black throughout
-    for p in ob.data.polygons:
-        ax = abs(p.center.x)
-        if ax > 0.448:
-            p.material_index = 1                    # turned-back cuff facing
-        elif ax < 0.30:
-            p.material_index = 0
+    # black outside, green lining inside (set per face in extract); no green on the outside
     return ob
 
 
@@ -630,7 +624,7 @@ def robe_lower(info):
     out_rows = [_resample(r, m) for r in out_rows]
     # hem: gentle unevenness
     md_rows = out_rows
-    _thick_grid(md, md_rows, 0.0035, 'mf_robe', 'mf_robe_lining', facing_cols=1)
+    _thick_grid(md, md_rows, 0.0035, 'mf_robe', 'mf_robe_lining', facing_cols=0)
 
     def wfn(p):
         side = 'thigh_L' if p.x > 0 else 'thigh_R'
@@ -724,12 +718,12 @@ def _thick_grid(md, rows, th, mat, inner, closed=False, facing_cols=0):
         for j in ((0, nj - 1) if not closed else ()):
             p = rows[i][j]
             side = rows[i][j] - rows[i][1 if j == 0 else nj - 2]
-            add((O(i, j), O(i + 1, j), I(i + 1, j), I(i, j)), inner, side)
+            add((O(i, j), O(i + 1, j), I(i + 1, j), I(i, j)), mat, side)      # edge: black
     for i in (0, ni - 1):
         for j in range(nc):
             j2 = (j + 1) % nj
             side = Vector((0, 0, 1 if i == 0 else -1))
-            add((O(i, j), O(i, j2), I(i, j2), I(i, j)), inner if i == ni - 1 else mat, side)
+            add((O(i, j), O(i, j2), I(i, j2), I(i, j)), mat, side)
 
 
 def skirt(info):
@@ -868,7 +862,7 @@ def crest(info):
     ob = bpy.data.objects['RobeUpper']
     me = ob.data
     bvh = BVHTree.FromPolygons([v.co.copy() for v in me.vertices], [tuple(p.vertices) for p in me.polygons])
-    cx, cz, w, h = 0.104, 1.150, 0.060, 0.066
+    cx, cz, w, h = 0.104, 1.142, 0.058, 0.058
     n = 14
     md = MeshData()
     rows, uvs = [], []
@@ -896,8 +890,9 @@ def crest(info):
             md.f.append((a, a + 1, a + n + 2, a + n + 1))
             md.fm.append('mf_crest_tex')
     os.makedirs(BUILT, exist_ok=True)
-    path = os.path.join(BUILT, 'Malfoid_Crest.png')
-    _save_png(np.ascontiguousarray(crest_tex.paint()[::-1]), path, 'mf_crest_png')
+    path = os.path.join(BUILT, 'Malfoid_Crest.png')       # painted by tools/textures/make_crest.py
+    if not os.path.exists(path):
+        _save_png(np.ascontiguousarray(crest_tex.paint()[::-1]), path, 'mf_crest_png')
     m = bpy.data.materials.get('mf_crest_tex') or bpy.data.materials.new('mf_crest_tex')
     m.use_nodes = True
     nt = m.node_tree
