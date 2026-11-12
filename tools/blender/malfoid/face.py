@@ -250,8 +250,9 @@ REST_KEYS = {
     '怒り': 0.45,
     '真面目': 0.2,
     'ｷﾘｯ': 0.3,
-    'eyeSquintLeft': 0.2,
-    'eyeSquintRight': 0.2,
+    'じト目': 0.5,                  # half-lidded: flat upper lid over the top of the iris (atlas eyes)
+    'eyeSquintLeft': 0.35,          # lower lid up: narrow almond opening instead of a round eye
+    'eyeSquintRight': 0.35,
     '口角下げ': 0.5,
     'mouthPressLeft': 0.25,
     'mouthPressRight': 0.25,

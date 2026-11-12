@@ -24,6 +24,32 @@ const NO_SHADOW_RECEIVE = new Set(['Body', 'mf_hair_tex', 'mf_hair']);
 
 const OUTLINE_COLOR = new THREE.Color('#3a2a28');
 
+/** head centre in the model's (bind-pose) space, metres, y up, +z forward */
+const HEAD_CENTRE = new THREE.Vector3(0, 1.4, -0.02);
+
+/**
+ * Hair cards are flat rectangles: with their own normals the two-tone cel ramp put whole
+ * cards in light or shade, so the hair showed hard-edged grey blocks. Instead every hair
+ * vertex gets the normal of the hair volume it belongs to: outward from the head centre on
+ * the crown, horizontally away from the body's vertical axis for the hanging hair.
+ */
+function volumeNormals(geometry: THREE.BufferGeometry): void {
+  const pos = geometry.getAttribute('position');
+  const nor = geometry.getAttribute('normal');
+  if (!pos || !nor) return;
+  const p = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    p.fromBufferAttribute(pos, i);
+    c.set(HEAD_CENTRE.x, Math.min(p.y, HEAD_CENTRE.y), HEAD_CENTRE.z);
+    p.sub(c);
+    if (p.lengthSq() < 1e-8) p.set(0, 1, 0);
+    p.normalize();
+    nor.setXYZ(i, p.x, p.y, p.z);
+  }
+  nor.needsUpdate = true;
+}
+
 export class ToonMaterials {
   private readonly gradient = makeGradient();
   private readonly cache = new Map<string, THREE.Material>();
@@ -59,6 +85,17 @@ export class ToonMaterials {
         side: THREE.DoubleSide,
       });
       if (s.map) m.alphaTest = 0.5;
+      if (s.name === 'mf_hair_tex') {
+        // shaded as one smooth volume (see volumeNormals): keep the outward normal on the
+        // back faces of the double-sided cards instead of flipping it
+        m.onBeforeCompile = (shader) => {
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <normal_fragment_begin>',
+            THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''),
+          );
+        };
+        m.customProgramCacheKey = () => 'mf-hair-volume';
+      }
       if (s.name === 'mf_hair') {
         m.vertexColors = true;
         m.color.set('#f1d8bb');                 // platinum blonde; vertex colours add root/tip tones
@@ -84,6 +121,7 @@ export class ToonMaterials {
         return;
       }
       mesh.material = this.convert(mesh.material as THREE.Material, mesh);
+      if (name === 'mf_hair_tex') volumeNormals(mesh.geometry);
       mesh.castShadow = !FACE_DECALS.has(name);
       // the face stays clean: hair/cards casting dithered shadow onto it reads as dirt in toon shading
       mesh.receiveShadow = !(NO_SHADOW_RECEIVE.has(name) || FACE_DECALS.has(name));

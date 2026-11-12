@@ -79,7 +79,7 @@ Two strikes in quick succession chain into a finisher:
 - `combat/TrainingDummy.ts` – the opponent: HP, guard, flinch / stagger / knockback / knockdown.
 - `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
-- `character/ToonMaterials.ts` – cel shading and outlines.
+- `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
 - `camera/CameraController.ts`, `scene/SceneManager.ts` – orbit camera, lights, shadows.
 
 ## Rebuilding the model
@@ -110,10 +110,11 @@ Blender runs with 4 threads (`-t 4`).
 - `blender/malfoid/assets.py` – the purchased hair (fitted to her head, crown flattened onto the
   skull and the sides slimmed towards the face to match the atlas, recoloured platinum, strand
   bones kept) and uniform (shirt, vest, tie, skirt, socks fitted to her body).
-- `blender/malfoid/outfit2.py` – robe (black outside, green lining), loafers and crest.
+- `blender/malfoid/outfit2.py` – robe (black outside, green lining) with its hood, loafers and crest.
 - `blender/malfoid/rig2.py` – standard humanoid skeleton with the base mesh's weights remapped,
-  plus two robe helper bones at the hips that the lower robe follows instead of the thighs (they
-  copy the thigh's swing up to 40° and ease off towards 70°, so high kicks don't fold the robe).
+  plus robe helper bones at the hips that the lower robe follows instead of the hips and thighs
+  (they copy the thigh's swing up to 40° and ease off towards 70°, so high kicks don't fold the
+  robe, and squash the robe when the hips drop so the hem stays above the floor).
 - `blender/malfoid/anim2.py` – locomotion and idle clips; `combat.py` – combo openers and
   finishers, jump, crouch and block.
 - `qa/` – screenshot tools that capture the face in the real viewer for side-by-side comparison

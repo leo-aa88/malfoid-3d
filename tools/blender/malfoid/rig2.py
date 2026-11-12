@@ -68,6 +68,9 @@ def bone_table():
     for s, a in (('L', 'l'), ('R', 'r')):
         hip = Vector(h['thigh_twist.' + a])
         add('robe_' + s, hip, hip + Vector((0.0, 0.0, -0.15)), 'hips')
+    # robe centre helper: turns with the hips; with the two above it is squashed along its
+    # (downward) axis when the hips drop so far that the hem would go through the floor
+    add('robe_C', (0, h['root.x'].y, 0.925), (0, h['root.x'].y, 0.775), 'hips')
     return B
 
 
