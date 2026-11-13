@@ -112,6 +112,11 @@ function aiSetup(dist: number, opponentArmed: boolean, params?: Partial<typeof G
     reacting: null as string | null, canStrike: true, moves: [] as THREE.Vector3[], looked: null as number | null,
     move(d: THREE.Vector3) { self.moves.push(d.clone()); }, stop() {}, lookAt(a: number | null) { self.looked = a; },
     setHold() {},
+    dodging: null as string | null,
+    dodgeClips: false,                                          // a model with dodge clips?
+    facingAngle: 0,
+    dodges: [] as string[],
+    dodge(kind: string) { if (!self.dodgeClips) return false; self.dodges.push(kind); self.dodging = kind; return true; },
     hasWand: true,
     wand: { state: 'hand' as string, at: new THREE.Vector3(), getWorldPosition(o: THREE.Vector3) { return o.copy(self.wand.at); } },
   });
@@ -193,6 +198,19 @@ test('dodge: she sidesteps a bolt flying at her once she has seen it', () => {
   assert.equal(s.ai.state, 'DODGE');
   const step = s.self.moves[s.self.moves.length - 1];
   assert.ok(Math.abs(step.z) < 0.01 && Math.abs(step.x) > 0.99);        // across the bolt's line
+});
+
+test('dodge with a dodge clip: a quick sidestep to the side off the bolt\'s line (no sideways run)', () => {
+  const s = aiSetup(5, false, { dodgeChance: 1, reaction: [0.05, 0.05] });
+  s.self.dodgeClips = true;
+  // she faces the bolt's caster (+z); stepping to +x is her left
+  s.self.root.position.set(0.3, 0, 0);
+  const bolt = { id: 7, position: new THREE.Vector3(0, 1.2, 4), direction: new THREE.Vector3(0, 0, -1) };
+  (s.ai as unknown as { opponentSpells: unknown }).opponentSpells = { projectiles: [bolt], isCasting: false, castTime: -1 };
+  s.ai.setActive(true);
+  for (let i = 0; i < 6 && s.ai.state !== 'DODGE'; i++) s.ai.update(DT);
+  assert.equal(s.ai.state, 'DODGE');
+  assert.deepEqual(s.self.dodges, ['dodge_left'], 'away from the line, on the side she is already on');
 });
 
 test('disarmed: she goes for her wand once it lands (running when far), then fights on', () => {

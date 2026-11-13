@@ -89,7 +89,14 @@ feet never cross; reversed for right; 0.64 m/s). The remaining angle, up to 45 d
 hips into the travel direction while the spine turns back, so her chest and head keep facing
 Malfoid. Measured in eight directions, the planted foot moves at 0-0.02 m/s (before: 0.9-1.2 m/s
 when circling or backing off on a diagonal, legs stepping forwards while she slid sideways). Only
-models with the `strafe` clip use this (Cho); Ginny moves as before.
+models with the `strafe` clip use this: Cho and, since, Ginny.
+
+**Ginny** got the same `strafe` clip and Cho's three dodge clips (her model gains only these four
+clips: her 28 existing animations, meshes, skin, textures and face are identical). Her
+sidestep from a bolt used to be a sideways run (running legs while sliding sideways); it is now
+a dodge clip, with the same chance and timing as before. Measured: the same 0-0.02 m/s planted
+foot in eight directions; six Confringos cast at her drew three dodges, all clips, no sideways
+running ([ginny_dodge_clip.png](ginny_dodge_clip.png)).
 
 ## In the game
 

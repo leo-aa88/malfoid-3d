@@ -270,7 +270,9 @@ export class FighterAI {
           this.dodgeDir.set(-to.z * side, 0, to.x * side);
           me.setHold('block', false);
           this.pendingSecond = null;
-          this.go('DODGE', 0.55);
+          // a quick sidestep clip if her model has one (her legs then step the way she goes);
+          // otherwise she runs aside
+          if (!this.dodgeClip(this.sideOf(this.dodgeDir))) this.go('DODGE', 0.55);
         }
       }
     } else {
@@ -305,7 +307,7 @@ export class FighterAI {
           this.dodgeDir.set(-b.direction.z * side, 0, b.direction.x * side).normalize();
           me.setHold('block', false);
           this.pendingSecond = null;
-          this.go('DODGE', 0.45);
+          if (!this.dodgeClip(this.sideOf(this.dodgeDir))) this.go('DODGE', 0.45);
         }
       }
     }
@@ -641,6 +643,12 @@ export class FighterAI {
     this.pendingSecond = null;
     this.go('DODGE', 0.6);
     return true;
+  }
+
+  /** the dodge clip that moves her along dir (to her left or right) */
+  private sideOf(dir: THREE.Vector3): DodgeState {
+    const a = this.self.facingAngle;
+    return dir.x * Math.cos(a) - dir.z * Math.sin(a) >= 0 ? 'dodge_left' : 'dodge_right';
   }
 
   /** the side with room to sidestep (a trunk on one side sends her the other way) */

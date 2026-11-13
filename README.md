@@ -72,6 +72,9 @@ The duel against Ginny has three difficulties:
 | Normal | 160 | faster reactions; guards up when you're close and after taking a hit; counters blocked strikes; punishes openings; reads your wand wind-up to dodge Confringo; real combos; stays close while you have your wand |
 | Hard | 240 | all of the above, quicker and more often |
 
+When she moves while facing Malfoid (backing off, stepping round her) her legs follow the way she
+goes: a reversed walk backwards, a side-step sideways; her dodge is a quick sidestep.
+
 Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and the wand
 lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only fight
 with her fists. See `docs/ginny/REPORT.md` for details.

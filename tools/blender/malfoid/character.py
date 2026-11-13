@@ -53,6 +53,9 @@ PROFILES = {
                        'vrc.blink_Joy', 'あ', 'ワ', 'い', 'にこり', 'なごみ', 'びっくり', '照れ', '瞳大', 'cheekPuff',
                        'Exhausted', 'Confused', 'eyeBlinkLeft', 'eyeBlinkRight', 'mouthFunnel', 'お'),
         'earrings': False,                   # natural ears (facial atlas)
+        # side-step (legs follow her when she moves while facing Malfoid) and quick dodges
+        # (her sidestep from a bolt, in place of running sideways); combat.EXTRA_CLIPS
+        'extra_clips': ('strafe', 'dodge_left', 'dodge_right', 'dodge_back'),
         # copper red #C7492A where most of the hair sits in the texture's tone range, darker
         # roots and shadows, a warmer sheen on the highlights
         'hair': {'ramp': ((0x40, 0x10, 0x08), (0x8a, 0x2c, 0x14), (0xbe, 0x46, 0x24), (0xd6, 0x5c, 0x30), (0xe8, 0x7a, 0x46)),
