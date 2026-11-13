@@ -26,7 +26,8 @@ This is an anime Hogwarts duelling game in **Three.js + TypeScript + Vite** (`sr
    Malfoid's model must be byte-identical, or differ only by added clips (see Regression
    checks).
 4. **The purchased assets are licensed.** Don't comment on rights. Don't commit them, or the
-   reference images, `public/sfx/`, or `build/` (all in `.gitignore`).
+   reference images or `build/` (all in `.gitignore`). The sound files in `public/sfx/` are
+   committed.
 5. **No premade environment assets.** Environments and props are generated in code.
 6. **Never claim something works without checking it in the real viewer.** List the visible
    defects in your own screenshots before saying anything is fixed. This was the user's

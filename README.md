@@ -142,8 +142,8 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, footsteps timed to
-  the walk / run cycles' foot landings). The sound files are kept local (`public/sfx/` is in
-  `.gitignore`); without them the game runs silent.
+  the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
+  the game just runs without it.
 
 `npm test` runs the spell logic tests in `tests/` (Node's test runner on an esbuild bundle).
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
