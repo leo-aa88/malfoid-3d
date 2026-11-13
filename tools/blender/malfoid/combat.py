@@ -449,5 +449,166 @@ def jump(sk, t):
     return spec
 
 
+# --- Cho -----------------------------------------------------------------------
+# Built only into the models whose profile lists them (character.py 'extra_clips'), so the
+# other characters' models stay as they were. Movement clips are in place: the game moves
+# her through the world while they play.
+
+def cho_idle(sk, t):
+    """looping idle: balanced and composed, shoulders easy, the wand held lightly low in her
+    right hand, a slow shift of weight between her feet and a calm, observant tilt of the head"""
+    b = sin(2 * pi * t / 8.0)                       # the weight shift (one cycle per loop)
+    br = sin(2 * pi * t / 4.0)                      # breathing
+    spec = base(sk, 0.0, 0.0, arms={'R': (V(-0.115, 0.125, 0.985), V(-0.200, 0.025, 1.120), 1.0, 'chest')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.30, 0.55, -0.78)          # wand along the hand: down, forward, a little in
+    arm['hand_k'] = 1.0
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(roll=1.6 * b, yaw=-4.0)
+    D['spine'] = E(roll=-0.8 * b, pitch=0.3 + 0.3 * br)
+    D['chest'] = E(roll=-0.6 * b, pitch=-1.2 - 0.5 * br, yaw=3.0)
+    D['neck'] = E(pitch=0.6)
+    D['head'] = E(pitch=2.0 + 0.3 * br, yaw=-4.0 + 1.2 * sin(2 * pi * t / 8.0 + 1.3), roll=2.5)
+    D['shoulder_L'] = qy(-0.6 * br)
+    D['shoulder_R'] = qy(0.6 * br)
+    spec['t'] = spec['t'] + Vector((0.012 * b, 0.0, -0.004))
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(0.012, 0.045, 0.0)   # left foot a little forward
+    spec['leg_L']['foot'] = qz(8.0)
+    spec['leg_R']['foot'] = qz(-10.0)
+    spec['curl'] = 34.0                             # a light grip
+    return spec
+
+
+def _dodge(sk, t, side):
+    """a quick sidestep to her left (side +1) or right (-1): drops, the lead foot reaches out,
+    the body leans into the step with the head level, then she gathers back into her stance"""
+    T = CLIPS['dodge_left' if side > 0 else 'dodge_right']
+    k = env(t, 0.0, 0.10, 0.24, T)
+    reach = env(t, 0.02, 0.12, 0.20, 0.36)
+    spec = base(sk, 0.6 * k, k, arms={'R': (V(-0.10, 0.36, 1.20), V(-0.23, 0.15, 1.11), k, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.02, 1.0, 0.25)            # the wand stays on the opponent
+    arm['hand_k'] = k
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(roll=6.0 * side * k)       # leaning into the step
+    D['spine'] = E(roll=5.0 * side * k, pitch=4.0 * k)
+    D['chest'] = E(roll=4.0 * side * k, pitch=3.0 * k)
+    D['head'] = E(roll=-7.0 * side * k, pitch=-3.0 * k)     # eyes stay level
+    spec['t'] = spec['t'] + Vector((0.045 * side * reach, 0.0, -0.075 * k))
+    lead, trail = ('leg_L', 'leg_R') if side > 0 else ('leg_R', 'leg_L')
+    spec[lead]['ankle'] = spec[lead]['ankle'] + V(0.13 * side * reach, 0.0, 0.03 * env(t, 0.02, 0.07, 0.10, 0.16))
+    spec[lead]['knee_out'] = 0.10 * k
+    spec[trail]['ankle'] = spec[trail]['ankle'] + V(0.03 * side * reach, 0.0, 0.0)
+    spec[trail]['foot'] = spec[trail]['foot'] @ qx(18.0 * reach)        # pushing off the trailing toes
+    spec['curl'] = lerp(16.0, 40.0, k)
+    return spec
+
+
+def dodge_left(sk, t):
+    return _dodge(sk, t, 1)
+
+
+def dodge_right(sk, t):
+    return _dodge(sk, t, -1)
+
+
+def dodge_back(sk, t):
+    """a quick step back out of reach: the right foot steps back, she sinks into it with the
+    chest upright and the wand still on the opponent, then settles into her stance"""
+    T = CLIPS['dodge_back']
+    k = env(t, 0.0, 0.12, 0.28, T)
+    step = env(t, 0.02, 0.14, 0.26, 0.42)
+    spec = base(sk, 0.6 * k, k, arms={'R': (V(-0.10, 0.34, 1.21), V(-0.23, 0.14, 1.11), k, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.02, 1.0, 0.25)
+    arm['hand_k'] = k
+    D = spec['D']
+    D['spine'] = E(pitch=-5.0 * step + 3.0 * k)
+    D['chest'] = E(pitch=-3.0 * step)
+    D['head'] = E(pitch=5.0 * step)
+    spec['t'] = spec['t'] + Vector((0.0, 0.05 * step, -0.06 * k))
+    spec['leg_R']['ankle'] = spec['leg_R']['ankle'] + V(0.0, -0.14 * step, 0.025 * env(t, 0.02, 0.07, 0.10, 0.17))
+    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(14.0 * step)
+    spec['leg_L']['knee_out'] = 0.06 * k
+    spec['curl'] = lerp(16.0, 40.0, k)
+    return spec
+
+
+def protego(sk, t):
+    """held: the shield charm, the wand raised upright before her chest, the left hand open
+    and forward, braced in her stance"""
+    k = sstep(0.0, CLIPS['protego'], t)
+    spec = base(sk, 0.5 * k, k, arms={'R': (V(-0.035, 0.330, 1.300), V(-0.190, 0.150, 1.170), k, 'world'),
+                                      'L': (V(0.090, 0.300, 1.190), V(0.200, 0.110, 1.110), k, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.12, 0.40, 1.0)            # the wand points up
+    arm['hand_k'] = k
+    _twist(spec['D'], k, 10.0, 3.0)
+    spec['D']['head'] = spec['D'].get('head', IDENT) @ E(pitch=3.0 * k)
+    spec['t'] = spec['t'] + Vector((0.0, 0.015 * k, -0.02 * k))
+    spec['curl'] = lerp(16.0, 24.0, k)              # open hands (the wand still gripped)
+    return spec
+
+
+def cast_quick(sk, t):
+    """Stupefy: a fast flick of the wand from the hip at the target (release at QUICK_RELEASE)"""
+    g = env(t, 0.0, 0.07, 0.30, 0.45)
+    up = env(t, 0.0, 0.08, 0.27, 0.43)
+    thrust = env(t, 0.10, QUICK_RELEASE, 0.27, 0.40)
+    wrist = _vl(V(-0.150, 0.180, 1.250), V(-0.060, 0.470, 1.290), thrust)
+    elbow = _vl(V(-0.260, 0.020, 1.150), V(-0.190, 0.240, 1.240), thrust)
+    spec = base(sk, 0.4 * g, g, arms={'R': (wrist, elbow, up, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = _vl(V(0.0, 0.6, 0.8), V(0.02, 1.0, 0.02), thrust)
+    arm['hand_k'] = up
+    _twist(spec['D'], up, 12.0 + 16.0 * thrust, pitch=2.0)
+    spec['t'] = spec['t'] + Vector((0.0, -0.02 * thrust, -0.01 * up))
+    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(10.0 * thrust)
+    return spec
+
+
+def cast_ventus(sk, t):
+    """Ventus: wound up to her right, the wand sweeps across in front of her and the left
+    palm pushes forward as the gust leaves (VENTUS_RELEASE), then she recovers"""
+    g = env(t, 0.0, 0.10, 0.50, 0.70)
+    up = env(t, 0.0, 0.12, 0.48, 0.68)
+    sweep = sstep(0.12, VENTUS_RELEASE, t)
+    push = env(t, 0.20, VENTUS_RELEASE, 0.44, 0.62)
+    # the wand arm from wound-up at her right to extended straight ahead; the left palm
+    # pushes out ahead of her left shoulder (beside the wand arm, not across it)
+    wrist = _vl(V(-0.300, 0.150, 1.260), V(-0.030, 0.480, 1.270), sweep)
+    elbow = _vl(V(-0.300, -0.050, 1.180), V(-0.170, 0.250, 1.230), sweep)
+    spec = base(sk, 0.4 * g, g, arms={'R': (wrist, elbow, up, 'world'),
+                                      'L': (V(0.150, 0.440, 1.200), V(0.230, 0.210, 1.160), push, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = _vl(V(-0.6, 0.6, 0.3), V(0.12, 1.0, 0.04), sweep)
+    arm['hand_k'] = up
+    _twist(spec['D'], up, -18.0 + 40.0 * sweep, pitch=2.0)
+    spec['t'] = spec['t'] + Vector((0.0, -0.03 * push, -0.02 * up))
+    spec['leg_L']['foot'] = spec['leg_L']['foot'] @ qx(8.0 * push)
+    spec['curl'] = 16.0
+    return spec
+
+
+QUICK_RELEASE = 0.20    # s: Stupefy leaves the wand tip (viewer: STUPEFY.release)
+VENTUS_RELEASE = 0.34   # s: the gust leaves (viewer: VENTUS.release)
+EXTRA_CLIPS = {
+    'cho_idle': 8.0,       # looping idle: composed, the wand held low
+    'dodge_left': 0.42,    # quick sidestep to her left (the game slides her)
+    'dodge_right': 0.42,
+    'dodge_back': 0.48,    # quick step back
+    'protego': 0.22,       # held: the shield, wand raised
+    'cast_quick': 0.45,    # Stupefy flick
+    'cast_ventus': 0.70,   # Ventus sweep
+}
+from .character import P as _P  # noqa: E402
+for _n in _P.get('extra_clips', ()):
+    CLIPS[_n] = EXTRA_CLIPS[_n]
+if 'cho_idle' in CLIPS:
+    LOOPING = LOOPING + ('cho_idle',)
+if 'protego' in CLIPS:
+    HELD = HELD + ('protego',)
+
+
 def clips(sk):
     return [(n, CLIPS[n], (lambda f: (lambda t: f(sk, t)))(globals()[n])) for n in CLIPS]

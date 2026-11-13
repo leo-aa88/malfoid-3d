@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { AnimationController, AnimationState, ActionState, HoldState, ReactionState, StrikeState } from './AnimationController';
-import { ToonMaterials } from './ToonMaterials';
+import { FaceFx, ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 import type { SpellEmitter } from '../combat/spells/SpellEmitter';
 import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
@@ -31,6 +31,13 @@ export interface CharacterOptions {
   /** the face with the mouth fully open while speaking (setTalk(1)); 0 keeps the rest face */
   talk?: Weights;
 }
+
+/**
+ * Face channels that are not shape keys, set in expressions like one: 'blush' tints the
+ * cheeks (0..1); 'tears' shows the base mesh's tear cards (above 0.5), which keys such as
+ * Teary_Eyes push out of the face.
+ */
+export const FACE_FX_KEYS = ['blush', 'tears'] as const;
 
 /**
  * Malfoid's open mouth while she speaks (setTalk scales it): the base mesh's "a" viseme, a
@@ -123,6 +130,7 @@ export class Malfoid {
   private readonly faceKeys: string[] = [];
   private talk = 0;
   private headBone: THREE.Object3D | null = null;
+  private faceFx: FaceFx | null = null;
 
   static async load(url: string, metaUrl: string, options?: CharacterOptions): Promise<Malfoid> {
     const [gltf, meta] = await Promise.all([
@@ -136,7 +144,9 @@ export class Malfoid {
     }
     m.meta = meta;
     m.root.add(gltf.scene);
-    new ToonMaterials().apply(gltf.scene);
+    const toon = new ToonMaterials();
+    toon.apply(gltf.scene);
+    m.faceFx = toon.faceFx;
     gltf.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh && mesh.morphTargetDictionary && 'vrc.blink' in mesh.morphTargetDictionary) {
@@ -558,6 +568,19 @@ export class Malfoid {
         if (k === 'vrc.blink_Straight') v *= 1 - blink;   // the blink key closes fully on its own
         inf[i] = v;
       }
+    }
+    // the face channels that aren't shape keys: the same blend as a key
+    if (this.faceFx) {
+      const fx: Record<string, number> = {};
+      for (const k of FACE_FX_KEYS) {
+        const rest = this.restFace[k] ?? 0;
+        let v = rest + ((annoyedFace[k] ?? rest) - rest) * a;
+        if (this.expressionBlend > 1e-3) v += ((this.exprFace[k] ?? rest) - v) * this.expressionBlend;
+        fx[k] = v;
+      }
+      this.faceFx.blush.value = fx.blush;
+      const tears = fx.tears > 0.5;
+      for (const t of this.faceFx.tears) t.visible = tears;
     }
   }
 }
