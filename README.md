@@ -16,8 +16,13 @@ site in `dist/`.
 
 ## Modes
 
-The start screen offers **Training**, with the dummy only, and **Duel**, against Ginny Weasley,
-an AI-controlled opponent, at three difficulties:
+The start screen offers **Training**, with the dummy only, in the studio scene, and **Duel**,
+against Ginny Weasley, an AI-controlled opponent, in the **Forbidden Woods**. The woods are an
+infinite procedural forest that streams in chunks around the player, with no walls. See
+`src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
+`src/scene/forest/config.ts`.
+
+The duel has three difficulties:
 
 | Level | Ginny's HP | How she fights |
 |---|---|---|

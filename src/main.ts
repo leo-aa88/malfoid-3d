@@ -1,6 +1,7 @@
 import './styles/main.css';
 import * as THREE from 'three';
-import { SceneManager } from './scene/SceneManager';
+import { SceneManager, STUDIO_LOOK } from './scene/SceneManager';
+import { FOREST_CONFIG, ForestWorld, forestLook, SPAWN_CENTRE } from './scene/forest';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
 import { GINNY_FACES } from './character/faces';
@@ -164,12 +165,16 @@ async function start(): Promise<void> {
     dummy.root.visible = m === 'training';
     ginny.root.visible = m === 'duel';
     hud.setMode(m);
+    setEnvironment(m === 'duel');
     if (m === 'training') {
       setDuel(false);
+      malfoid.root.position.set(0, 0, 0);
       placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
       if (!malfoid.hasWand) malfoid.wand.retrieve();
       malfoidTarget.reset();
     } else {
+      // the duel starts in the spawn clearing of the woods
+      malfoid.root.position.set(SPAWN_CENTRE.x - DUEL_DISTANCE / 2, 0, SPAWN_CENTRE.z);
       setDuel(true);
     }
     input.setPaused(false);
@@ -187,6 +192,18 @@ async function start(): Promise<void> {
   // G / the HUD button: a fresh duel (duel mode only)
   input.onDuel = () => { if (mode === 'duel') setDuel(true); };
   hud.onDuelButton = () => { if (mode === 'duel') setDuel(true); };
+  // the Forbidden Woods: the duel's environment (training keeps the studio)
+  const forest = new ForestWorld(FOREST_CONFIG);
+  sm.scene.add(forest.group);
+  forest.atmosphere.setMoon(new THREE.Vector3(...FOREST_CONFIG.moonOffset));
+  // spells hit trunks: both casters share one list of solids, refilled each frame
+  spells.world.solids = solids;
+  ginnySpells.world.solids = solids;
+  const setEnvironment = (woods: boolean) => {
+    sm.setEnvironment(woods ? 'woods' : 'studio', woods ? forestLook() : STUDIO_LOOK);
+    forest.setActive(woods);
+    if (!woods) solids.length = 0;
+  };
   const guards: Guard[] = ['none', 'high', 'low'];
   input.onDummyGuard = () => dummy.setGuard(guards[(guards.indexOf(dummy.guard) + 1) % guards.length]);
   input.onDummyReset = () => placeDummy(0, DUMMY_DISTANCE);
@@ -228,7 +245,13 @@ async function start(): Promise<void> {
       if (duelMode) ginnySpells.update(dt);
       malfoidTarget.update(dt);
       ginnyTarget.update(dt);
-      if (duelMode) keepApart(malfoid.position, ginny.position, FIGHTER_GAP, 0.5);
+      if (duelMode) {
+        keepApart(malfoid.position, ginny.position, FIGHTER_GAP, 0.5);
+        forest.resolve(malfoid.position, 0.28);           // trunks are solid; nothing else is
+        forest.resolve(ginny.position, 0.28);
+        forest.fillSolids(solids, [malfoid.position, ginny.position]);
+        forest.update(dt, malfoid.position, [malfoid.position, ginny.position], sm.camera, sm.renderer.domElement.height);
+      }
       else if (!dummy.down) keepApart(malfoid.position, dummy.position, DUMMY_RADIUS + 0.22);
       if (!duelMode) dummy.update(dt, malfoid.position);
       hud.update(dt);
@@ -266,7 +289,7 @@ async function start(): Promise<void> {
   });
   // expose for debugging / automated checks
   Object.assign(window, { malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
-    malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, renderer: sm.renderer, scene: sm.scene, input, solids });
+    malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, forest, renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 
 start().catch((err) => {
