@@ -4,7 +4,7 @@ import { SceneManager, STUDIO_LOOK } from './scene/SceneManager';
 import { FOREST_CONFIG, ForestWorld, forestLook, SPAWN_CENTRE } from './scene/forest';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
-import { GINNY_FACES } from './character/faces';
+import { GINNY_FACES, GINNY_TALK } from './character/faces';
 import { CharacterController } from './character/CharacterController';
 import { TrainingDummy, DUMMY_RADIUS, Guard } from './combat/TrainingDummy';
 import { ComboSystem } from './combat/ComboSystem';
@@ -19,6 +19,7 @@ import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 import { Sfx } from './audio/Sfx';
 import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
+import { DuelVoices } from './audio/duelVoices';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -51,9 +52,9 @@ async function start(): Promise<void> {
   const char = new URLSearchParams(location.search).get('char') === 'ginny' ? 'ginny' : 'malfoid';
   const [malfoid, ginny] = await Promise.all([
     Malfoid.load(`${BASE}models/${char}.glb`, `${BASE}models/${char}.json`,
-      char === 'ginny' ? { name: 'Ginny', idleClip: 'confident', expressions: GINNY_FACES } : undefined),
+      char === 'ginny' ? { name: 'Ginny', idleClip: 'confident', expressions: GINNY_FACES, talk: GINNY_TALK } : undefined),
     Malfoid.load(`${BASE}models/ginny.glb`, `${BASE}models/ginny.json`,
-      { name: 'Ginny', idleClip: 'confident', expressions: GINNY_FACES }),
+      { name: 'Ginny', idleClip: 'confident', expressions: GINNY_FACES, talk: GINNY_TALK }),
   ]);
   malfoid.scene = ginny.scene = sm.scene;
   sm.scene.add(malfoid.root, ginny.root);
@@ -115,6 +116,10 @@ async function start(): Promise<void> {
     if (s === 'CAST' || s === 'MELEE_ATTACK') ginny.setExpression('determined', 0.9);
     else if (s === 'RETREAT') ginny.setExpression('frustrated', 1.0);
   };
+  // sounds, and the duel's voice lines (the fighters' mouths follow them)
+  const sfx = new Sfx(sm.camera);
+  const voices = new DuelVoices(sfx, malfoid, ginny);
+  voices.onIntroDone = () => startFight();
   let duel = false;
   let duelOver = 0;
   const setDuel = (on: boolean) => {
@@ -134,11 +139,17 @@ async function start(): Promise<void> {
       malfoid.setFacing(Math.PI / 2);
       ginny.setFacing(-Math.PI / 2);
       cam.frame(malfoid.position, ginny.position);
-      ginny.setExpression('confident', 1.5);
-      hud.announce('DUEL!', 'duel');
+      ginny.setExpression('confident', 5);
+      // the opening lines first; Ginny fights once they are said (or at once if attacked)
+      voices.startIntro();
     }
-    ai.setActive(on);
+    ai.setActive(false);
     hud.setDuel(on);
+  };
+  const startFight = () => {
+    if (!duel || duelOver || ai.active) return;
+    ai.setActive(true);
+    hud.announce('DUEL!', 'duel');
   };
   const finish = (winner: Malfoid) => {
     if (!duel || duelOver) return;
@@ -146,6 +157,7 @@ async function start(): Promise<void> {
     ai.setActive(false);
     hud.announce(`${winner.name.toUpperCase()} WINS`, 'win');
     if (winner === ginny) ginny.setExpression('happy', 4);
+    voices.win(winner);
   };
   malfoidTarget.onDefeated = () => finish(ginny);
   ginnyTarget.onDefeated = () => finish(malfoid);
@@ -170,6 +182,7 @@ async function start(): Promise<void> {
     hud.setMode(m);
     setEnvironment(m === 'duel');
     if (m === 'training') {
+      voices.stop();
       setDuel(false);
       malfoid.root.position.set(0, 0, 0);
       placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
@@ -187,6 +200,7 @@ async function start(): Promise<void> {
   }
   const openMenu = () => {
     menuOpen = true;
+    voices.stop();
     setDuel(false);
     input.setPaused(true);
     modeEl.hidden = false;
@@ -220,7 +234,6 @@ async function start(): Promise<void> {
 
   const pausedEl = document.getElementById('paused')!;
   // sound effects (public/sfx); M mutes
-  const sfx = new Sfx(sm.camera);
   const combatSounds = connectCombatSounds(sfx, { malfoid, ginny, combat, ginnyCombat, spells, ginnySpells, fighters: [malfoidTarget, ginnyTarget] });
   // the volume control: on the start menu and the pause screen
   const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
@@ -264,6 +277,9 @@ async function start(): Promise<void> {
       spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
       if (duelMode) ginnySpells.update(dt);
       combatSounds.update(dt);              // footsteps follow the poses just updated
+      voices.update(dt);                    // mouths: applied in the next pose update
+      // attacked during the opening lines: Ginny doesn't wait for them to end
+      if (duel && !duelOver && voices.introRunning && ginnyTarget.hp < ginnyTarget.maxHp) startFight();
       malfoidTarget.update(dt);
       ginnyTarget.update(dt);
       if (duelMode) {
@@ -309,7 +325,7 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  Object.assign(window, { sfx, volume, malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
+  Object.assign(window, { sfx, volume, voices, malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
     malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, forest, renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 

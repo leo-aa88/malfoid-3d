@@ -24,7 +24,8 @@ PROFILES = {
         'freckles': None,
         'face_keys': ('cheek_slim', 'eyes_up', 'eyes_in'),
         'rest_keys': None,                   # face.REST_KEYS
-        'extra_keys': (),                    # shape keys kept in the GLB besides export2.KEEP_KEYS
+        # shape keys kept in the GLB besides export2.KEEP_KEYS: mouth shapes for her voice lines
+        'extra_keys': ('あ', 'お', 'jawOpen'),
         'earrings': True,
         'hair': {'ramp': ((0x9e, 0x86, 0x6c), (0xd9, 0xc2, 0xa6), (0xf0, 0xdf, 0xc9), (0xf5, 0xe6, 0xd3), (0xf9, 0xec, 0xdc)),
                  'flatten': True, 'slim': True, 'part_shift': 0.0, 'half_up': False},
