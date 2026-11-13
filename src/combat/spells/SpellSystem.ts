@@ -130,6 +130,11 @@ export class SpellSystem {
     return this.casting !== null;
   }
 
+  /** the spell being cast (null when not casting) */
+  get castingSpell(): SpellDef | null {
+    return this.casting ? this.casting.def : null;
+  }
+
   /** seconds into the current cast (-1 when not casting) */
   get castTime(): number {
     return this.casting ? this.casting.t : -1;

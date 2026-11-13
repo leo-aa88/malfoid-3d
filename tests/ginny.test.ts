@@ -107,7 +107,7 @@ test('fighter: blocks take chip damage and no reaction; hits react by effect; de
   assert.equal(defeats, 1);
 });
 
-function aiSetup(dist: number, opponentArmed: boolean) {
+function aiSetup(dist: number, opponentArmed: boolean, params?: Partial<typeof GINNY_AI>) {
   const self = Object.assign(fakeFighter(), {
     reacting: null as string | null, canStrike: true, moves: [] as THREE.Vector3[], looked: null as number | null,
     move(d: THREE.Vector3) { self.moves.push(d.clone()); }, stop() {}, lookAt(a: number | null) { self.looked = a; },
@@ -121,13 +121,13 @@ function aiSetup(dist: number, opponentArmed: boolean) {
     cooldownLeft: () => (casts.length ? 8 : 0) };
   const presses: string[] = [];
   const combat = { busy: false, press: (b: string) => presses.push(b) };
-  const oppCombat = { busy: false };
+  const oppCombat = { busy: false, vulnerable: false };
   const target = new FighterTarget(self as unknown as Malfoid);
   const ai = new FighterAI(self as unknown as Malfoid, target, combat as unknown as ComboSystem, spells as unknown as SpellSystem,
     EXPELLIARMUS, opp as unknown as Malfoid, oppCombat as unknown as ComboSystem, () => [],
-    { ...GINNY_AI, castChance: 1, reaction: [0.1, 0.1] });
+    { ...GINNY_AI, castChance: 1, reaction: [0.1, 0.1], ...params });
   ai.startDelay = 0;
-  return { ai, self, casts, presses };
+  return { ai, self, opp, casts, presses, oppCombat };
 }
 
 test('AI casts Expelliarmus at an armed opponent in range; at a disarmed one she closes in instead', () => {
@@ -152,4 +152,43 @@ test('AI strikes in reach, and does nothing while the duel is off', () => {
   for (let i = 0; i < 120; i++) off.ai.update(DT);
   assert.equal(off.presses.length + off.casts.length, 0);
   assert.equal(off.ai.state, 'IDLE');
+});
+
+import { DIFFICULTY } from '../src/combat/ai/difficulty';
+
+test('difficulty: Easy is the original Ginny; Normal and Hard last longer and react faster', () => {
+  assert.equal(DIFFICULTY.easy.ai, GINNY_AI);
+  assert.equal(DIFFICULTY.easy.hp, 100);
+  assert.ok(DIFFICULTY.normal.hp > DIFFICULTY.easy.hp && DIFFICULTY.hard.hp > DIFFICULTY.normal.hp);
+  for (const k of ['blockChance', 'punishChance', 'counterChance', 'dodgeChance', 'pressure', 'guardAfterHit'] as const) {
+    assert.ok(DIFFICULTY.normal.ai[k] > DIFFICULTY.easy.ai[k] && DIFFICULTY.hard.ai[k] > DIFFICULTY.normal.ai[k], k);
+  }
+  assert.ok(DIFFICULTY.hard.ai.reaction[1] < DIFFICULTY.normal.ai.reaction[1] && DIFFICULTY.normal.ai.reaction[1] < GINNY_AI.reaction[1]);
+});
+
+test('punish: she rushes an opponent who whiffed a heavy strike (Hard), not on Easy', () => {
+  const run = (punishChance: number) => {
+    const s = aiSetup(1.6, false, { punishChance, blockChance: 0 });
+    s.oppCombat.vulnerable = true;
+    s.ai.setActive(true);
+    s.ai.update(DT); s.ai.update(DT);
+    return s.ai.state;
+  };
+  assert.equal(run(1), 'APPROACH');
+  const easy = aiSetup(1.6, false, { blockChance: 0 });
+  easy.oppCombat.vulnerable = true;
+  easy.ai.setActive(true);
+  for (let i = 0; i < 3; i++) easy.ai.update(DT);
+  assert.notEqual(easy.ai.state, 'MELEE_ATTACK');
+});
+
+test('dodge: she sidesteps a bolt flying at her once she has seen it', () => {
+  const s = aiSetup(5, false, { dodgeChance: 1, reaction: [0.05, 0.05] });
+  const bolt = { id: 7, position: new THREE.Vector3(0, 1.2, 4), direction: new THREE.Vector3(0, 0, -1) };
+  (s.ai as unknown as { opponentSpells: unknown }).opponentSpells = { projectiles: [bolt], isCasting: false, castTime: -1 };
+  s.ai.setActive(true);
+  for (let i = 0; i < 6 && s.ai.state !== 'DODGE'; i++) s.ai.update(DT);
+  assert.equal(s.ai.state, 'DODGE');
+  const step = s.self.moves[s.self.moves.length - 1];
+  assert.ok(Math.abs(step.z) < 0.01 && Math.abs(step.x) > 0.99);        // across the bolt's line
 });

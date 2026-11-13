@@ -117,3 +117,12 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #mode button span { opacity: 0.8; font-size: 12px; }
 #hud .mode-button { background: #3b4252; }
 #hud [hidden] { display: none !important; }
+
+#mode .duel-pick { margin-top: 10px; padding: 10px 14px 12px; border-radius: 8px; background: #5a1720; text-align: left; }
+#mode .duel-title b { display: block; font-size: 16px; }
+#mode .duel-title span { opacity: 0.8; font-size: 12px; }
+#mode .levels { display: flex; gap: 8px; margin-top: 8px; }
+#mode .levels button { flex: 1; margin: 0; text-align: center; padding: 8px 6px; font-weight: 700; }
+#mode .levels button[data-level="easy"] { background: #8a3a2a; }
+#mode .levels button[data-level="normal"] { background: #a3242f; }
+#mode .levels button[data-level="hard"] { background: #c0102a; }

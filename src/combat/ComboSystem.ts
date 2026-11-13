@@ -225,6 +225,13 @@ export class ComboSystem {
         this.dir.set(this.b.x - this.malfoid.position.x, 0, this.b.z - this.malfoid.position.z).normalize();
         const res = target.takeHit({ damage: m.damage, height: m.height, effect: m.effect, dir: this.dir });
         r.outcome = res.result === 'hit' ? 'hit' : res.result === 'blocked' ? 'blocked' : 'missed';
+        if (res.result === 'blocked' && target.blockRecoil) {
+          // knocked back off the guard: the rest of the move plays out slowly, an opening
+          const left = Math.max(m.duration - r.t, 0.05);
+          r.rate = left / (left + target.blockRecoil);
+          this.malfoid.setStrikeRate(r.rate);
+          this.setVulnerable(true);
+        }
         const at = new THREE.Vector3(this.b.x, m.height === 'high' ? 1.55 : 1.0, this.b.z);
         this.emit({ type: 'strike', move: m, result: res.result, damage: res.damage, ko: res.ko, at, target });
         if (r.combo && r.openerHit && r.outcome === 'hit') this.emit({ type: 'combo', hits: 2, combo: r.combo });
