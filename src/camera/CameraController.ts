@@ -17,6 +17,8 @@ const FOLLOW_RATE = 1.4;
 const RUN_SPEED = 2.9;
 /** rad/s towards the side-on duel view */
 const DUEL_RATE = 2.2;
+/** the duel view is shifted so the pair sits right of the HUD panel (fraction of half the screen width) */
+const HUD_SHIFT = 0.16;
 
 /**
  * Orbit / pan / zoom camera that follows the player. It adjusts on its own as she moves:
@@ -42,7 +44,7 @@ export class CameraController {
     this.controls.dampingFactor = 0.08;
     this.controls.screenSpacePanning = true;
     this.controls.minDistance = 0.3;      // close enough to inspect the face
-    this.controls.maxDistance = 9.0;
+    this.controls.maxDistance = 18.0;     // the duel view pulls back to keep both fighters in frame
     this.controls.minPolarAngle = 0.12;
     this.controls.maxPolarAngle = Math.PI * 0.5 - 0.02;   // never below the floor
     this.controls.zoomSpeed = 0.9;
@@ -77,15 +79,24 @@ export class CameraController {
     this.controls.update();
   }
 
+  /** the duel's look-at point: the pair's midpoint, moved left so they show right of the HUD */
+  private duelTarget(mid: THREE.Vector3, yaw: number, dist: number, out: THREE.Vector3): THREE.Vector3 {
+    const halfW = dist * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) * this.camera.aspect;
+    // the camera's right on the ground, for a camera at yaw looking back at the target
+    const rx = Math.cos(yaw);
+    const rz = -Math.sin(yaw);
+    return out.set(mid.x - rx * halfW * HUD_SHIFT, mid.y, mid.z - rz * halfW * HUD_SHIFT);
+  }
+
   /** cut straight to the side-on view of two fighters (a duel starts) */
   frame(a: THREE.Vector3, b: THREE.Vector3): void {
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const sep = Math.hypot(dx, dz);
     const line = Math.atan2(dx, dz);
-    const dist = THREE.MathUtils.clamp(sep * 1.05 + 2.6, 3.6, 8.5);
+    const dist = THREE.MathUtils.clamp(sep * 1.15 + 2.6, 3.6, 16);
     const yaw = line - Math.PI / 2;          // a on the left, b on the right
-    this.controls.target.set(a.x + dx / 2, a.y + this.initialTargetHeight, a.z + dz / 2);
+    this.duelTarget(new THREE.Vector3(a.x + dx / 2, a.y + this.initialTargetHeight, a.z + dz / 2), yaw, dist, this.controls.target);
     const h = this.initialOffset.y / this.initialOffset.length();
     this.camera.position.set(Math.sin(yaw) * dist, h * dist, Math.cos(yaw) * dist).add(this.controls.target);
     this.lastAnchor.copy(a);
@@ -126,8 +137,8 @@ export class CameraController {
       const b = line - Math.PI / 2;
       wantYaw = Math.abs(angDiff(a, yaw)) < Math.abs(angDiff(b, yaw)) ? a : b;
       rate = DUEL_RATE;
-      this.want.set(anchor.x + dx / 2, anchor.y + this.initialTargetHeight, anchor.z + dz / 2);
-      const wantDist = THREE.MathUtils.clamp(sep * 1.05 + 2.6, 3.6, 8.5);
+      const wantDist = THREE.MathUtils.clamp(sep * 1.15 + 2.6, 3.6, 16);
+      this.duelTarget(this.want.set(anchor.x + dx / 2, anchor.y + this.initialTargetHeight, anchor.z + dz / 2), wantYaw, wantDist, this.want);
       const k = 1 - Math.exp(-3.0 * dt);
       t.lerp(this.want, k);
       const len = this.offset.length();
