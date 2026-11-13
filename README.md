@@ -113,7 +113,8 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
 
 ## How a duel runs
 
-- **Opening lines (campaign):** Malfoid speaks, then her opponent replies, each in a close-up.
+- **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
+  speaks first, against Cho, Cho does.
   Nobody can move or attack until **DUEL!** appears. Practice goes straight to the fight.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
   to recover, an opening for either side. In practice, **G** (or the HUD button) restarts it.

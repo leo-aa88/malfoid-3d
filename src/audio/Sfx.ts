@@ -11,9 +11,11 @@ import { loudnessEnvelope } from './envelope';
 const BASE = import.meta.env.BASE_URL;
 
 type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
-  | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win';
+  | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
+  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win';
 const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
-  'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win'];
+  'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
+  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -51,6 +53,11 @@ export const BANKS = {
   ginnyOpening: [slice('ginny_opening', 0, 99)],
   malfoidWin: [slice('malfoid_win', 0, 99)],
   ginnyWin: [slice('ginny_win', 0, 99)],
+  // the duel against Cho (she speaks first)
+  choOpening: [slice('cho_opening', 0, 99)],
+  malfoidOpening2: [slice('malfoid_opening2', 0, 99)],
+  malfoidWin2: [slice('malfoid_win2', 0, 99)],
+  choWin: [slice('cho_win', 0, 99)],
 } as const;
 export type SoundId = keyof typeof BANKS;
 

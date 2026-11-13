@@ -177,8 +177,8 @@ parries.
 - **Spacing:** against an opponent who keeps chasing her, Cho's average distance was 2.8–3.9 m
   (below her 4–7 m); she retreats a lot. A human player who keeps distance sees more circling.
 - **Hard** may be too hard against the scripted player (won with 150 / 170); needs human play.
-- **Voice and sound:** no Cho recordings yet, so her duel has no opening or win lines, and
-  Stupefy and Ventus borrow the Expelliarmus sound (pitched up and down).
+- **Sound:** Stupefy and Ventus borrow the Expelliarmus sound (pitched up and down). Her voice
+  lines (Cho opens, Malfoid replies; a win line each) and Protego's hum were added afterwards.
 - **Phase 2** at 40 % HP (from the brainstorm) is not implemented.
 - **Headless only:** real frame rate and how the sounds land are untested; headless runs at
   1–20 fps, so the AI's timing is exercised at 0.1 s frames.

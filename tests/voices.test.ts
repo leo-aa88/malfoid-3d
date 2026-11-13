@@ -1,7 +1,7 @@
 // Logic tests for the duel's voice lines and lip movement (no Web Audio): `npm test`
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DuelVoices, VOICE, mouthOpen } from '../src/audio/duelVoices';
+import { CHO_LINES, DuelVoices, VOICE, mouthOpen } from '../src/audio/duelVoices';
 import { ENVELOPE_RATE, loudnessEnvelope } from '../src/audio/envelope';
 import type { SoundHandle, SoundId } from '../src/audio/Sfx';
 
@@ -133,4 +133,26 @@ test('loudness envelope: 100 values a second, loud parts near 1, silence 0', () 
   assert.equal(env[80], 0);
   assert.equal(mouthOpen(0), 0);
   assert.equal(mouthOpen(1), 1);
+});
+
+test("Cho's duel: Cho speaks first, Malfoid replies, then the fight; each winner has her own line", () => {
+  const { sfx, malfoid, ginny: cho, voices, run, done } = setup();
+  voices.setOpponent(cho, CHO_LINES);
+  voices.startIntro();
+  run(VOICE.introDelay + 0.1);
+  assert.deepEqual(sfx.played.map((p) => p.id), ['choOpening']);
+  run(0.4);
+  assert.ok(cho.maxTalk > 0.8, 'her mouth moves');
+  assert.equal(malfoid.maxTalk, 0, 'Malfoid listens');
+  run(1 + VOICE.replyGap);
+  assert.deepEqual(sfx.played.map((p) => p.id), ['choOpening', 'malfoidOpening2']);
+  assert.equal(done(), 0, 'the fight waits for Malfoid to finish');
+  run(1.1);
+  assert.equal(done(), 1);
+  voices.win(malfoid);
+  run(VOICE.winDelay + 0.1);
+  assert.equal(sfx.played.at(-1)!.id, 'malfoidWin2');
+  voices.win(cho);
+  run(VOICE.winDelay + 0.1);
+  assert.equal(sfx.played.at(-1)!.id, 'choWin');
 });
