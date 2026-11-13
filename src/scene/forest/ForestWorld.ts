@@ -4,9 +4,9 @@ import { Atmosphere } from './atmosphere';
 import {
   bushGeometry, grassGeometry, leafGeometry, logGeometry, mushroomGeometry, rockGeometry, stumpGeometry, treeGeometry,
 } from './geometry';
-import { ChunkData, clearingAt, generateChunk, PropKind, PROP_VARIANTS, TREE_VARIANTS, TreeInst } from './placement';
+import { ChunkData, clearingAt, generateChunk, PropKind, PROP_VARIANTS, TREE_VARIANTS, TreeInst, TRUNK_RADIUS } from './placement';
 import { fbm, smoothstep } from './random';
-import { chunkColliders, Collider, pushOut } from './colliders';
+import { chunkColliders, Collider, pushOut, TRUNK_FOOT } from './colliders';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /*
@@ -19,9 +19,10 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 export type AmbienceCue = 'wind' | 'creature' | 'rustle' | 'cue';
 
 const CACHE_LIMIT = 400;          // chunk placements kept for revisiting (small plain objects)
-const FADE_NEAR = 1.0;            // blocking trees close to the camera vanish
-const FADE_FAR = 0.65;            // further ones are thinned out (ordered dither)
-const FADE_NEAR_DIST = 10;        // m from the camera
+/** only fighters this close to the camera count (the ones the camera is framing) */
+const FADE_FOR_FIGHTERS_WITHIN = 18;
+/** a tree must stand at least this far in front of the fighter to count as blocking (m beyond its trunk) */
+const FADE_IN_FRONT = 0.5;
 
 const LEAF_TINTS = ['#3b2a1c', '#4a3220', '#2f2a1d', '#553724', '#3a3a24', '#4b2622'].map((c) => new THREE.Color(c));
 
@@ -381,31 +382,36 @@ export class ForestWorld {
     }
   }
 
-  /** trees between the camera and either fighter (or right in front of the lens) dither away */
+  /**
+   * A tree whose trunk truly stands between the camera and a fighter the camera is framing
+   * fades out completely (through a quick ordered dither); every other tree stays solid. Trees
+   * next to a fighter, behind her, or on the line to a far-away fighter are never faded.
+   */
   private fade(dt: number, camera: THREE.Camera, fighters: THREE.Vector3[]): void {
     const cam = camera.position;
-    const k = 1 - Math.exp(-8 * dt);
+    const k = 1 - Math.exp(-10 * dt);
+    const framed = fighters.filter((f) => Math.hypot(f.x - cam.x, f.z - cam.z) < FADE_FOR_FIGHTERS_WITHIN);
     for (let v = 0; v < TREE_VARIANTS; v++) {
       const slot = this.slots.get(`tree:${v}:0`)!;
       const trees = slot.trees!;
       let changed = false;
       for (let i = 0; i < trees.length; i++) {
         const t = trees[i];
+        // the visible trunk at body height (the same radius the fighters collide with)
+        const foot = TRUNK_RADIUS[t.variant] * TRUNK_FOOT * t.scale;
         const dc = Math.hypot(t.x - cam.x, t.z - cam.z);
         let target = 0;
-        if (dc < 22) {
-          if (dc < t.radius + 1.6) target = FADE_NEAR;
-          for (const f of fighters) {
-            // closest point of the camera->fighter segment (on the ground plane) to the trunk
-            const sx = f.x - cam.x;
-            const sz = f.z - cam.z;
-            const len2 = sx * sx + sz * sz;
-            if (len2 < 1e-6) continue;
-            const u = ((t.x - cam.x) * sx + (t.z - cam.z) * sz) / len2;
-            if (u <= 0 || u >= 0.97) continue;
-            const d = Math.hypot(cam.x + sx * u - t.x, cam.z + sz * u - t.z);
-            if (d < t.radius + 1.2) target = Math.max(target, dc < FADE_NEAR_DIST ? FADE_NEAR : FADE_FAR);
-          }
+        if (dc < foot) target = 1;                       // the camera is inside the trunk
+        for (const f of framed) {
+          // closest point of the camera->fighter segment (on the ground plane) to the trunk
+          const sx = f.x - cam.x;
+          const sz = f.z - cam.z;
+          const len = Math.hypot(sx, sz);
+          if (len < 1e-3) continue;
+          const along = ((t.x - cam.x) * sx + (t.z - cam.z) * sz) / len;
+          if (along <= 0 || along > len - foot - FADE_IN_FRONT) continue;   // behind the camera, or at / past the fighter
+          const d = Math.hypot(cam.x + (sx / len) * along - t.x, cam.z + (sz / len) * along - t.z);
+          if (d < foot + 0.25) target = 1;
         }
         const now = slot.fadeNow![i];
         const next = Math.abs(target - now) < 0.01 ? target : now + (target - now) * k;
