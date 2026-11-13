@@ -15,7 +15,7 @@ function makeGradient(): THREE.DataTexture {
 const FACE_DECALS = new Set(['Eye', 'Highlight', 'Alpha']);
 const HIDDEN = new Set(['Tear']);
 // alpha-card hair and small trims get no inverted-hull outline (it would outline every card)
-const NO_OUTLINE = new Set(['Body', 'Eye', 'Highlight', 'Alpha', 'Tear', 'mf_earring', 'mf_crest_silver',
+const NO_OUTLINE = new Set(['Body', 'Eye', 'Highlight', 'Alpha', 'Tear', 'mf_earring', 'mf_earring_silver', 'mf_crest_silver',
   'mf_crest_green', 'mf_tie', 'mf_tie_stripe', 'mf_tie_tex', 'mf_hair_tex', 'mf_crest_tex']);
 
 // no shadow-map shadows on the face or the hair: hair cards shadowing each other (and the

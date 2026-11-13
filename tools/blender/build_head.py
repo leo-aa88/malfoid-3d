@@ -63,7 +63,7 @@ def main():
         from malfoid import earrings
         from malfoid.character import P
         if P['earrings']:
-            earrings.build(head, parts, m)
+            earrings.build(head, parts, m, P['earrings'])
         variant = os.environ.get('MF_HAIR', 'asset')
         if variant != 'asset':
             # the earlier procedural hair is kept locally only (not in git)
@@ -73,6 +73,9 @@ def main():
             hob = assets.import_hair(head, parts)     # purchased Bell_Hair_01
             for poly in hob.data.polygons:            # alpha cards: no preview line art
                 poly.use_freestyle_mark = True
+            if P.get('ribbon') and assets.GATHER:
+                from malfoid import ribbon            # Cho's bow where the half-up is gathered
+                ribbon.build(hob, assets.GATHER[0], m)
         elif variant == 'old':
             hair.build(head, parts, m)
         else:

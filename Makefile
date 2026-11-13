@@ -23,10 +23,14 @@ GINNY_TEX    := build/textures/Ginny_Head_BaseColor.png build/textures/Ginny_Bod
                 build/textures/Ginny_Crest.png
 GINNY_GLB    := public/models/ginny.glb
 GINNY_BLEND  := build/ginny.blend
+CHO_TEX      := build/textures/Cho_Head_BaseColor.png build/textures/Cho_Body_BaseColor.png \
+                build/textures/Cho_Crest.png
+CHO_GLB      := public/models/cho.glb
+CHO_BLEND    := build/cho.blend
 RENDER_DIR   := docs/integration
 
 .DEFAULT_GOAL := all
-.PHONY: all help check-assets textures model ginny models renders install dev build preview typecheck clean clean-model distclean
+.PHONY: all help check-assets textures model ginny cho models renders install dev build preview typecheck clean clean-model distclean
 
 all: models build ## Build both character models and the production viewer
 
@@ -48,7 +52,7 @@ $(TEXTURES) &: tools/textures/make_textures.py tools/textures/make_crest.py | ch
 	$(PYTHON) tools/textures/make_textures.py
 	$(PYTHON) tools/textures/make_crest.py
 
-models: model ginny ## Build both characters
+models: model ginny cho ## Build every character
 
 model: $(GLB) ## Build build/malfoid.blend and public/models/malfoid.glb
 
@@ -69,6 +73,19 @@ $(GINNY_GLB) $(GINNY_BLEND) &: $(GINNY_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-as
 	@mkdir -p build public/models
 	MF_CHAR=ginny "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
 		--stage 5 --save $(GINNY_BLEND) --glb $(GINNY_GLB)
+
+# Cho: MF_CHAR=cho (Ravenclaw uniform and crest, black-blue half-up hair with the blue bow,
+# star earrings)
+$(CHO_TEX) &: tools/textures/make_textures.py tools/textures/make_crest_ravenclaw.py tools/blender/malfoid/character.py | check-assets
+	MF_CHAR=cho $(PYTHON) tools/textures/make_textures.py
+	$(PYTHON) tools/textures/make_crest_ravenclaw.py
+
+cho: $(CHO_GLB) ## Build build/cho.blend and public/models/cho.glb
+
+$(CHO_GLB) $(CHO_BLEND) &: $(CHO_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-assets
+	@mkdir -p build public/models
+	MF_CHAR=cho "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
+		--stage 5 --save $(CHO_BLEND) --glb $(CHO_GLB)
 
 renders: $(TEXTURES) | check-assets ## Render the validation set into docs/integration
 	@mkdir -p $(RENDER_DIR)
@@ -102,7 +119,8 @@ clean: ## Remove the viewer build output
 	rm -rf dist
 
 clean-model: ## Remove generated textures, .blend and .glb (checkpoints are kept)
-	rm -rf build/textures $(BLEND_OUT) $(GLB) public/models/malfoid.json $(GINNY_BLEND) $(GINNY_GLB) public/models/ginny.json
+	rm -rf build/textures $(BLEND_OUT) $(GLB) public/models/malfoid.json $(GINNY_BLEND) $(GINNY_GLB) public/models/ginny.json \
+		$(CHO_BLEND) $(CHO_GLB) public/models/cho.json
 
 distclean: clean clean-model ## Also remove node_modules
 	rm -rf node_modules
