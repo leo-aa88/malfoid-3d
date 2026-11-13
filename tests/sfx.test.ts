@@ -112,3 +112,18 @@ test('grunts are spaced in game time, so a pause does not reset the gap', () => 
   malfoidT.onHurt!(20, 'knockback');
   assert.equal(sfx.count('gruntHeavy'), 2);
 });
+
+test('volume setting: stored values are read safely, − / + snap to 10 % steps inside 0..100', async () => {
+  const { parseVolume, stepVolume, DEFAULT_VOLUME } = await import('../src/ui/VolumeControl');
+  assert.equal(parseVolume(null), DEFAULT_VOLUME);
+  assert.equal(parseVolume(''), DEFAULT_VOLUME);
+  assert.equal(parseVolume('abc'), DEFAULT_VOLUME);
+  assert.equal(parseVolume('35'), 35);
+  assert.equal(parseVolume('140'), 100);
+  assert.equal(parseVolume('-5'), 0);
+  assert.equal(stepVolume(80, 1), 90);
+  assert.equal(stepVolume(100, 1), 100);
+  assert.equal(stepVolume(0, -1), 0);
+  assert.equal(stepVolume(35, 1), 40);   // off-step values go to the next step that way
+  assert.equal(stepVolume(35, -1), 30);
+});

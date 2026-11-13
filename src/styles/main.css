@@ -126,3 +126,22 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #mode .levels button[data-level="easy"] { background: #8a3a2a; }
 #mode .levels button[data-level="normal"] { background: #a3242f; }
 #mode .levels button[data-level="hard"] { background: #c0102a; }
+
+/* --- sound volume (start menu and pause screen) ------------------------------- */
+.volume {
+  display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12); cursor: default;
+}
+.volume .vol-name { opacity: 0.75; margin-right: 2px; }
+.volume input[type="range"] { flex: 1; min-width: 90px; accent-color: #9fe0bb; cursor: pointer; }
+.volume .vol-value { width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; }
+#mode .volume button, .volume button {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; margin: 0; padding: 0;
+  border: 0; border-radius: 6px; background: #3b4252; color: #fff; font: 600 16px/1 system-ui, sans-serif;
+  text-align: center; cursor: pointer;
+}
+.volume button:hover { filter: brightness(1.2); }
+/* short windows: the mode select would run into the controls help; hide the help behind it */
+@media (max-height: 640px) {
+  body:has(#mode:not([hidden])) #help { display: none; }
+}

@@ -57,6 +57,7 @@ export interface SfxLogEntry {
   gain: number;
   rate: number;
   pan: number;
+  preview?: boolean;   // played by the volume control while paused
 }
 
 const FADE_IN = 0.004;
@@ -75,6 +76,9 @@ export class Sfx {
   private loading: Promise<void> | null = null;
   private warned = false;
   private paused = false;
+  private previewCtx: AudioContext | null = null;
+  private previewToken = 0;
+  private loadDone = false;
   private readonly v = new THREE.Vector3();
 
   constructor(private readonly camera: THREE.Camera) {
@@ -116,6 +120,7 @@ export class Sfx {
         this.warned = true;
       }
     }));
+    this.loadDone = true;
   }
 
   get loaded(): number {
@@ -132,8 +137,52 @@ export class Sfx {
 
   setMuted(on: boolean): void {
     this.muted = on;
-    if (this.out && this.ctx) this.out.gain.setTargetAtTime(on ? 0 : this.master, this.ctx.currentTime, 0.02);
+    this.applyGain();
   }
+
+  /** the master volume (0..1, the menu / pause screen setting) */
+  setVolume(v: number): void {
+    this.master = Math.min(1, Math.max(0, v));
+    this.applyGain();
+  }
+
+  private applyGain(): void {
+    if (this.out && this.ctx) this.out.gain.setTargetAtTime(this.muted ? 0 : this.master, this.ctx.currentTime, 0.02);
+  }
+
+  /**
+   * a short sample at the current volume (the volume control). While paused the game's audio
+   * stays suspended (waking it would replay sounds frozen mid-play), so the sample plays on a
+   * small context of its own.
+   */
+  preview(): void {
+    this.start();
+    if (this.loading && !this.loadDone) {
+      // the first press can come before the files are decoded: play it once they are
+      const token = ++this.previewToken;
+      void this.loading.then(() => token === this.previewToken && this.preview());
+      return;
+    }
+    if (!this.paused) {
+      this.play('punch', { volume: 0.85 });
+      return;
+    }
+    const s = BANKS.punch[0];
+    const buffer = this.buffers.get(s.file);
+    if (!buffer || this.muted) return;
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = (this.previewCtx ??= new Ctx());
+    void ctx.resume();
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.value = 0.85 * s.gain * this.master;
+    src.connect(g).connect(ctx.destination);
+    src.start(ctx.currentTime, s.start, s.end - s.start);
+    this.log.push({ id: 'punch', t: +ctx.currentTime.toFixed(3), gain: +g.gain.value.toFixed(3), rate: 1, pan: 0, preview: true });
+  }
+
 
   /** play a random sound of a bank; returns a handle to stop it early (a cancelled cast) */
   play(id: SoundId, opts: PlayOptions = {}): { stop(): void } | null {
