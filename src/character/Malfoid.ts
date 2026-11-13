@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AnimationController, AnimationState, ActionState, HoldState, StrikeState } from './AnimationController';
+import { AnimationController, AnimationState, ActionState, HoldState, ReactionState, StrikeState } from './AnimationController';
 import { ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 import type { SpellEmitter } from '../combat/spells/SpellEmitter';
-import { Wand, WandGrip } from './Wand';
+import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
 import { SPELL_CLIPS } from '../combat/spells/clips';
 
 /** Seconds without movement before she gets annoyed. */
@@ -17,10 +17,21 @@ const ACCEL = 8.0;                // 1/s speed smoothing
 const TURN_IN_PLACE = 1.6;        // rad: larger direction changes play the turn clip
 const STRIKE_TURN_RATE = 28.0;    // rad/s response when a strike turns her towards the opponent
 
-type Weights = Record<string, number>;
+export type Weights = Record<string, number>;
 
-/** Her face while annoyed (existing shape keys of the base mesh). */
-const ANNOYED_FACE: Weights = {
+/** what differs between the characters at runtime (the model and its clips are their own) */
+export interface CharacterOptions {
+  name: string;
+  /** standing-still clip */
+  idleClip?: 'idle' | 'confident';
+  /** after IDLE_ANNOYED_TIMEOUT s without input: cross the arms, annoyed face (Malfoid) */
+  annoyedIdle?: boolean;
+  /** named faces (shape-key weights) for setExpression(); 'annoyed' is used by the annoyed idle */
+  expressions?: Record<string, Weights>;
+}
+
+/** Malfoid's face while annoyed (existing shape keys of the base mesh). */
+export const ANNOYED_FACE: Weights = {
   // stronger than her (already haughty) resting face: brows pulled down hard,
   // narrowed eyes, pout
   'vrc.blink_Straight': 0.4,
@@ -45,8 +56,14 @@ interface ModelMeta {
   rest_expression: Weights;
 }
 
+/**
+ * A playable or AI character: model, locomotion, moves, reactions, face and wand. Malfoid and
+ * Ginny are both instances (CharacterOptions holds what differs); input or an AI drives it.
+ */
 export class Malfoid {
   readonly root = new THREE.Group();
+  name = 'Malfoid';
+  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE } };
   private animation!: AnimationController;
   private faceMeshes: THREE.Mesh[] = [];
   private meta!: ModelMeta;
@@ -71,6 +88,16 @@ export class Malfoid {
   wand!: Wand;
   private wandGrip!: WandGrip;
   private strikeFacing: number | null = null;  // auto-facing target during a strike
+  // reactions (hit, stagger, knockback, disarmed, pickup): timed here, push her back
+  private reaction: { kind: ReactionState; t: number; dur: number } | null = null;
+  private readonly slide = new THREE.Vector3();
+  private lookTarget: number | null = null;     // turn towards this when standing (AI)
+  private pickupSpot: THREE.Vector3 | null = null;   // steps to the wand while bending down for it
+  private strafeFace: number | null = null;     // keep facing this while moving (AI)
+  /** a defeated fighter stays down until reset */
+  defeated = false;
+  /** scene the wand falls into when it is knocked away */
+  scene: THREE.Scene | null = null;
 
   // face
   private blinkTimer = 2.5;
@@ -78,15 +105,24 @@ export class Malfoid {
   private frozen = false;
   private blinkPhase = -1;
   private annoyedBlend = 0;
+  private expression: string | null = null;     // a named face held for a while
+  private expressionUntil = 0;
+  private expressionBlend = 0;
+  private readonly exprFace: Weights = {};
+  private faceClock = 0;
   private readonly restFace: Weights = {};
   private readonly faceKeys: string[] = [];
 
-  static async load(url: string, metaUrl: string): Promise<Malfoid> {
+  static async load(url: string, metaUrl: string, options?: CharacterOptions): Promise<Malfoid> {
     const [gltf, meta] = await Promise.all([
       new GLTFLoader().loadAsync(url),
       fetch(metaUrl).then((r) => r.json() as Promise<ModelMeta>),
     ]);
     const m = new Malfoid();
+    if (options) {
+      m.opts = { idleClip: 'idle', annoyedIdle: false, expressions: {}, ...options };
+      m.name = options.name;
+    }
     m.meta = meta;
     m.root.add(gltf.scene);
     new ToonMaterials().apply(gltf.scene);
@@ -97,7 +133,8 @@ export class Malfoid {
       }
     });
     Object.assign(m.restFace, meta.rest_expression);
-    const keys = new Set([...Object.keys(meta.rest_expression), ...Object.keys(ANNOYED_FACE), 'vrc.blink']);
+    const keys = new Set([...Object.keys(meta.rest_expression), 'vrc.blink']);
+    for (const w of Object.values(m.opts.expressions)) Object.keys(w).forEach((k) => keys.add(k));
     for (const fm of m.faceMeshes) Object.keys(fm.morphTargetDictionary ?? {}).forEach((k) => keys.add(k));
     m.faceKeys.push(...keys);
     m.animation = new AnimationController(gltf.scene, gltf.animations);
@@ -124,8 +161,12 @@ export class Malfoid {
     return this.root.position;
   }
 
-  /** direction: world-space (y ignored), any length > 0 */
-  move(direction: THREE.Vector3, running: boolean): void {
+  /**
+   * direction: world-space (y ignored), any length > 0. face (rad): keep facing that way
+   * while moving (an AI stepping back from its opponent); she turns to the movement otherwise.
+   */
+  move(direction: THREE.Vector3, running: boolean, face: number | null = null): void {
+    this.strafeFace = face;
     this.desiredDir.set(direction.x, 0, direction.z);
     if (this.desiredDir.lengthSq() < 1e-8) {
       this.stop();
@@ -139,11 +180,93 @@ export class Malfoid {
 
   stop(): void {
     this.moving = false;
+    this.strafeFace = null;
+  }
+
+  /** turn to this facing at once (placing a fighter for a duel) */
+  setFacing(angle: number): void {
+    this.facing = angle;
+    this.root.rotation.y = angle;
+  }
+
+  /** turn towards this facing while standing (AI); null: leave it */
+  lookAt(angle: number | null): void {
+    this.lookTarget = angle;
+  }
+
+  /** in a reaction (hit, stagger, knockback, disarmed, picking the wand up) */
+  get reacting(): ReactionState | null {
+    return this.reaction ? this.reaction.kind : null;
+  }
+
+  /** has her wand (in her hand or up her sleeve); false while it lies on the floor */
+  get hasWand(): boolean {
+    return this.wand.state === 'hand';
+  }
+
+  /** blocking right now (the block pose is held) */
+  get blocking(): boolean {
+    return this.hold === 'block';
+  }
+
+  /**
+   * React to a hit: plays the reaction clip, interrupts what she was doing and slides her
+   * along push (m/s, decays). A defeated character ignores further hits.
+   */
+  react(kind: ReactionState, push?: THREE.Vector3): void {
+    if (this.defeated && kind !== 'knockback') return;
+    if (!this.animation.has(kind)) return;
+    if (kind !== 'pickup') this.pickupSpot = null;
+    if (this.strike) this.endStrike();
+    this.castLock = false;
+    this.action = null;
+    this.hold = null;
+    this.reaction = { kind, t: 0, dur: this.animation.duration(kind) };
+    this.animation.restart(kind, 0.06);
+    if (push) this.slide.copy(push).setY(0);
+    this.resetIdleTimer();
+  }
+
+  /** Expelliarmus: the wand is knocked out of her hand along dir; true if she had it */
+  disarm(dir: THREE.Vector3): boolean {
+    if (!this.hasWand || !this.scene) return false;
+    this.wand.knockAway(this.scene, dir);
+    this.react('disarmed', dir.clone().multiplyScalar(0.8));
+    return true;
+  }
+
+  /** show a named face (from CharacterOptions.expressions) for a while; null: back to rest */
+  setExpression(name: string | null, seconds = 1.2): void {
+    if (name && !this.opts.expressions[name]) return;
+    this.expression = name;
+    this.expressionUntil = this.faceClock + seconds;
+    if (name) {
+      for (const k of Object.keys(this.exprFace)) delete this.exprFace[k];
+      Object.assign(this.exprFace, this.opts.expressions[name]);
+    }
+  }
+
+  /** knocked out / back on her feet (duel end / reset) */
+  setDefeated(on: boolean): void {
+    this.defeated = on;
+    if (on) {
+      this.react('knockback');
+      this.setExpression('pain', 99);
+    } else {
+      this.reaction = null;
+      this.hold = null;
+      this.setExpression(null);
+    }
   }
 
   /** where her spells leave from: the tip of her wand */
   get spellEmitter(): SpellEmitter {
     return this.wand.tip;
+  }
+
+  /** ground speed (m/s) */
+  get moveSpeed(): number {
+    return this.speed;
   }
 
   /** facing direction (rad, 0 = +z) */
@@ -162,9 +285,9 @@ export class Malfoid {
     this.animation.restart(action);
   }
 
-  /** free to start a strike (not jumping, crouching, blocking or casting) */
+  /** free to start a strike (not jumping, crouching, blocking, casting, reacting or down) */
   get canStrike(): boolean {
-    return !this.action && !this.hold && !this.castLock;
+    return !this.action && !this.hold && !this.castLock && !this.reaction && !this.defeated;
   }
 
   /** clip of the strike or spell being played (null when none) */
@@ -198,7 +321,7 @@ export class Malfoid {
   setHold(hold: HoldState, on: boolean): void {
     if (on) {
       this.resetIdleTimer();
-      if (!this.hold && !this.action && !this.strike) this.hold = hold;
+      if (!this.hold && !this.action && !this.strike && !this.reaction && !this.defeated) this.hold = hold;
     } else if (this.hold === hold) {
       this.hold = null;
     }
@@ -224,18 +347,62 @@ export class Malfoid {
   }
 
   update(dt: number): void {
+    // --- reactions: timed here, she slides with the hit
+    if (this.reaction) {
+      this.reaction.t += dt;
+      // picking the wand up: it is in her hand once her fingers close on it
+      if (this.reaction.kind === 'pickup' && this.pickupSpot && this.reaction.t < this.reaction.dur * 0.35) {
+        this.root.position.lerp(this.pickupSpot, 1 - Math.exp(-12 * dt));
+      }
+      if (this.reaction.kind === 'pickup' && this.wand.state === 'dropped' && this.reaction.t >= this.reaction.dur * 0.5) {
+        this.wand.retrieve();
+        this.pickupSpot = null;
+      }
+      if (this.reaction.t >= this.reaction.dur) this.reaction = null;     // a defeated fighter then kneels
+    }
+    if (this.slide.lengthSq() > 1e-6) {
+      this.root.position.addScaledVector(this.slide, dt);
+      this.slide.multiplyScalar(Math.exp(-5.0 * dt));
+    }
+    // walking onto her dropped wand picks it up
+    if (this.wand.state === 'dropped' && !this.reaction && !this.strike && !this.action && !this.defeated) {
+      const w = this.wand.getWorldPosition(new THREE.Vector3());
+      const d = Math.hypot(w.x - this.root.position.x, w.z - this.root.position.z);
+      if (d <= WAND_PICKUP_RADIUS) {
+        this.facing = Math.atan2(w.x - this.root.position.x, w.z - this.root.position.z);
+        this.speed = 0;
+        this.react('pickup');
+        // the clip reaches ~0.3 m in front of her right foot: step in to there
+        const back = Math.min(d, 0.3) / Math.max(d, 1e-6);
+        this.pickupSpot = new THREE.Vector3(w.x - (w.x - this.root.position.x) * back, this.root.position.y,
+          w.z - (w.z - this.root.position.z) * back);
+      }
+    }
+
     // --- facing and speed
-    // strikes, crouch and block plant her feet; a jump keeps its momentum
-    const busy = this.action !== null || this.hold !== null || this.strike !== null;
+    // strikes, crouch, block and reactions plant her feet; a jump keeps its momentum
+    const busy = this.action !== null || this.hold !== null || this.strike !== null || this.reaction !== null || this.defeated;
     const steer = this.moving && !busy;
     let target = steer ? (this.wantRunning ? RUN_SPEED : WALK_SPEED) : 0;
     if (this.action === 'jump') target = this.speed;
     let turnDiff = 0;
-    if (steer) {
+    let moveAngle = this.facing;
+    let backwards = false;
+    if (steer && this.strafeFace !== null) {
+      // keeps facing her opponent: steps towards, away or round them
+      const want = this.strafeFace;
+      const d = Math.atan2(Math.sin(want - this.facing), Math.cos(want - this.facing));
+      this.facing += d * (1 - Math.exp(-TURN_RATE * dt));
+      moveAngle = Math.atan2(this.desiredDir.x, this.desiredDir.z);
+      backwards = Math.cos(moveAngle - this.facing) < -0.2;
+    } else if (steer) {
       const want = Math.atan2(this.desiredDir.x, this.desiredDir.z);
       turnDiff = Math.atan2(Math.sin(want - this.facing), Math.cos(want - this.facing));
       this.facing += turnDiff * (1 - Math.exp(-TURN_RATE * dt));
       if (Math.abs(turnDiff) > TURN_IN_PLACE && this.speed < WALK_SPEED * 0.6) target = 0;   // turn first
+    } else if (!busy && this.lookTarget !== null) {
+      const d = Math.atan2(Math.sin(this.lookTarget - this.facing), Math.cos(this.lookTarget - this.facing));
+      this.facing += d * (1 - Math.exp(-5.0 * dt));
     }
     if (this.strike && this.strikeFacing !== null) {
       const d = Math.atan2(Math.sin(this.strikeFacing - this.facing), Math.cos(this.strikeFacing - this.facing));
@@ -246,12 +413,17 @@ export class Malfoid {
     this.speed += (target - this.speed) * (1 - Math.exp(-accel * dt));
     if (this.speed < 1e-3) this.speed = 0;
     this.root.rotation.y = this.facing;
-    this.root.position.x += Math.sin(this.facing) * this.speed * dt;
-    this.root.position.z += Math.cos(this.facing) * this.speed * dt;
+    const va = this.strafeFace !== null && steer ? moveAngle : this.facing;   // strafing: along the step
+    this.root.position.x += Math.sin(va) * this.speed * dt;
+    this.root.position.z += Math.cos(va) * this.speed * dt;
 
     // --- state machine
     let state: AnimationState;
-    if (this.strike) {
+    if (this.reaction) {
+      state = this.reaction.kind;                // timed above
+    } else if (this.defeated) {
+      state = 'crouch';
+    } else if (this.strike) {
       state = this.strike;                       // timed by the combo system
     } else if (this.action) {
       state = this.action;                       // started by trigger(); ends via onActionDone
@@ -263,13 +435,14 @@ export class Malfoid {
       state = 'run';
     } else if (this.speed > 0.15 || this.moving) {
       state = 'walk';
-    } else if (this.idleSeconds >= IDLE_ANNOYED_TIMEOUT) {
+    } else if (this.opts.annoyedIdle && this.idleSeconds >= IDLE_ANNOYED_TIMEOUT) {
       state = 'idle_annoyed';
     } else {
-      state = 'idle';
+      state = this.opts.idleClip;
     }
     this.animation.play(state);
-    if (state === 'walk') this.animation.setTimeScale(Math.max(this.speed, 0.35) / this.meta.walk_speed);
+    // stepping back while facing her opponent: the walk plays backwards
+    if (state === 'walk') this.animation.setTimeScale((backwards ? -1 : 1) * Math.max(this.speed, 0.35) / this.meta.walk_speed);
     if (state === 'run') this.animation.setTimeScale(Math.max(this.speed, 1.2) / this.meta.run_speed);
     if (this.frozen) {
       this.resetIdleTimer();
@@ -279,17 +452,18 @@ export class Malfoid {
     }
     // the wand comes out of her sleeve for a spell and stays in her hand afterwards; she puts
     // it away as soon as she fights with her fists (any punch or kick)
-    if (this.strike) {
+    if (this.strike && this.wand.state === 'hand') {
       if ((SPELL_CLIPS as readonly string[]).includes(this.strike)) this.wand.draw();
       else this.wand.stow();
     }
     this.wand.update(dt);
-    this.wandGrip.apply(this.wand.drawn);
+    this.wandGrip.apply(this.wand.state === 'hand' ? this.wand.drawn : 0);
     this.root.updateMatrixWorld();
     this.hair.update(dt);
 
     this.updateFace(dt, state === 'idle_annoyed');
   }
+
 
   /**
    * Development hook for the visual comparison tool: replace the resting
@@ -311,9 +485,15 @@ export class Malfoid {
   }
 
   private updateFace(dt: number, annoyed: boolean): void {
+    this.faceClock += dt;
     // annoyed expression eases in after she starts crossing her arms
     const goal = annoyed ? 1 : 0;
     this.annoyedBlend += (goal - this.annoyedBlend) * (1 - Math.exp(-(annoyed ? 2.2 : 5) * dt));
+    // a named expression (hit -> pain, casting -> determined, ...) eases in and out
+    if (this.expression && this.faceClock >= this.expressionUntil) this.expression = null;
+    const eg = this.expression ? 1 : 0;
+    this.expressionBlend += (eg - this.expressionBlend) * (1 - Math.exp(-(eg ? 12 : 4) * dt));
+    const annoyedFace = this.opts.expressions.annoyed ?? {};
 
     // blinking
     this.blinkTimer -= dt;
@@ -336,7 +516,8 @@ export class Malfoid {
         const i = dict[k];
         if (i === undefined) continue;
         const rest = this.restFace[k] ?? 0;
-        let v = rest + ((ANNOYED_FACE[k] ?? rest) - rest) * a;
+        let v = rest + ((annoyedFace[k] ?? rest) - rest) * a;
+        if (this.expressionBlend > 1e-3) v += ((this.exprFace[k] ?? rest) - v) * this.expressionBlend;
         if (k === 'vrc.blink') v = blink;
         if (k === 'vrc.blink_Straight') v *= 1 - blink;   // the blink key closes fully on its own
         inf[i] = v;

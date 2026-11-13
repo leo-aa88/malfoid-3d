@@ -355,13 +355,17 @@ def add_eyes_in(head, parts):
 def apply(head, parts, fparts):
     import os
     if not RESHAPE and os.environ.get('MF_RESHAPE') != '1':
-        add_cheek_slim(head, parts)
-        add_eyes_up(head, parts)
-        add_eyes_in(head, parts)
+        from .character import P
+        if 'cheek_slim' in P['face_keys']:
+            add_cheek_slim(head, parts)
+        if 'eyes_up' in P['face_keys']:
+            add_eyes_up(head, parts)
+        if 'eyes_in' in P['face_keys']:
+            add_eyes_in(head, parts)
         kb = head.data.shape_keys.key_blocks
         for k in kb:
             k.value = 0.0
-        rest = dict(REST_KEYS)
+        rest = dict(P['rest_keys'] if P['rest_keys'] is not None else REST_KEYS)
         if os.environ.get('MF_REST') is not None:
             rest = {k: float(v) for k, v in (kv.split('=') for kv in os.environ['MF_REST'].split(',') if kv)}
         for k, v in rest.items():

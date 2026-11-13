@@ -16,7 +16,7 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
  *
  * | Key          | Action                     |
  * |--------------|----------------------------|
- * | W A S D      | walk (world-fixed)         |
+ * | W A S D      | walk (camera-relative)     |
  * | Shift + WASD | run                        |
  * | Space        | jump                       |
  * | Left Ctrl    | crouch (held)              |
@@ -24,6 +24,7 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
  * | K / I        | high / low kick            |
  * | O            | block (held)               |
  * | L            | cast Confringo             |
+ * | G            | start / stop a duel        |
  * | B            | dummy guard none/high/low  |
  * | N            | dummy in front of her      |
  * | Esc          | pause                      |
@@ -38,6 +39,12 @@ export class CharacterController {
   onDummyReset: (() => void) | null = null;
   /** spell keys (L: Confringo); called once per key press, never for auto-repeat */
   onSpell: ((spell: 'confringo') => void) | null = null;
+  /** start / stop a duel with Ginny */
+  onDuel: (() => void) | null = null;
+  /** the camera's view direction (rad, target -> camera): W walks away from the camera */
+  viewYaw: (() => number) | null = null;
+  private heldKeys = '';                 // the movement keys held when the direction was taken
+  private moveYaw = 0;
 
   constructor(private readonly character: Malfoid, private readonly combat: ComboSystem) {
     window.addEventListener('keydown', (e) => {
@@ -55,6 +62,7 @@ export class CharacterController {
       if (attack) this.combat.press(attack);
       else if (e.code === 'Space') this.character.trigger('jump');
       else if (e.code === 'KeyL') this.onSpell?.('confringo');
+      else if (e.code === 'KeyG') this.onDuel?.();
       else if (e.code === 'KeyB') this.onDummyGuard?.();
       else if (e.code === 'KeyN') this.onDummyReset?.();
     });
@@ -79,12 +87,21 @@ export class CharacterController {
     const r = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
     if (f === 0 && r === 0) {
       this.character.stop();
+      this.heldKeys = '';
       return;
     }
-    // world-fixed directions (as seen from the initial camera): W away from it,
-    // S towards it, A left, D right. Orbiting the camera never changes where
-    // she walks, so you can watch her walk or run from any side.
-    this.dir.set(r, 0, -f);
+    // camera-relative: W away from the camera, S towards it, A / D left / right on screen.
+    // The camera's direction is taken when the movement keys change and kept while they are
+    // held, so the camera turning to follow her (or being orbited) never bends her path.
+    const held = `${f},${r}`;
+    if (held !== this.heldKeys) {
+      this.heldKeys = held;
+      this.moveYaw = this.viewYaw ? this.viewYaw() : 0;
+    }
+    const y = this.moveYaw;
+    const fx = -Math.sin(y);
+    const fz = -Math.cos(y);
+    this.dir.set(fx * f + Math.cos(y) * r, 0, fz * f - Math.sin(y) * r);
     const running = k.has('ShiftLeft') || k.has('ShiftRight');
     this.character.move(this.dir, running);
   }

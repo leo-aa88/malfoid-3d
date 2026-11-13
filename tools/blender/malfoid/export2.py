@@ -18,6 +18,8 @@ KEEP_KEYS = [
     'じト目', 'ｷﾘｯ', '真面目', '怒り', '困る', '口角下げ', '口角上げ', '∧', 'にやり', '瞳小',
     'Serious', 'Confident', 'Meh', 'Smirk',
 ]
+from .character import P as _P  # noqa: E402
+KEEP_KEYS = KEEP_KEYS + [k for k in _P['extra_keys'] if k not in KEEP_KEYS]
 TEX_SIZE = 2048
 
 

@@ -11,10 +11,11 @@ import bpy
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 ASSET = os.path.join(ROOT, 'Gumroad_Anime_Female_BaseMesh', 'Gumroad_Anime_Female_BaseMesh', 'Textures', 'PNG')
 BUILT = os.path.join(ROOT, 'build', 'textures')
+from .character import P, tex  # noqa: E402
 
 IMAGES = {
-    'Body_BaseColor.png': os.path.join(BUILT, 'Malfoid_Head_BaseColor.png'),
-    'Body_All_BaseColor.png': os.path.join(BUILT, 'Malfoid_Body_BaseColor.png'),
+    'Body_BaseColor.png': tex('Head_BaseColor.png'),
+    'Body_All_BaseColor.png': tex('Body_BaseColor.png'),
     'Underwear_BaseColor.png': os.path.join(ASSET, 'Underwear_BaseColor.png'),
     'Tear.png': os.path.join(ASSET, 'Tear.png'),
 }
@@ -42,7 +43,7 @@ def apply(original=False):
         bsdf = nt.nodes['Principled BSDF']
         if not bsdf.inputs['Alpha'].links:
             nt.links.new(tex.outputs['Alpha'], bsdf.inputs['Alpha'])
-    print('MF textures: %s set' % ('ORIGINAL' if original else 'Malfoid'))
+    print('MF textures: %s set' % ('ORIGINAL' if original else P['name']))
 
 
 def mark_decals(head, parts):

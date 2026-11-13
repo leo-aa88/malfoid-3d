@@ -9,7 +9,7 @@ Character space via V(x, fwd, z): +x is her left, fwd is in front of her.
 from math import sin, cos, pi, radians
 from mathutils import Vector
 from . import anim2 as A
-from .anim2 import V, E, qx, qz, IDENT, sstep, lerp, mirx, rig
+from .anim2 import V, E, qx, qy, qz, IDENT, sstep, lerp, mirx, rig
 
 # fists up near the chin (chest rest space)
 GUARD = {
@@ -38,12 +38,22 @@ CLIPS = {             # name: duration (s)
     'rising_kick': 0.85,   # I>K
     # spells (cast with the wand in the right hand)
     'cast_confringo': 0.65,   # wand thrust; the projectile leaves at CAST_RELEASE
+    # reactions (to a hit / to a disarming spell) and the wand pick-up
+    'hit': 0.40,           # flinch
+    'stagger': 0.75,       # stumbles a step back
+    'knockback': 0.95,     # thrown back, knees give, recovers
+    'disarmed': 0.85,      # wand hand flung back and open
+    'pickup': 0.95,        # crouches, picks something up with the right hand
+    # stances
+    'wand_ready': 0.30,    # held: wand pointed at the opponent, guard up
+    'confident': 8.0,      # looping idle: weight on one leg, hand on the hip
     # movement
     'jump': 0.95,
     'block': 0.22,    # held: plays once and stays in the last frame while the key is down
     'crouch': 0.30,   # held
 }
-HELD = ('block', 'crouch')
+HELD = ('block', 'crouch', 'wand_ready')
+LOOPING = ('confident',)           # cyclic clips (the rest play once)
 
 
 def env(t, a, b, c, d):
@@ -263,6 +273,120 @@ def cast_confringo(sk, t):
     spec['t'] = spec['t'] + Vector((0.0, -0.025 * thrust, -0.01 * up))
     spec['leg_L']['foot'] = spec['leg_L']['foot'] @ qx(8.0 * thrust)
     spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(12.0 * thrust)     # rear heel lifts into it
+    return spec
+
+
+# --- reactions -----------------------------------------------------------------
+
+def _recoil(spec, k, back=0.03, lean=10.0, head=14.0, yaw=0.0):
+    D = spec['D']
+    D['spine'] = D.get('spine', IDENT) @ E(pitch=-0.5 * lean * k, yaw=0.4 * yaw * k)
+    D['chest'] = D.get('chest', IDENT) @ E(pitch=-0.5 * lean * k, yaw=0.6 * yaw * k)
+    D['head'] = D.get('head', IDENT) @ E(pitch=-head * k, yaw=0.5 * yaw * k)
+    spec['t'] = spec['t'] + Vector((0.0, back * k, -0.01 * k))      # +y: backwards
+
+
+def hit(sk, t):
+    """flinch: head and chest snap back, shoulders up, back in place"""
+    k = env(t, 0.0, 0.05, 0.10, CLIPS['hit'])
+    spec = A.idle_pose(0.0)
+    _recoil(spec, k, back=0.025, lean=12.0, head=16.0, yaw=6.0)
+    A.arms_down(spec, swing_l=5.0 * k, swing_r=3.0 * k, add=17.0 - 4.0 * k, elbow=11.0 + 18.0 * k)
+    D = spec['D']
+    D['shoulder_L'] = qy(-6.0 * k)                         # shoulders hunch
+    D['shoulder_R'] = qy(6.0 * k)
+    return spec
+
+
+def stagger(sk, t):
+    """stumbles: a step back with the right foot, arms out for balance, steadies"""
+    k = env(t, 0.0, 0.08, 0.32, CLIPS['stagger'])
+    step = env(t, 0.06, 0.22, 0.45, CLIPS['stagger'])
+    spec = A.idle_pose(0.0)
+    _recoil(spec, k, back=0.05, lean=16.0, head=10.0, yaw=-10.0)
+    spec['leg_R']['ankle'] = spec['leg_R']['ankle'] + V(-0.02 * step, -0.17 * step, 0.03 * env(t, 0.06, 0.14, 0.14, 0.22))
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, -0.04 * step))
+    A.arms_down(spec, swing_l=-18.0 * k, swing_r=-12.0 * k, add=17.0 - 34.0 * k, elbow=11.0 + 25.0 * k)
+    return spec
+
+
+def knockback(sk, t):
+    """thrown back: big recoil, knees give, arms forward, gets her balance back"""
+    T = CLIPS['knockback']
+    k = env(t, 0.0, 0.07, 0.40, T)
+    sink = env(t, 0.10, 0.30, 0.50, T)
+    spec = A.idle_pose(0.0)
+    _recoil(spec, k, back=0.07, lean=22.0, head=18.0, yaw=8.0)
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, -0.12 * sink))
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(pitch=10.0 * sink)
+    for side in ('L', 'R'):
+        spec['leg_' + side]['knee_out'] = 0.10 * sink
+    A.arms_down(spec, swing_l=38.0 * k, swing_r=30.0 * k, add=17.0 - 14.0 * k, elbow=12.0 + 45.0 * k)
+    return spec
+
+
+def disarmed(sk, t):
+    """the wand is blasted out of her hand: the right arm flung back and out with the hand
+    open, the body twisted after it"""
+    T = CLIPS['disarmed']
+    k = env(t, 0.0, 0.07, 0.30, T)
+    arm = env(t, 0.0, 0.06, 0.38, T)
+    spec = A.idle_pose(0.0)
+    _recoil(spec, k, back=0.04, lean=12.0, head=14.0, yaw=-22.0)
+    D = spec['D']
+    D['upperarm_L'] = A.arm_q(1, 17.0 - 8.0 * k, 10.0 * k)
+    D['forearm_L'] = A.elbow_q(1, 11.0 + 40.0 * k)
+    D['upperarm_R'] = A.arm_q(-1, 17.0 - 40.0 * arm, -35.0 * arm)
+    D['forearm_R'] = A.elbow_q(-1, 11.0 - 6.0 * arm)
+    D['hand_R'] = qx(-30.0 * arm)
+    spec['curl'] = lerp(16.0, 4.0, arm)                   # hand open
+    return spec
+
+
+def pickup(sk, t):
+    """crouches and picks something up from the floor in front of her right foot"""
+    T = CLIPS['pickup']
+    k = env(t, 0.0, 0.32, 0.52, T)
+    spec = base(sk, 0.0, 0.0, arms={'R': (V(-0.12, 0.30, 0.16), V(-0.22, 0.12, 0.45), k, 'world')})
+    D = spec['D']
+    spec['t'] = spec['t'] + Vector((0.0, 0.06 * k, -0.40 * k))
+    D['hips'] = E(pitch=24.0 * k)
+    D['spine'] = E(pitch=26.0 * k)
+    D['chest'] = E(pitch=10.0 * k)
+    D['head'] = E(pitch=-24.0 * k)
+    spec['leg_L']['knee_out'] = 0.18 * k
+    spec['leg_R']['knee_out'] = 0.10 * k
+    spec['curl'] = lerp(16.0, 55.0, env(t, 0.40, 0.48, 0.80, T))   # closes on it
+    return spec
+
+
+# --- stances -------------------------------------------------------------------
+
+def wand_ready(sk, t):
+    """held: fighting stance with the wand pointed at the opponent, left hand up"""
+    k = sstep(0.0, CLIPS['wand_ready'], t)
+    spec = base(sk, k, k, arms={'R': (V(-0.090, 0.400, 1.210), V(-0.230, 0.160, 1.110), k, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.02, 1.0, 0.18)                  # wand along the hand, at the target
+    arm['hand_k'] = k
+    _twist(spec['D'], k, 14.0, 2.0)
+    return spec
+
+
+def confident(sk, t):
+    """looping idle: weight on her right leg, left hand on the hip, chin up"""
+    spec = base(sk, 0.0, 0.0, arms={'L': (V(0.165, 0.005, 0.975), V(0.275, -0.050, 1.110), 1.0, 'chest')})
+    D = spec['D']
+    b = sin(2 * pi * t / 4.0)
+    D['hips'] = D.get('hips', IDENT) @ E(roll=-4.0, yaw=-8.0)
+    D['spine'] = E(roll=2.0, pitch=0.5 + 0.35 * b)
+    D['chest'] = E(roll=2.0, pitch=-1.5 - 0.6 * b)
+    D['head'] = E(pitch=-5.0 + 0.4 * b, yaw=10.0 + 1.5 * sin(2 * pi * t / 8.0), roll=-3.0)
+    spec['t'] = spec['t'] + Vector((-0.025, 0.0, -0.006))
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(0.035, 0.05, 0.0)
+    spec['leg_L']['foot'] = qz(12.0)
+    spec['curl'] = 30.0
     return spec
 
 

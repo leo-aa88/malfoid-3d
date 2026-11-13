@@ -11,7 +11,8 @@ import bpy
 from mathutils import Vector
 
 ARP = 'rig'
-NEW = 'Malfoid'
+from .character import P  # noqa: E402
+NEW = P['prefix']               # armature object name
 
 
 def _arp_pts():

@@ -1,4 +1,4 @@
-# Malfoid 3D — build the character from the purchased assets and run the viewer.
+# Malfoid 3D — build the characters from the purchased assets and run the viewer.
 #
 #   make            build the model (if needed) and the web viewer
 #   make dev        run the viewer with hot reload
@@ -19,12 +19,16 @@ TEXTURES     := build/textures/Malfoid_Head_BaseColor.png build/textures/Malfoid
                 build/textures/Malfoid_Crest.png
 GLB          := public/models/malfoid.glb
 BLEND_OUT    := build/malfoid.blend
+GINNY_TEX    := build/textures/Ginny_Head_BaseColor.png build/textures/Ginny_Body_BaseColor.png \
+                build/textures/Ginny_Crest.png
+GINNY_GLB    := public/models/ginny.glb
+GINNY_BLEND  := build/ginny.blend
 RENDER_DIR   := docs/integration
 
 .DEFAULT_GOAL := all
-.PHONY: all help check-assets textures model renders install dev build preview typecheck clean clean-model distclean
+.PHONY: all help check-assets textures model ginny models renders install dev build preview typecheck clean clean-model distclean
 
-all: model build ## Build the character model and the production viewer
+all: models build ## Build both character models and the production viewer
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -44,12 +48,27 @@ $(TEXTURES) &: tools/textures/make_textures.py tools/textures/make_crest.py | ch
 	$(PYTHON) tools/textures/make_textures.py
 	$(PYTHON) tools/textures/make_crest.py
 
+models: model ginny ## Build both characters
+
 model: $(GLB) ## Build build/malfoid.blend and public/models/malfoid.glb
 
 $(GLB) $(BLEND_OUT) &: $(TEXTURES) $(TOOLS_PY) $(BASE_BLEND) | check-assets
 	@mkdir -p build public/models
 	"$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
 		--stage 5 --save $(BLEND_OUT) --glb $(GLB)
+
+# Ginny: the same pipeline with MF_CHAR=ginny (her own textures, outputs and settings,
+# tools/blender/malfoid/character.py)
+$(GINNY_TEX) &: tools/textures/make_textures.py tools/textures/make_crest_gryffindor.py tools/blender/malfoid/character.py | check-assets
+	MF_CHAR=ginny $(PYTHON) tools/textures/make_textures.py
+	$(PYTHON) tools/textures/make_crest_gryffindor.py
+
+ginny: $(GINNY_GLB) ## Build build/ginny.blend and public/models/ginny.glb
+
+$(GINNY_GLB) $(GINNY_BLEND) &: $(GINNY_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-assets
+	@mkdir -p build public/models
+	MF_CHAR=ginny "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
+		--stage 5 --save $(GINNY_BLEND) --glb $(GINNY_GLB)
 
 renders: $(TEXTURES) | check-assets ## Render the validation set into docs/integration
 	@mkdir -p $(RENDER_DIR)
@@ -83,7 +102,7 @@ clean: ## Remove the viewer build output
 	rm -rf dist
 
 clean-model: ## Remove generated textures, .blend and .glb (checkpoints are kept)
-	rm -rf build/textures $(BLEND_OUT) $(GLB) public/models/malfoid.json
+	rm -rf build/textures $(BLEND_OUT) $(GLB) public/models/malfoid.json $(GINNY_BLEND) $(GINNY_GLB) public/models/ginny.json
 
 distclean: clean clean-model ## Also remove node_modules
 	rm -rf node_modules

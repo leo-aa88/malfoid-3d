@@ -1,9 +1,10 @@
-"""Builds Malfoid's texture set from the purchased base mesh's textures.
+"""Builds a character's texture set from the purchased base mesh's textures.
 
-Only colour changes, no geometry: pale "NeutralFair" skin preset, the base's
-own iris art recoloured to deep green, and blonde-brown brows.
+Only colour changes, no geometry. Malfoid: pale "NeutralFair" skin preset, the base's own
+iris art recoloured to deep green, blonde-brown brows. Ginny: warmer fair skin, the base's
+brown iris art in warm brown, reddish-brown brows, natural brown lashes, freckles.
 
-  python3 tools/textures/make_textures.py [ASSET_DIR] [OUT_DIR]
+  MF_CHAR=malfoid|ginny python3 tools/textures/make_textures.py [ASSET_DIR] [OUT_DIR]
 """
 import os
 import sys
@@ -14,12 +15,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 ASSET = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
     ROOT, 'Gumroad_Anime_Female_BaseMesh', 'Gumroad_Anime_Female_BaseMesh', 'Textures')
 OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'build', 'textures')
+sys.path.insert(0, os.path.join(ROOT, 'tools', 'blender'))
+from malfoid.character import P  # noqa: E402
 
-IRIS_HUE = 148.0 / 360.0          # deep emerald (#2E6B4F family)
-IRIS_SAT = 1.10
-IRIS_VAL = 0.92
-BROW_DARK = np.array([0x86, 0x66, 0x4a], np.float32)     # brow core
-BROW_LIGHT = np.array([0xd8, 0xbf, 0xa0], np.float32)    # brow fade, close to her hair colour
+IRIS_HUE = P['iris']['hue']       # Malfoid: deep emerald (#2E6B4F family); Ginny: warm brown (#6B3B24)
+IRIS_SAT = P['iris']['sat']
+IRIS_VAL = P['iris']['val']
+BROW_DARK = np.array(P['brow'][0], np.float32)     # brow core
+BROW_LIGHT = np.array(P['brow'][1], np.float32)    # brow fade, close to her hair colour
 BROW_BOX = (2600, 2780, 3935, 3000)                      # x0, y0, x1, y1 in the 4096 head texture
 
 
@@ -91,23 +94,30 @@ def remove_blush(img):
 
 
 SCALP_RGB = np.array([237, 193, 185], np.float32)   # flat scalp colour of the base texture
-HAIR_RGB = np.array([214, 191, 163], np.float32)    # root tone of her hair
+HAIR_RGB = np.array(P['scalp'], np.float32)         # root tone of her hair
 EAR_UV_X = 3480                                     # the ear islands sit right of this (not under hair)
 
 
-def paint_scalp(img):
-    """The scalp is painted one flat pink in the base texture; gaps between
-    the hair cards would show it. Recolour it to her hair's root tone (ears
-    excluded)."""
+def scalp_mask(img):
+    """the scalp texels: one flat pink in the base texture (ears excluded)"""
     d = np.abs(img[..., :3] - SCALP_RGB).max(-1)
     m = (d <= 6) & (img[..., 3] > 0)
     m[:, EAR_UV_X:] = False
+    return m
+
+
+def paint_scalp(img, m=None):
+    """The scalp is painted one flat pink in the base texture; gaps between
+    the hair cards would show it. Recolour it to her hair's root tone. The mask
+    can be taken before a skin-tone blend changes that pink."""
+    if m is None:
+        m = scalp_mask(img)
     img[m, :3] = HAIR_RGB
     print('scalp recoloured: %d px' % m.sum())
 
 
 LASH_BOX = (2560, 2960, 4096, 4096)       # x0, y0, x1, y1: lash / liner cards in the head texture
-LASH_INK = np.array([24, 21, 23], np.float32)
+LASH_INK = np.array([24, 21, 23] if P['lashes'] == 'black' else [52, 28, 20], np.float32)   # black liner / natural dark brown
 CREASE_RGB = np.array([214, 168, 158], np.float32)     # faint crease line, like the atlas
 
 
@@ -137,7 +147,8 @@ def black_lashes(img):
     stroke &= ~crease
     reg[stroke, 3] = 0
     lash = sel & ~crease & ~stroke
-    reg[lash, :3] = LASH_INK + (reg[lash, :3] - LASH_INK) * 0.18
+    keep = 0.18 if P['lashes'] == 'black' else 0.35          # natural lashes keep more of the painted shading
+    reg[lash, :3] = LASH_INK + (reg[lash, :3] - LASH_INK) * keep
     reg[crease, :3] = CREASE_RGB
     print('lashes recoloured: %d px, crease softened: %d px, inner-lid stroke removed: %d px'
           % (lash.sum(), crease.sum(), stroke.sum()))
@@ -157,14 +168,61 @@ def hide_nose_mark(img):
     print('nose mark recoloured: %d px' % sel.sum())
 
 
+# freckles: across the nose bridge and the upper cheeks, under the lower lids (head texture
+# pixels: lower-lid rim ends at y 1508, nose bridge x ~2045, cheek centres ~1772 / 2332)
+FRECKLE_ZONES = [            # centre x, y, radius x, y, share
+    (2045, 1590, 125, 48, 0.30),        # nose bridge
+    (1830, 1582, 170, 58, 0.35),        # her right upper cheek (inner half denser)
+    (2260, 1582, 170, 58, 0.35),
+]
+
+
+def freckles(img, cfg):
+    """Irregular warm reddish-brown freckles painted into the skin (no geometry), so they
+    follow the face through every expression."""
+    rng = np.random.default_rng(cfg['seed'])
+    col = np.array(cfg['colour'], np.float32)
+    n_total = cfg['count']
+    placed = 0
+    for cx, cy, rx, ry, share in FRECKLE_ZONES:
+        for _ in range(int(round(n_total * share))):
+            # denser towards the zone centre and towards the nose
+            for _try in range(20):
+                u, v = rng.normal(0, 0.55), rng.normal(0, 0.55)
+                if u * u + v * v <= 1.0:
+                    break
+            x = cx + u * rx
+            y = max(cy + v * ry, 1528.0)
+            r = rng.uniform(*cfg.get('size', (7.0, 12.5))) * (1.0 - 0.25 * abs(u))     # smaller towards the outer cheeks
+            a = rng.uniform(*cfg.get('alpha', (0.45, 0.78)))
+            x0, x1, y0, y1 = int(x - r - 2), int(x + r + 3), int(y - r - 2), int(y + r + 3)
+            yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+            # slightly irregular blobs
+            ang = rng.uniform(0, np.pi)
+            ex = (xx - x) * np.cos(ang) + (yy - y) * np.sin(ang)
+            ey = -(xx - x) * np.sin(ang) + (yy - y) * np.cos(ang)
+            d = np.sqrt((ex / (r * rng.uniform(0.8, 1.15))) ** 2 + (ey / (r * rng.uniform(0.7, 1.0))) ** 2)
+            w = (np.clip(1.2 - d, 0, 1) ** 1.4 * a)[..., None]
+            reg = img[y0:y1, x0:x1]
+            reg[..., :3] = reg[..., :3] * (1 - w) + col * w
+            placed += 1
+    print('freckles painted: %d' % placed)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     pre = os.path.join(ASSET, 'Preset')
     head = load(os.path.join(ASSET, 'PNG', 'Body_BaseColor.png'))
     head = over(head, load(os.path.join(pre, 'Head_Texture_Presets', 'Head_BaseColor2_NeutralFair.png')))
+    scalp = scalp_mask(head)                 # before any skin-tone blend shifts the scalp pink
+    if P['skin_warm'] > 0:
+        # a warmer fair skin: the pack's own WarmHoney preset blended in
+        warm = over(load(os.path.join(ASSET, 'PNG', 'Body_BaseColor.png')),
+                    load(os.path.join(pre, 'Head_Texture_Presets', 'Head_BaseColor3_WarmHoney.png')))
+        head[..., :3] = head[..., :3] * (1 - P['skin_warm']) + warm[..., :3] * P['skin_warm']
     # green irises: hue-rotate the base's own (pink) iris art, keeping its
     # value structure, gradient and sparkles
-    eyes = load(os.path.join(pre, 'Head_Texture_Presets', 'Eyes_Color1.png'))
+    eyes = load(os.path.join(pre, 'Head_Texture_Presets', P['iris']['src'] + '.png'))
     m = eyes[..., 3] > 0
     h, s, v = rgb_to_hsv(eyes[..., :3] / 255.0)
     rgb = hsv_to_rgb(np.full_like(h, IRIS_HUE), np.clip(s * IRIS_SAT, 0, 1), v * IRIS_VAL) * 255.0
@@ -180,13 +238,21 @@ def main():
     sel = (reg[..., 3:4] > 0) & (lum[..., None] < 0.92)
     reg[..., :3] = np.where(sel, col, reg[..., :3])
     remove_blush(head)
-    paint_scalp(head)
+    paint_scalp(head, scalp)
     black_lashes(head)
-    hide_nose_mark(head)
-    Image.fromarray(np.clip(head, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, 'Malfoid_Head_BaseColor.png'))
+    if P['hide_nose_mark']:
+        hide_nose_mark(head)
+    if P['freckles']:
+        freckles(head, P['freckles'])
+    prefix = P['prefix']
+    Image.fromarray(np.clip(head, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, prefix + '_Head_BaseColor.png'))
     body = load(os.path.join(ASSET, 'PNG', 'Body_All_BaseColor.png'))
     body = over(body, load(os.path.join(pre, 'Body_Texture_Presets', 'BodyAll_BaseColor2_NeutralFair.png')))
-    Image.fromarray(np.clip(body, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, 'Malfoid_Body_BaseColor.png'))
+    if P['skin_warm'] > 0:
+        warm = over(load(os.path.join(ASSET, 'PNG', 'Body_All_BaseColor.png')),
+                    load(os.path.join(pre, 'Body_Texture_Presets', 'BodyAll_BaseColor3_WarmHoney.png')))
+        body[..., :3] = body[..., :3] * (1 - P['skin_warm']) + warm[..., :3] * P['skin_warm']
+    Image.fromarray(np.clip(body, 0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, prefix + '_Body_BaseColor.png'))
     print('textures written to', OUT)
 
 
