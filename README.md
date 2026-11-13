@@ -1,10 +1,10 @@
 # malfoid-3d
 
 An anime-style 3D fighting game in the browser: **Malfoid**, a Slytherin student, duels Harry
-Potter's potential romantic interests one by one, with fists, kicks and spells. Built with
-Three.js + TypeScript + Vite.
+Potter's potential romantic interests one by one, with fists, kicks and spells, then Harry
+himself, and finally faces Bellatrix Lestrange. Built with Three.js + TypeScript + Vite.
 
-**Ginny Weasley** is the first rival; more are planned. The built characters
+**Ginny Weasley**, the first opponent, is playable; the rest of the campaign is planned. The built characters
 (`public/models/*.glb`) and sound effects (`public/sfx/`) are included, so the game runs straight
 from a clone.
 
@@ -24,21 +24,27 @@ The start screen offers two modes:
 
 - **Training:** Malfoid against a training dummy in the studio scene, to practise strikes,
   combos and Confringo.
-- **Duel:** Malfoid against an AI-controlled rival in the **Forbidden Woods**, an infinite
+- **Duel:** Malfoid against an AI-controlled opponent in the **Forbidden Woods**, an infinite
   procedural forest that streams in chunks around the player, with no walls. See
   `src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
   `src/scene/forest/config.ts`.
 
-## Rivals
+## Opponents
 
-| Rival | House | Signature spell | Status |
-|---|---|---|---|
-| Ginny Weasley | Gryffindor | Expelliarmus (disarms Malfoid) | playable |
-| more of Harry's love interests | | | planned |
+The campaign, in order:
 
-Each rival is built by the same character pipeline as Malfoid (her own profile in
-`tools/blender/malfoid/character.py`), with her own expressions, voice lines, signature spell
-and AI tuning.
+| Order | Opponent | Gameplay focus | Story purpose | Status |
+|---|---|---|---|---|
+| 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | playable |
+| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | planned |
+| 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | planned |
+| 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | planned |
+| 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | planned |
+| 6 | Bellatrix Lestrange | Crucio, Imperio, multiple opponents | First genuinely terrifying boss | planned |
+
+Each opponent is built by the same character pipeline as Malfoid (their own profile in
+`tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
+spells and AI tuning.
 
 ### Ginny Weasley
 
@@ -56,7 +62,7 @@ with her fists. See `docs/ginny/REPORT.md` for details.
 
 ## How a duel runs
 
-- **Opening lines:** Malfoid speaks, then her rival replies, each in a close-up. Nobody can
+- **Opening lines:** Malfoid speaks, then her opponent replies, each in a close-up. Nobody can
   move or attack until **DUEL!** appears.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
   to recover, an opening for either side. **G** (or the HUD button) restarts the duel.
@@ -127,7 +133,7 @@ The Blasting Curse, cast with her wand. She keeps the wand up her right sleeve. 
 it slides out into her hand. It stays there afterwards, while she walks, runs, jumps or idles,
 and goes back up the sleeve as soon as she punches or kicks.
 
-She turns towards her target (the dummy or her rival) if it is within 60°, raises the wand while fire gathers at its tip,
+She turns towards her target (the dummy or her opponent) if it is within 60°, raises the wand while fire gathers at its tip,
 and thrusts it at the target. At 0.42 s a fiery bolt leaves the tip, flies at 18 m/s with a
 flame trail and sparks, and explodes on the first thing it touches: a target, a solid, or the
 ground. If it touches nothing, it fizzles out at 25 m.
@@ -159,7 +165,7 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/TrainingDummy.ts` – the training opponent: HP, guard, flinch / stagger / knockback / knockdown.
 - `combat/CombatTarget.ts` – what any attack hits; `FighterTarget.ts` – a character as a target
   (health, blocking, reactions, disarm, defeat).
-- `combat/ai/FighterAI.ts` – the rival's behaviour (observe, approach, retreat, block, strike,
+- `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
   cast); `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning.
 - `combat/spells/Expelliarmus.ts` – Ginny's disarming spell.
 - `character/faces.ts` – Ginny's expressions and speaking mouth.
