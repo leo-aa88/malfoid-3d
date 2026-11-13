@@ -33,7 +33,9 @@ function keepApart(p: THREE.Vector3, dummy: TrainingDummy): void {
 async function start(): Promise<void> {
   const sm = new SceneManager(document.getElementById('app')!);
   const cam = new CameraController(sm.camera, sm.renderer.domElement);
-  const malfoid = await Malfoid.load(`${BASE}models/malfoid.glb`, `${BASE}models/malfoid.json`);
+  // ?char=ginny shows Ginny's model in the player's place (inspection while she is built)
+  const char = new URLSearchParams(location.search).get('char') === 'ginny' ? 'ginny' : 'malfoid';
+  const malfoid = await Malfoid.load(`${BASE}models/${char}.glb`, `${BASE}models/${char}.json`);
   sm.scene.add(malfoid.root);
 
   // training dummy

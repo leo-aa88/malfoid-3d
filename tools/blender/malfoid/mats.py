@@ -38,6 +38,9 @@ PALETTE = {
     'mf_fx':        ('#ffffff', 1.00, 0.0),     # hidden effect meshes
 }
 
+from .character import P as _P  # noqa: E402
+PALETTE.update(_P['palette'])
+
 # which head part uses which material
 PART_MAT = {
     'face': 'mf_skin', 'ear': 'mf_skin', 'sclera': 'mf_sclera', 'iris': 'mf_iris', 'pupil': 'mf_pupil',

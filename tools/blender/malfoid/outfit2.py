@@ -967,7 +967,8 @@ def crest(info):
             md.f.append((a, a + 1, a + n + 2, a + n + 1))
             md.fm.append('mf_crest_tex')
     os.makedirs(BUILT, exist_ok=True)
-    path = os.path.join(BUILT, 'Malfoid_Crest.png')       # painted by tools/textures/make_crest.py
+    from .character import P
+    path = os.path.join(BUILT, P['crest'])       # painted by tools/textures/make_crest*.py
     if not os.path.exists(path):
         _save_png(np.ascontiguousarray(crest_tex.paint()[::-1]), path, 'mf_crest_png')
     m = bpy.data.materials.get('mf_crest_tex') or bpy.data.materials.new('mf_crest_tex')
@@ -979,7 +980,7 @@ def crest(info):
     bsdf.name = 'Principled BSDF'
     t = nt.nodes.new('ShaderNodeTexImage')
     t.image = bpy.data.images.load(path, check_existing=False)
-    t.image.name = 'Malfoid_Crest'
+    t.image.name = P['crest'][:-4]
     t.image.colorspace_settings.name = 'sRGB'
     t.image.alpha_mode = 'STRAIGHT'
     nt.links.new(t.outputs['Color'], bsdf.inputs['Base Color'])

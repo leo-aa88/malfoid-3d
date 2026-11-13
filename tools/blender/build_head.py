@@ -61,7 +61,9 @@ def main():
         face.apply(head, parts, fparts)
     if stage >= 2:
         from malfoid import earrings
-        earrings.build(head, parts, m)
+        from malfoid.character import P
+        if P['earrings']:
+            earrings.build(head, parts, m)
         variant = os.environ.get('MF_HAIR', 'asset')
         if variant != 'asset':
             # the earlier procedural hair is kept locally only (not in git)

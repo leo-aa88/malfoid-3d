@@ -27,6 +27,7 @@ UNIFORM_BLEND = os.path.join(ROOT, 'Girls+Hogwarts+Uniform+Harry+Potter+Uniform+
                              'Girls Hogwarts Uniform Harry Potter Uniform Gryffindor.blend')
 BUILT = os.path.join(ROOT, 'build', 'textures')
 
+from .character import P as PROFILE, tex  # noqa: E402
 HAIR_BONES = []          # (name, head, tail, parent) for rig2.create, filled by import_hair
 
 
@@ -82,7 +83,7 @@ def _hair_texture():
     kept and mapped onto a platinum ramp; the pack's alpha map goes into the
     alpha channel so the cards cut out in glTF."""
     os.makedirs(BUILT, exist_ok=True)
-    out = os.path.join(BUILT, 'Malfoid_Hair_BaseColor.png')
+    out = tex('Hair_BaseColor.png')
     g = _load_px(os.path.join(HAIR_PNG, 'Bell_Color_Soft', 'Bell_Hair_Grey.png'))[..., 0]
     a = _load_px(os.path.join(HAIR_PNG, 'Bell_Hair_Alpha_Soft.png'))[..., 0]
     lo, hi = np.percentile(g, 3), np.percentile(g, 97)
@@ -91,8 +92,7 @@ def _hair_texture():
     # top of the ramp at the atlas platinum (#F7E5D4) instead of near-white: the pack's
     # highlight bands (and the top of one strip, used on the crown) are cut into straight-edged
     # sections by the cards and showed as pale white blocks
-    ramp_c = np.array([[0x9e, 0x86, 0x6c], [0xd9, 0xc2, 0xa6], [0xf0, 0xdf, 0xc9], [0xf5, 0xe6, 0xd3],
-                       [0xf9, 0xec, 0xdc]], np.float32)
+    ramp_c = np.array(PROFILE['hair']['ramp'], np.float32)
     # the loaded pixels are linear floats; build the ramp in sRGB and convert
     rgb = np.stack([np.interp(t, ramp_t, ramp_c[:, c]) for c in range(3)], -1) / 255.0
     img = np.concatenate([rgb, a[..., None]], -1)
@@ -111,7 +111,7 @@ def _hair_material():
     t = nt.nodes.new('ShaderNodeTexImage')
     path = _hair_texture()
     t.image = bpy.data.images.load(path, check_existing=False)
-    t.image.name = 'Malfoid_Hair_BaseColor'
+    t.image.name = PROFILE['prefix'] + '_Hair_BaseColor'
     t.image.colorspace_settings.name = 'sRGB'
     t.image.alpha_mode = 'STRAIGHT'
     nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
@@ -261,8 +261,14 @@ def import_hair(head, parts):
     for o in (hair_ob, arm):
         bpy.data.objects.remove(o, do_unlink=True)
     shrinkwrap_cap(me, skull, centre)
-    flatten_crown(me, skull, centre)
-    slim_hair(me)
+    if PROFILE['hair']['flatten']:
+        flatten_crown(me, skull, centre)
+    if PROFILE['hair']['slim']:
+        slim_hair(me)
+    if PROFILE['hair']['part_shift']:
+        shift_part(me, PROFILE['hair']['part_shift'])
+    if PROFILE['hair']['half_up']:
+        half_up(me, skull, centre)
     HAIR_BONES[:] = [(n, slim_point(h), slim_point(t), par) for n, h, t, par in HAIR_BONES]
     _hair_clearance(ob, skull, centre)
     if parts is not None:
@@ -324,6 +330,102 @@ def flatten_crown(me, skull, centre, gap=0.004, keep=0.5):
         n += 1
         worst = max(worst, cut)
     print('MF hair: %d crown verts flattened towards the skull (max %.1f mm)' % (n, worst * 1000))
+
+
+def shift_part(me, dx):
+    """move the parting off-centre: the top front of the hair slides sideways (a smooth
+    shear that fades out over the crown and down the sides); the clearance pass afterwards
+    keeps every strand outside the skull"""
+    n = 0
+    for v in me.vertices:
+        p = v.co
+        # only the front hairline (where the part shows): shifting the crown uncovered the scalp
+        w = sstep(1.44, 1.50, p.z) * (1.0 - sstep(-0.06, -0.02, p.y)) * (1.0 - sstep(0.04, 0.09, abs(p.x)))
+        if w > 0:
+            p.x += dx * w
+            n += 1
+    print('MF hair: parting moved %.1f mm (%d verts)' % (dx * 1000, n))
+
+
+HALF_UP_Z = 1.425        # height of the gather at the back of the head (m)
+HALF_UP_BACK = 0.012     # the gathered hair sits this far behind the skull
+
+
+def _islands(me):
+    import bmesh as _bm
+    bm = _bm.new()
+    bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    seen, out = set(), []
+    for v in bm.verts:
+        if v.index in seen:
+            continue
+        stack, comp = [v], []
+        seen.add(v.index)
+        while stack:
+            u = stack.pop()
+            comp.append(u.index)
+            for e in u.link_edges:
+                w = e.other_vert(u)
+                if w.index not in seen:
+                    seen.add(w.index)
+                    stack.append(w)
+        out.append(comp)
+    bm.free()
+    return out
+
+
+def half_up(me, skull, centre):
+    """Ginny's half-up (blueprint / facial atlas back views): the upper section of the hair
+    is gathered at the back of the head and falls as a tail over the loose lower hair (no
+    hair tie prop). The purchased hair cards are reshaped, not replaced:
+    - long back cards whose strand lies on the outside at the gather height (the upper
+      layer) converge on the gather and fall from it as a narrower tail;
+    - the face-framing front locks and the lower layer stay loose.
+    Returns the gather point (world, rest pose)."""
+    co = [v.co.copy() for v in me.vertices]
+    yb = None
+    hit = skull.ray_cast(Vector((0.0, 0.6, HALF_UP_Z)), Vector((0.0, -1.0, 0.0)), 1.0)
+    yb = (hit[0].y if hit[0] is not None else 0.085) + HALF_UP_BACK
+    tie = Vector((0.0, yb, HALF_UP_Z))
+    # 1. classify the long back cards by how far out they lie at the tie height
+    back = []
+    for comp in _islands(me):
+        cs = [co[i] for i in comp]
+        top = max(c.z for c in cs)
+        bot = min(cs, key=lambda c: c.z)
+        if top < 1.46 or bot.z > 1.30 or bot.y < 0.05:
+            continue                                       # crown caps, front locks
+        band = [c for c in cs if abs(c.z - HALF_UP_Z) < 0.03]
+        if not band:
+            continue
+        out = sum((c - centre).length for c in band) / len(band)
+        back.append((out, comp))
+    back.sort(key=lambda t: -t[0])
+    upper = back[:max(1, int(len(back) * 0.5))]
+    moved = 0
+    for _, comp in upper:
+        for i in comp:
+            p = co[i]
+            if p.z >= HALF_UP_Z:
+                # from the crown down to the tie: converge on the gather line behind the head
+                # a gradual sweep towards the gather from high up (a sharp turn left a notch in
+                # the profile), pulled in part of the way so the head stays covered
+                w = sstep(1.53, HALF_UP_Z, p.z) ** 1.3
+                q = Vector((p.x * (1.0 - 0.35 * w), max(p.y, yb * w + p.y * (1 - w)), p.z))
+            else:
+                # below the tie: a tail, narrow at the tie and spreading a little lower down,
+                # lying on top of the loose hair
+                d = HALF_UP_Z - p.z
+                k = 0.68 + 0.25 * sstep(0.0, 0.30, d)
+                # (the offset that lays it over the loose hair ramps in: a jump at the gather
+                # left a V-shaped slit in the profile)
+                q = Vector((p.x * k, max(p.y, yb * (1.0 - sstep(0.0, 0.12, d)) + p.y * sstep(0.0, 0.12, d)), p.z))
+            me.vertices[i].co = q
+            moved += 1
+    print('MF hair: half-up: %d of %d back cards gathered (%d verts) at %s'
+          % (len(upper), len(back), moved, tuple(round(c, 3) for c in tie)))
+    return tie
 
 
 def slim_hair(me):
@@ -983,13 +1085,12 @@ def import_uniform(info, arm):
     return objs
 
 
-TIE_GREEN = (0x1f, 0x5c, 0x40)
-TIE_SILVER = (0xc6, 0xc6, 0xc9)
+TIE_GREEN, TIE_SILVER = PROFILE['tie']       # tie base colour and stripe colour (the house colours)
 
 
 def _tie_texture():
     """diagonal green/silver stripes; UV = (x, z) in metres (see build_tie)"""
-    path = os.path.join(BUILT, 'Malfoid_Tie_Stripes.png')
+    path = tex('Tie_Stripes.png')
     n = 512
     v, u = np.mgrid[0:n, 0:n].astype(np.float64)
     X = (u + 0.5) / n * 0.08 - 0.04                 # 8 cm wide
@@ -1015,7 +1116,7 @@ def _tie_texture():
     b.name = 'Principled BSDF'
     t = nt.nodes.new('ShaderNodeTexImage')
     t.image = bpy.data.images.load(path, check_existing=False)
-    t.image.name = 'Malfoid_Tie_Stripes'
+    t.image.name = PROFILE['prefix'] + '_Tie_Stripes'
     t.image.colorspace_settings.name = 'sRGB'
     t.extension = 'EXTEND'
     nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
@@ -1220,8 +1321,8 @@ def tie_stripes(ob):
     me = ob.data
     size = 1024
     img = np.zeros((size, size, 3), np.float32)
-    green = np.array([0x1f, 0x5c, 0x40], np.float32)
-    silver = np.array([0xc6, 0xc6, 0xc9], np.float32)
+    green = np.array(TIE_GREEN, np.float32)
+    silver = np.array(TIE_SILVER, np.float32)
     img[:] = green
     uv = me.uv_layers['UVMap'].data
     period, width = 0.026, 0.0065
@@ -1252,7 +1353,7 @@ def tie_stripes(ob):
             blk = img[y0:y1, x0:x1]
             blk[inside] = col[inside]
     os.makedirs(BUILT, exist_ok=True)
-    path = os.path.join(BUILT, 'Malfoid_Tie_BaseColor.png')
+    path = tex('Tie_BaseColor.png')
     rgba = np.concatenate([img / 255.0, np.ones(img.shape[:2] + (1,), np.float32)], -1)
     _save_png(rgba, path, 'mf_tie_png')
     m = bpy.data.materials.get('mf_tie_tex') or bpy.data.materials.new('mf_tie_tex')
@@ -1264,7 +1365,7 @@ def tie_stripes(ob):
     b.name = 'Principled BSDF'
     t = nt.nodes.new('ShaderNodeTexImage')
     t.image = bpy.data.images.load(path, check_existing=False)
-    t.image.name = 'Malfoid_Tie_BaseColor'
+    t.image.name = PROFILE['prefix'] + '_Tie_BaseColor'
     t.image.colorspace_settings.name = 'sRGB'
     nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
     nt.links.new(b.outputs[0], o.inputs[0])
