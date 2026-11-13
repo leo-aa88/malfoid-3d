@@ -32,6 +32,10 @@ The duel has three difficulties:
 
 A strike blocked by a fighter leaves the attacker slow to recover, an opening for either side.
 
+Every duel opens with the fighters' lines: Malfoid speaks, then Ginny replies, each in a
+close-up, and nobody can move or attack until **DUEL!** appears. The winner gets the last word.
+The speakers' mouths open and close with the loudness of their lines (`audio/duelVoices.ts`).
+
 In a duel, Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and
 the wand lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only
 fight with her fists. **Change mode** in the HUD returns to the start screen. See
@@ -141,6 +145,8 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, spell cooldown.
 - `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
   pause screen; remembered in the browser, with a short sample at the new level.
+- `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement
+  (driven by `audio/envelope.ts`, the lines' loudness over time).
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, footsteps timed to

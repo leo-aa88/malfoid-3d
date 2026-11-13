@@ -27,5 +27,8 @@ export const GINNY_FACES: Record<string, Weights> = {
     mouthStretchLeft: 0.7, mouthStretchRight: 0.7, jawOpen: 0.15 },
 };
 
-/** Ginny's open mouth while she speaks (Malfoid.setTalk scales it): the "a" viseme and a little jaw */
-export const GINNY_TALK: Weights = { 'あ': 0.55, jawOpen: 0.1 };
+/**
+ * Ginny's open mouth while she speaks (Malfoid.setTalk scales it): the "a" viseme, a little
+ * jaw and the corners up, like the atlas's "Speaking (light, natural)"
+ */
+export const GINNY_TALK: Weights = { 'あ': 0.4, jawOpen: 0.06, mouthSmileLeft: 0.4, mouthSmileRight: 0.4 };

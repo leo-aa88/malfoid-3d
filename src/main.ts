@@ -122,6 +122,8 @@ async function start(): Promise<void> {
   voices.onIntroDone = () => startFight();
   let duel = false;
   let duelOver = 0;
+  let closeUpOn: Malfoid | null = null;            // the voice-line close-up being held
+  const faceAt = new THREE.Vector3();
   const setDuel = (on: boolean) => {
     duel = on;
     duelOver = 0;
@@ -140,8 +142,10 @@ async function start(): Promise<void> {
       ginny.setFacing(-Math.PI / 2);
       cam.frame(malfoid.position, ginny.position);
       ginny.setExpression('confident', 5);
-      // the opening lines first; Ginny fights once they are said (or at once if attacked)
+      malfoid.resetIdleTimer();                       // she starts in her stance, not the bored arms-crossed idle
+      // the opening lines first; the fight (both fighters) starts once they are said
       voices.startIntro();
+      closeUpOn = null;
     }
     ai.setActive(false);
     hud.setDuel(on);
@@ -149,6 +153,8 @@ async function start(): Promise<void> {
   const startFight = () => {
     if (!duel || duelOver || ai.active) return;
     ai.setActive(true);
+    if (closeUpOn) cam.frame(malfoid.position, ginny.position);   // back to the duel view
+    closeUpOn = null;
     hud.announce('DUEL!', 'duel');
   };
   const finish = (winner: Malfoid) => {
@@ -183,6 +189,7 @@ async function start(): Promise<void> {
     setEnvironment(m === 'duel');
     if (m === 'training') {
       voices.stop();
+      closeUpOn = null;
       setDuel(false);
       malfoid.root.position.set(0, 0, 0);
       placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
@@ -201,6 +208,7 @@ async function start(): Promise<void> {
   const openMenu = () => {
     menuOpen = true;
     voices.stop();
+    closeUpOn = null;
     setDuel(false);
     input.setPaused(true);
     modeEl.hidden = false;
@@ -267,19 +275,20 @@ async function start(): Promise<void> {
   sm.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (!input.paused) {
+      // during the opening lines nobody moves: Malfoid's controls are locked, Ginny's AI is off
+      input.locked = duel && voices.introRunning;
+      if (input.locked) malfoid.resetIdleTimer();     // listening, not bored: no arms-crossed idle
       input.update();
       const duelMode = mode === 'duel';
       if (duelMode) ai.update(dt);
       combat.update(dt);
       if (duelMode) ginnyCombat.update(dt);
+      voices.update(dt);                    // voice lines and mouths: before the pose update applies them
       malfoid.update(dt);
       if (duelMode) ginny.update(dt);
       spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
       if (duelMode) ginnySpells.update(dt);
       combatSounds.update(dt);              // footsteps follow the poses just updated
-      voices.update(dt);                    // mouths: applied in the next pose update
-      // attacked during the opening lines: Ginny doesn't wait for them to end
-      if (duel && !duelOver && voices.introRunning && ginnyTarget.hp < ginnyTarget.maxHp) startFight();
       malfoidTarget.update(dt);
       ginnyTarget.update(dt);
       if (duelMode) {
@@ -305,7 +314,16 @@ async function start(): Promise<void> {
     hud.setFighters(malfoidTarget, ginnyTarget, duel ? ai.state : null);
     spellFx.setView(sm.camera, sm.renderer.domElement.height);
     ginnyFx.setView(sm.camera, sm.renderer.domElement.height);
-    cam.update(malfoid.position, input.paused ? undefined : {
+    // voice lines: cut to a close-up of whoever speaks (her mouth is readable) and hold it
+    // through the pause between the opening lines; the fight cuts back to the duel view
+    const speaker = voices.speaking as Malfoid | null;
+    if (!input.paused && speaker && speaker !== closeUpOn && !cam.manual) {
+      cam.closeUp(speaker.facePosition(faceAt), speaker.facingAngle);
+      closeUpOn = speaker;
+    } else if (closeUpOn && !speaker && !voices.introRunning) {
+      closeUpOn = null;                     // a win line ended: the follow camera eases back out
+    }
+    cam.update(malfoid.position, input.paused || closeUpOn ? undefined : {
       heading: malfoid.facingAngle, speed: malfoid.moveSpeed,
       other: mode === 'duel' && !menuOpen ? ginny.position : null,
     });

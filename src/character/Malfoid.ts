@@ -34,9 +34,10 @@ export interface CharacterOptions {
 
 /**
  * Malfoid's open mouth while she speaks (setTalk scales it): the base mesh's "a" viseme, a
- * little jaw, and her resting lip press let go so the lips can part.
+ * little jaw, and her resting lip press let go so the lips can part. Fully open it is the
+ * atlas's "Slightly Open (speaking)": a small oval, not a shout.
  */
-export const MALFOID_TALK: Weights = { 'あ': 0.62, jawOpen: 0.12, mouthPressLeft: 0, mouthPressRight: 0 };
+export const MALFOID_TALK: Weights = { 'あ': 0.42, jawOpen: 0.08, mouthPressLeft: 0, mouthPressRight: 0 };
 
 /** Malfoid's face while annoyed (existing shape keys of the base mesh). */
 export const ANNOYED_FACE: Weights = {
@@ -121,6 +122,7 @@ export class Malfoid {
   private readonly restFace: Weights = {};
   private readonly faceKeys: string[] = [];
   private talk = 0;
+  private headBone: THREE.Object3D | null = null;
 
   static async load(url: string, metaUrl: string, options?: CharacterOptions): Promise<Malfoid> {
     const [gltf, meta] = await Promise.all([
@@ -290,6 +292,15 @@ export class Malfoid {
   /** ground speed (m/s) */
   get moveSpeed(): number {
     return this.speed;
+  }
+
+  /** where her face is (world space): the head bone, a little above it (close-ups) */
+  facePosition(out: THREE.Vector3): THREE.Vector3 {
+    this.headBone ??= this.root.getObjectByName('head') ?? this.root;
+    this.headBone.getWorldPosition(out);
+    if (this.headBone === this.root) out.y += 1.4;
+    else out.y += 0.06;
+    return out;
   }
 
   /** facing direction (rad, 0 = +z) */

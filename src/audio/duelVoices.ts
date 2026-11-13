@@ -134,6 +134,7 @@ export class DuelVoices {
   private drive(who: Speaker, loudness: number, dt: number): void {
     const goal = mouthOpen(loudness);
     const prev = this.mouth.get(who) ?? 0;
+    if (prev === 0 && goal === 0) return;            // shut and staying shut: leave the face alone
     const tau = goal > prev ? VOICE.mouthAttack : VOICE.mouthRelease;
     const v = prev + (goal - prev) * (1 - Math.exp(-dt / tau));
     this.mouth.set(who, v < 1e-3 ? 0 : v);
