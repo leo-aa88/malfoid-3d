@@ -59,6 +59,7 @@ export class CombatHud {
       '<div class="fighter"><div class="row"><span class="label">Ginny</span><span class="hp-text"></span></div>' +
       '<div class="hp"><div class="hp-fill ginny"></div></div></div>' +
       '<div class="row"><span class="label">Ginny AI</span><span class="ai-state">waiting</span></div>' +
+      '<div class="row"><span class="label">Difficulty</span><span class="level"></span></div>' +
       '<button class="duel-button" type="button">Restart duel [G]</button>';
     hud.append(this.duelBox);
     for (const f of this.duelBox.querySelectorAll<HTMLElement>('.fighter')) {
@@ -86,6 +87,10 @@ export class CombatHud {
   setMode(mode: 'training' | 'duel'): void {
     this.dummyBox.hidden = mode !== 'training';
     this.duelBox.hidden = mode !== 'duel';
+  }
+
+  setLevel(label: string): void {
+    this.duelBox.querySelector('.level')!.textContent = label;
   }
 
   setDuel(on: boolean): void {

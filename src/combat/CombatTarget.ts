@@ -42,6 +42,8 @@ export interface CombatTarget {
   /** where ranged attacks aim: the torso */
   getAimPoint(out: THREE.Vector3): THREE.Vector3;
   takeHit(hit: HitRequest): HitReport;
+  /** a strike this target blocks leaves the attacker this much slower to recover (s): an opening */
+  readonly blockRecoil?: number;
   /** knock its wand away (fighters only); true if it had one */
   disarm?(dir: THREE.Vector3): boolean;
 }

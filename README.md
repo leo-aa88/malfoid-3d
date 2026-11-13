@@ -17,7 +17,15 @@ site in `dist/`.
 ## Modes
 
 The start screen offers **Training**, with the dummy only, and **Duel**, against Ginny Weasley,
-an AI-controlled opponent.
+an AI-controlled opponent, at three difficulties:
+
+| Level | Ginny's HP | How she fights |
+|---|---|---|
+| Easy | 100 | the original Ginny: slow to react, rarely blocks, random strikes |
+| Normal | 160 | faster reactions; guards up when you're close and after taking a hit; counters blocked strikes; punishes openings; reads your wand wind-up to dodge Confringo; real combos; stays close while you have your wand |
+| Hard | 240 | all of the above, quicker and more often |
+
+A strike blocked by a fighter leaves the attacker slow to recover, an opening for either side.
 
 In a duel, Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and
 the wand lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only

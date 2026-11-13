@@ -26,8 +26,10 @@ export class FighterTarget implements CombatTarget {
   sinceHit = 99;
   /** hits taken in the last couple of seconds */
   recentHits = 0;
+  /** a blocked strike leaves the attacker open for this much longer (s) */
+  readonly blockRecoil = 0.35;
 
-  constructor(readonly fighter: Malfoid, readonly maxHp = 100) {
+  constructor(readonly fighter: Malfoid, public maxHp = 100) {
     this.hp = maxHp;
   }
 

@@ -14,6 +14,7 @@ import { SpellSystem } from './combat/spells/SpellSystem';
 import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
+import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -98,6 +99,14 @@ async function start(): Promise<void> {
 
   // Ginny's AI: only fights once a duel has been started (G or the HUD button)
   const ai = new FighterAI(ginny, ginnyTarget, ginnyCombat, ginnySpells, EXPELLIARMUS, malfoid, combat, () => solids);
+  ai.opponentSpells = spells;                         // she sees Malfoid's casts and bolts
+  let level: Difficulty = 'easy';
+  const setLevel = (l: Difficulty) => {
+    level = l;
+    ai.params = DIFFICULTY[l].ai;
+    ginnyTarget.maxHp = DIFFICULTY[l].hp;
+    hud.setLevel(DIFFICULTY[l].label);
+  };
   ai.onState = (s) => {
     if (s === 'CAST' || s === 'MELEE_ATTACK') ginny.setExpression('determined', 0.9);
     else if (s === 'RETREAT') ginny.setExpression('frustrated', 1.0);
@@ -146,8 +155,9 @@ async function start(): Promise<void> {
   // mode select (start screen; "Change mode" in the HUD brings it back)
   const modeEl = document.getElementById('mode')!;
   let menuOpen = true;
-  const enterMode = (m: 'training' | 'duel') => {
+  const enterMode = (m: 'training' | 'duel', l?: Difficulty) => {
     mode = m;
+    if (l) setLevel(l);
     menuOpen = false;
     modeEl.hidden = true;
     spells.world.targets = malfoidTargets();
@@ -165,7 +175,7 @@ async function start(): Promise<void> {
     input.setPaused(false);
   };
   for (const b of modeEl.querySelectorAll<HTMLButtonElement>('button[data-mode]')) {
-    b.addEventListener('click', () => enterMode(b.dataset.mode as 'training' | 'duel'));
+    b.addEventListener('click', () => enterMode(b.dataset.mode as 'training' | 'duel', b.dataset.level as Difficulty | undefined));
   }
   const openMenu = () => {
     menuOpen = true;
@@ -256,7 +266,7 @@ async function start(): Promise<void> {
   });
   // expose for debugging / automated checks
   Object.assign(window, { malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
-    malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, renderer: sm.renderer, scene: sm.scene, input, solids });
+    malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 
 start().catch((err) => {
