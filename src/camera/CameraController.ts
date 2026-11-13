@@ -17,6 +17,8 @@ const FOLLOW_RATE = 1.4;
 const RUN_SPEED = 2.9;
 /** rad/s towards the side-on duel view */
 const DUEL_RATE = 2.2;
+/** speaker close-ups: camera distance (m) and height above the face (m), angle off her front (rad) */
+const CLOSE_UP = { distance: 0.85, height: 0.02, angle: 0.28 };
 /** the duel view is shifted so the pair sits right of the HUD panel (fraction of half the screen width) */
 const HUD_SHIFT = 0.16;
 
@@ -100,6 +102,21 @@ export class CameraController {
     const h = this.initialOffset.y / this.initialOffset.length();
     this.camera.position.set(Math.sin(yaw) * dist, h * dist, Math.cos(yaw) * dist).add(this.controls.target);
     this.lastAnchor.copy(a);
+    this.sinceUser = 99;
+    this.controls.update();
+  }
+
+  /**
+   * cut to a close-up of a speaker: head and shoulders from 3/4 front, on the side the camera
+   * is already on (the duel's voice lines; follow nothing while it is held)
+   */
+  closeUp(face: THREE.Vector3, facing: number): void {
+    const cur = this.getYaw();
+    const a = facing + CLOSE_UP.angle;
+    const b = facing - CLOSE_UP.angle;
+    const yaw = Math.abs(angDiff(a, cur)) < Math.abs(angDiff(b, cur)) ? a : b;
+    this.controls.target.copy(face);
+    this.camera.position.set(Math.sin(yaw) * CLOSE_UP.distance, CLOSE_UP.height, Math.cos(yaw) * CLOSE_UP.distance).add(face);
     this.sinceUser = 99;
     this.controls.update();
   }

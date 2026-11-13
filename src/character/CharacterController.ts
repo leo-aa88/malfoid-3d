@@ -33,6 +33,8 @@ export class CharacterController {
   private readonly keys = new Set<string>();
   private readonly dir = new THREE.Vector3();
   paused = false;
+  /** the fighter can't act (the duel's opening lines): keys are tracked but move / attack nothing; G still restarts */
+  locked = false;
   onPauseChange: ((paused: boolean) => void) | null = null;
   /** training dummy: cycle its guard / bring it in front of her */
   onDummyGuard: (() => void) | null = null;
@@ -58,6 +60,7 @@ export class CharacterController {
       const wasDown = this.keys.has(e.code);
       this.keys.add(e.code);
       if (e.repeat || wasDown) return;          // edge only: holding a key never repeats an action
+      if (this.locked && e.code !== 'KeyG') return;
       const attack = ATTACK_KEYS[e.code];
       if (attack) this.combat.press(attack);
       else if (e.code === 'Space') this.character.trigger('jump');
@@ -81,6 +84,13 @@ export class CharacterController {
 
   update(): void {
     const k = this.keys;
+    if (this.locked) {
+      this.character.setHold('crouch', false);
+      this.character.setHold('block', false);
+      this.character.stop();
+      this.heldKeys = '';
+      return;
+    }
     this.character.setHold('crouch', k.has('ControlLeft'));
     this.character.setHold('block', k.has('KeyO'));
     const f = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0);

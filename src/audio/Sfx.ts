@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loudnessEnvelope } from './envelope';
 
 /*
  * Sound effects (Web Audio). The files in public/sfx hold several sounds each; every sound is
@@ -9,8 +10,10 @@ import * as THREE from 'three';
 
 const BASE = import.meta.env.BASE_URL;
 
-type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'walking';
-const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'walking'];
+type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'walking'
+  | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win';
+const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'walking',
+  'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -41,6 +44,11 @@ export const BANKS = {
   step: [slice('walking', 2.31, 2.59, 1.15), slice('walking', 6.97, 7.17, 0.8), slice('walking', 8.75, 9.02, 0.97),
     slice('walking', 10.52, 10.78, 1.05), slice('walking', 11.465, 11.70, 0.94), slice('walking', 14.135, 14.41, 1.35),
     slice('walking', 16.555, 16.78, 1.13), slice('walking', 18.16, 18.30, 0.66)],
+  // voice lines: the whole file (an end past the file's length means "to the end")
+  malfoidOpening: [slice('malfoid_opening', 0, 99)],
+  ginnyOpening: [slice('ginny_opening', 0, 99)],
+  malfoidWin: [slice('malfoid_win', 0, 99)],
+  ginnyWin: [slice('ginny_win', 0, 99)],
 } as const;
 export type SoundId = keyof typeof BANKS;
 
@@ -60,6 +68,16 @@ export interface SfxLogEntry {
   preview?: boolean;   // played by the volume control while paused
 }
 
+/** a playing sound */
+export interface SoundHandle {
+  /** fade it out now (a cancelled cast) */
+  stop(): void;
+  /** seconds of the sound played so far (audio time: it stops while the game is paused) */
+  elapsed(): number;
+  /** its length (s) */
+  readonly duration: number;
+}
+
 const FADE_IN = 0.004;
 const FADE_OUT = 0.03;
 /** distance (m) at which a sound has half its volume */
@@ -77,6 +95,7 @@ export class Sfx {
   private warned = false;
   private paused = false;
   private previewCtx: AudioContext | null = null;
+  private readonly envelopes = new Map<SoundId, Float32Array>();
   private previewToken = 0;
   private loadDone = false;
   private readonly v = new THREE.Vector3();
@@ -185,7 +204,7 @@ export class Sfx {
 
 
   /** play a random sound of a bank; returns a handle to stop it early (a cancelled cast) */
-  play(id: SoundId, opts: PlayOptions = {}): { stop(): void } | null {
+  play(id: SoundId, opts: PlayOptions = {}): SoundHandle | null {
     if (!this.ctx || !this.out) return null;
     const bank = BANKS[id];
     // random, but never the same slice twice in a row (repeated footsteps sound mechanical)
@@ -236,6 +255,30 @@ export class Sfx {
         g.gain.setTargetAtTime(0, now, 0.03);
         src.stop(now + 0.15);
       },
+      elapsed: () => Math.max(0, ctx.currentTime - t0) * rate,
+      duration: len,
     };
   }
+
+  /** the files are still being fetched / decoded */
+  get pending(): boolean {
+    return !!this.loading && !this.loadDone;
+  }
+
+  /**
+   * the loudness of a one-slice sound over time (ENVELOPE_RATE values a second, 0..1,
+   * normalised so its loud syllables reach about 1): what drives a speaker's mouth.
+   * null until the file is loaded.
+   */
+  envelope(id: SoundId): Float32Array | null {
+    const cached = this.envelopes.get(id);
+    if (cached) return cached;
+    const s = BANKS[id][0];
+    const buffer = this.buffers.get(s.file);
+    if (!buffer) return null;
+    const env = loudnessEnvelope(buffer, s.start, Math.min(s.end, buffer.duration));
+    this.envelopes.set(id, env);
+    return env;
+  }
 }
+

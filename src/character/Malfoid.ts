@@ -28,7 +28,16 @@ export interface CharacterOptions {
   annoyedIdle?: boolean;
   /** named faces (shape-key weights) for setExpression(); 'annoyed' is used by the annoyed idle */
   expressions?: Record<string, Weights>;
+  /** the face with the mouth fully open while speaking (setTalk(1)); 0 keeps the rest face */
+  talk?: Weights;
 }
+
+/**
+ * Malfoid's open mouth while she speaks (setTalk scales it): the base mesh's "a" viseme, a
+ * little jaw, and her resting lip press let go so the lips can part. Fully open it is the
+ * atlas's "Slightly Open (speaking)": a small oval, not a shout.
+ */
+export const MALFOID_TALK: Weights = { 'あ': 0.42, jawOpen: 0.08, mouthPressLeft: 0, mouthPressRight: 0 };
 
 /** Malfoid's face while annoyed (existing shape keys of the base mesh). */
 export const ANNOYED_FACE: Weights = {
@@ -63,7 +72,7 @@ interface ModelMeta {
 export class Malfoid {
   readonly root = new THREE.Group();
   name = 'Malfoid';
-  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE } };
+  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE }, talk: MALFOID_TALK };
   private animation!: AnimationController;
   private faceMeshes: THREE.Mesh[] = [];
   private meta!: ModelMeta;
@@ -112,6 +121,8 @@ export class Malfoid {
   private faceClock = 0;
   private readonly restFace: Weights = {};
   private readonly faceKeys: string[] = [];
+  private talk = 0;
+  private headBone: THREE.Object3D | null = null;
 
   static async load(url: string, metaUrl: string, options?: CharacterOptions): Promise<Malfoid> {
     const [gltf, meta] = await Promise.all([
@@ -120,7 +131,7 @@ export class Malfoid {
     ]);
     const m = new Malfoid();
     if (options) {
-      m.opts = { idleClip: 'idle', annoyedIdle: false, expressions: {}, ...options };
+      m.opts = { idleClip: 'idle', annoyedIdle: false, expressions: {}, talk: {}, ...options };
       m.name = options.name;
     }
     m.meta = meta;
@@ -134,7 +145,7 @@ export class Malfoid {
     });
     Object.assign(m.restFace, meta.rest_expression);
     const keys = new Set([...Object.keys(meta.rest_expression), 'vrc.blink']);
-    for (const w of Object.values(m.opts.expressions)) Object.keys(w).forEach((k) => keys.add(k));
+    for (const w of [...Object.values(m.opts.expressions), m.opts.talk]) Object.keys(w).forEach((k) => keys.add(k));
     for (const fm of m.faceMeshes) Object.keys(fm.morphTargetDictionary ?? {}).forEach((k) => keys.add(k));
     m.faceKeys.push(...keys);
     m.animation = new AnimationController(gltf.scene, gltf.animations);
@@ -240,6 +251,15 @@ export class Malfoid {
     return true;
   }
 
+  /** how far her mouth is open while speaking (0..1, set every frame by whoever plays her voice) */
+  setTalk(level: number): void {
+    this.talk = Math.min(1, Math.max(0, level));
+  }
+
+  get talking(): number {
+    return this.talk;
+  }
+
   /** show a named face (from CharacterOptions.expressions) for a while; null: back to rest */
   setExpression(name: string | null, seconds = 1.2): void {
     if (name && !this.opts.expressions[name]) return;
@@ -272,6 +292,15 @@ export class Malfoid {
   /** ground speed (m/s) */
   get moveSpeed(): number {
     return this.speed;
+  }
+
+  /** where her face is (world space): the head bone, a little above it (close-ups) */
+  facePosition(out: THREE.Vector3): THREE.Vector3 {
+    this.headBone ??= this.root.getObjectByName('head') ?? this.root;
+    this.headBone.getWorldPosition(out);
+    if (this.headBone === this.root) out.y += 1.4;
+    else out.y += 0.06;
+    return out;
   }
 
   /** facing direction (rad, 0 = +z) */
@@ -499,6 +528,7 @@ export class Malfoid {
     const eg = this.expression ? 1 : 0;
     this.expressionBlend += (eg - this.expressionBlend) * (1 - Math.exp(-(eg ? 12 : 4) * dt));
     const annoyedFace = this.opts.expressions.annoyed ?? {};
+    const talk = this.opts.talk;
 
     // blinking
     this.blinkTimer -= dt;
@@ -523,6 +553,7 @@ export class Malfoid {
         const rest = this.restFace[k] ?? 0;
         let v = rest + ((annoyedFace[k] ?? rest) - rest) * a;
         if (this.expressionBlend > 1e-3) v += ((this.exprFace[k] ?? rest) - v) * this.expressionBlend;
+        if (this.talk > 1e-3 && talk[k] !== undefined) v += (talk[k] - v) * this.talk;   // speaking: the mouth on top
         if (k === 'vrc.blink') v = blink;
         if (k === 'vrc.blink_Straight') v *= 1 - blink;   // the blink key closes fully on its own
         inf[i] = v;
