@@ -1,5 +1,12 @@
 import type * as THREE from 'three';
 import type { Height, HitEffect } from './moves';
+import type { Projectile } from './spells/Projectile';
+import type { SpellDef } from './spells/SpellSystem';
+
+/** takes over a reflected spell: it flies back at `toward` as this caster's own */
+export interface Reflector {
+  adopt(def: SpellDef, projectile: Projectile, toward: THREE.Vector3): void;
+}
 
 export type HitResult = 'hit' | 'blocked' | 'immune';
 
@@ -46,6 +53,10 @@ export interface CombatTarget {
   readonly blockRecoil?: number;
   /** knock its wand away (fighters only); true if it had one */
   disarm?(dir: THREE.Vector3): boolean;
+  /** a spell reaches it: a shield may stop it ('absorb') or send it back ('reflect') */
+  intercept?(spell: SpellDef, projectile: Projectile): 'reflect' | 'absorb' | null;
+  /** whose spell a reflected projectile becomes (the shield's owner's spell system) */
+  readonly reflector?: Reflector | null;
 }
 
 export function emptyBounds(): HitBounds {

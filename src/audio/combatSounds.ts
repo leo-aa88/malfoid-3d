@@ -14,7 +14,17 @@ import type { Sfx } from './Sfx';
 /** strikes that use the heavy impact sounds */
 const HEAVY_MOVES = new Set<MoveId>(['kick_low', 'kick_high', 'leg_sweep', 'spin_kick', 'rising_kick', 'uppercut', 'heavy_body']);
 /** the same voice, pitched a touch apart for each fighter */
-const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06 };
+const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.02 };
+/**
+ * the sound an opponent's spell makes as it leaves her wand (by spell id). Stupefy and Ventus
+ * have no recordings of their own yet: the Expelliarmus burst, pitched up (a sharper crack)
+ * and down (a softer rush of air)
+ */
+const RELEASE_SOUND: Record<string, { id: 'expelliarmus'; rate: number; volume: number }> = {
+  expelliarmus: { id: 'expelliarmus', rate: 1.0, volume: 0.85 },
+  stupefy: { id: 'expelliarmus', rate: 1.3, volume: 0.7 },
+  ventus: { id: 'expelliarmus', rate: 0.55, volume: 0.6 },
+};
 /** at most one grunt per fighter in this long (s); fast combos don't stack them */
 const GRUNT_GAP = 0.35;
 /** light hits grunt this often; heavy ones always */
@@ -35,13 +45,19 @@ function chain<E>(get: () => ((e: E) => void) | null, set: (f: (e: E) => void) =
   });
 }
 
+/** an opponent as the sounds see her */
+export interface SoundFighter {
+  char: Malfoid;
+  combat: ComboSystem;
+  spells: SpellSystem;
+}
+
 export interface CombatSoundRefs {
   malfoid: Malfoid;
-  ginny: Malfoid;
   combat: ComboSystem;
-  ginnyCombat: ComboSystem;
   spells: SpellSystem;
-  ginnySpells: SpellSystem;
+  /** every opponent (a hidden one makes no footsteps) */
+  opponents: SoundFighter[];
   fighters: FighterTarget[];
 }
 
@@ -53,7 +69,7 @@ export interface CombatSounds {
 export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds {
   let clock = 0;   // game time (s): stops while paused
   // punches and kicks landing (on the dummy or a fighter); blocked ones are muffled
-  for (const combat of [r.combat, r.ginnyCombat]) {
+  for (const combat of [r.combat, ...r.opponents.map((o) => o.combat)]) {
     chain(() => combat.onEvent, (f) => (combat.onEvent = f), (e) => {
       if (e.type !== 'strike' || e.result === 'immune') return;
       const heavy = HEAVY_MOVES.has(e.move.id);
@@ -94,9 +110,12 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
       confringo = null;
     }
   });
-  chain(() => r.ginnySpells.onEvent, (f) => (r.ginnySpells.onEvent = f), (e) => {
-    if (e.type === 'release') sfx.play('expelliarmus', { at: r.ginny.position.clone().setY(1.3), volume: 0.85 });
-  });
+  for (const o of r.opponents) {
+    chain(() => o.spells.onEvent, (f) => (o.spells.onEvent = f), (e) => {
+      const s = e.type === 'release' ? RELEASE_SOUND[e.spell.id] : null;
+      if (s) sfx.play(s.id, { at: o.char.position.clone().setY(1.3), volume: s.volume, rate: s.rate });
+    });
+  }
 
   // footsteps: a foot lands at phase 0 and 0.5 of the walk and run cycles (anim2.py), so a step
   // plays each time the cycle crosses into a new half (forwards or, stepping back, backwards)
@@ -116,7 +135,7 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
     update(dt) {
       clock += dt;
       steps(r.malfoid);
-      steps(r.ginny);
+      for (const o of r.opponents) steps(o.char);
     },
   };
 }

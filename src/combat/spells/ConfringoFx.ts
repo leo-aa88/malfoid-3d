@@ -19,6 +19,8 @@ export interface SpellLook {
   explosion: { fireball: number; ring: number; duration: number; sparks: number; fire: [THREE.Color, THREE.Color, THREE.Color];
     flash: THREE.Color; ringColour: THREE.Color };
   blastLight: number;         // intensity of the impact light
+  /** false: no point lights (each light makes every lit material dearer; extra pools skip them) */
+  lights?: boolean;
 }
 
 export const CONFRINGO_LOOK: SpellLook = {
@@ -101,16 +103,17 @@ export class ConfringoFx implements SpellFx {
   private readonly charges: { orb: FireOrb; by: SpellEmitter | null }[] = [];
   private readonly bolts: { orb: FireOrb; id: number }[] = [];
   private readonly explosions: ExplosionEffect[] = [];
-  private readonly orbLight: THREE.PointLight;
-  private readonly blastLight: THREE.PointLight;
+  private readonly orbLight: THREE.Object3D & { intensity: number };
+  private readonly blastLight: THREE.Object3D & { intensity: number };
   private readonly root = new THREE.Group();
   private readonly p = new THREE.Vector3();
   private readonly q = new THREE.Vector3();
   private orbBoost = 0;
 
   constructor(scene: THREE.Scene, private readonly look: SpellLook = CONFRINGO_LOOK, name = 'confringo_fx') {
-    this.orbLight = new THREE.PointLight(look.light, 0, 4.0, 2);
-    this.blastLight = new THREE.PointLight(look.light, 0, 9.0, 2);
+    const lit = look.lights !== false;
+    this.orbLight = lit ? new THREE.PointLight(look.light, 0, 4.0, 2) : Object.assign(new THREE.Object3D(), { intensity: 0 });
+    this.blastLight = lit ? new THREE.PointLight(look.light, 0, 9.0, 2) : Object.assign(new THREE.Object3D(), { intensity: 0 });
     this.root.name = name;
     scene.add(this.root);
     this.root.add(this.particles.points, this.orbLight, this.blastLight);

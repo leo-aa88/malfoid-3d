@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import { MOVE_CLIPS, MoveId } from '../combat/moves';
 import { SPELL_CLIPS, SpellClip } from '../combat/spells/clips';
 
-export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident';
+export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident' | 'cho_idle' | 'strafe';
+/** quick evasive steps (Cho): in place clips, the character moves her through the world */
+export type DodgeState = 'dodge_left' | 'dodge_right' | 'dodge_back';
+export const DODGE_CLIPS: DodgeState[] = ['dodge_left', 'dodge_right', 'dodge_back'];
 /** one-shot movement: plays once, then hands control back to locomotion */
-export type ActionState = 'jump';
+export type ActionState = 'jump' | DodgeState;
 /** held poses: play once and stay in the last frame while the key is down */
-export type HoldState = 'crouch' | 'block' | 'wand_ready';
+export type HoldState = 'crouch' | 'block' | 'wand_ready' | 'protego';
 /** reactions: one-shot, timed by the character (hit, disarmed, picking the wand up) */
 export type ReactionState = 'hit' | 'stagger' | 'knockback' | 'disarmed' | 'pickup';
 export const REACTION_CLIPS: ReactionState[] = ['hit', 'stagger', 'knockback', 'disarmed', 'pickup'];
@@ -21,7 +24,13 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   turn: 0.25,
   idle_annoyed: 0.6,
   confident: 0.45,
+  cho_idle: 0.45,
+  strafe: 0.2,
   jump: 0.08,
+  dodge_left: 0.05,
+  dodge_right: 0.05,
+  dodge_back: 0.05,
+  protego: 0.06,
   crouch: 0.12,
   block: 0.08,
   wand_ready: 0.12,
@@ -29,9 +38,9 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
 
 const STRIKE_FADE = 0.08;
 const LOOPS_WARP = new Set(['walk', 'run']);
-const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', 'wand_ready', ...MOVE_CLIPS, ...SPELL_CLIPS,
-  ...REACTION_CLIPS]);
-const ACTIONS = new Set<string>(['jump']);
+const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', 'wand_ready', 'protego', ...MOVE_CLIPS,
+  ...SPELL_CLIPS, ...REACTION_CLIPS, ...DODGE_CLIPS]);
+const ACTIONS = new Set<string>(['jump', ...DODGE_CLIPS]);
 
 /**
  * Wraps the AnimationMixer: one action per clip, cross-fades between
@@ -104,7 +113,8 @@ export class AnimationController {
 
   /** where the walk / run loop is in its cycle (0..1; the feet land at 0 and 0.5), or null */
   get stridePhase(): number | null {
-    if ((this.stateName !== 'walk' && this.stateName !== 'run') || !this.current) return null;
+    // (the side-step lands its feet at phase 0 and 0.5 like the walk)
+    if ((this.stateName !== 'walk' && this.stateName !== 'run' && this.stateName !== 'strafe') || !this.current) return null;
     const d = this.current.getClip().duration;
     return d > 0 ? (((this.current.time / d) % 1) + 1) % 1 : null;
   }

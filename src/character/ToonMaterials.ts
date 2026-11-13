@@ -15,7 +15,7 @@ function makeGradient(): THREE.DataTexture {
 const FACE_DECALS = new Set(['Eye', 'Highlight', 'Alpha']);
 const HIDDEN = new Set(['Tear']);
 // alpha-card hair and small trims get no inverted-hull outline (it would outline every card)
-const NO_OUTLINE = new Set(['Body', 'Eye', 'Highlight', 'Alpha', 'Tear', 'mf_earring', 'mf_crest_silver',
+const NO_OUTLINE = new Set(['Body', 'Eye', 'Highlight', 'Alpha', 'Tear', 'mf_earring', 'mf_earring_silver', 'mf_crest_silver',
   'mf_crest_green', 'mf_tie', 'mf_tie_stripe', 'mf_tie_tex', 'mf_hair_tex', 'mf_crest_tex']);
 
 // no shadow-map shadows on the face or the hair: hair cards shadowing each other (and the
@@ -23,6 +23,24 @@ const NO_OUTLINE = new Set(['Body', 'Eye', 'Highlight', 'Alpha', 'Tear', 'mf_ear
 const NO_SHADOW_RECEIVE = new Set(['Body', 'mf_hair_tex', 'mf_hair']);
 
 const OUTLINE_COLOR = new THREE.Color('#3a2a28');
+
+/*
+ * Blush: the base pack painted a blush on both cheeks of the head texture (removed by the
+ * texture build). It comes back at runtime as a tint over those same texture areas, faded by
+ * the face's 'blush' channel (0 for every face that doesn't ask for it), so it follows every
+ * shape key. UV (glTF: v down) centre and radii of each cheek ellipse, from the pack's
+ * blush on the 4096 px head texture: (1772, 1590) and (2332, 1590), 255 x 105 px.
+ */
+const BLUSH = { left: [0.4326, 0.3885], right: [0.5693, 0.3885], radius: [0.070, 0.030], lidRim: 0.3700,
+  tint: [1.0, 0.70, 0.72] };
+
+/** per-character face effects driven by the expression system */
+export interface FaceFx {
+  /** cheek blush, 0..1 */
+  blush: { value: number };
+  /** the base mesh's tear cards (shown only while a face asks for tears) */
+  tears: THREE.Object3D[];
+}
 
 /** head centre in the model's (bind-pose) space, metres, y up, +z forward */
 const HEAD_CENTRE = new THREE.Vector3(0, 1.4, -0.02);
@@ -54,6 +72,7 @@ export class ToonMaterials {
   private readonly gradient = makeGradient();
   private readonly cache = new Map<string, THREE.Material>();
   private readonly outline: THREE.MeshBasicMaterial;
+  readonly faceFx: FaceFx = { blush: { value: 0 }, tears: [] };
 
   constructor(private readonly outlineWidth = 0.0016) {
     this.outline = new THREE.MeshBasicMaterial({ color: OUTLINE_COLOR, side: THREE.BackSide });
@@ -101,12 +120,35 @@ export class ToonMaterials {
         m.color.set('#f1d8bb');                 // platinum blonde; vertex colours add root/tip tones
       }
       if (s.name === 'mf_earring') m.color.set('#141414');
+      if (s.name === 'Body') this.addBlush(m);
       out = m;
     }
     out.name = s.name;
     out.transparent = false;
     this.cache.set(key, out);
     return out;
+  }
+
+  /** the head's toon material gets the blush tint (zero until a face asks for it) */
+  private addBlush(m: THREE.MeshToonMaterial): void {
+    const blush = this.faceFx.blush;
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uBlush = blush;
+      shader.fragmentShader = 'uniform float uBlush;\n' + shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+#ifdef USE_MAP
+  if (uBlush > 0.001) {
+    vec2 r = vec2(${BLUSH.radius.join(', ')});
+    float b = max(1.0 - smoothstep(0.25, 1.0, length((vMapUv - vec2(${BLUSH.left.join(', ')})) / r)),
+                  1.0 - smoothstep(0.25, 1.0, length((vMapUv - vec2(${BLUSH.right.join(', ')})) / r)));
+    b *= smoothstep(${BLUSH.lidRim.toFixed(4)}, ${(BLUSH.lidRim + 0.006).toFixed(4)}, vMapUv.y);   // not on the lower lid rim
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(${BLUSH.tint.join(', ')}), b * uBlush);
+  }
+#endif`,
+      );
+    };
+    m.customProgramCacheKey = () => 'mf-face-blush';
   }
 
   /** convert every mesh of the character, add inverted-hull outlines */
@@ -118,6 +160,7 @@ export class ToonMaterials {
       const name = (mesh.material as THREE.Material).name;
       if (HIDDEN.has(name)) {
         mesh.visible = false;
+        if (name === 'Tear') this.faceFx.tears.push(mesh);
         return;
       }
       mesh.material = this.convert(mesh.material as THREE.Material, mesh);

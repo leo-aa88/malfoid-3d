@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatTarget, HitReport } from '../CombatTarget';
+import type { CombatTarget, HitReport, Reflector } from '../CombatTarget';
 import type { Height, HitEffect } from '../moves';
 import type { SpellClip } from './clips';
 import { distanceToBounds, splashDamage, sweepBox } from './collision';
@@ -74,7 +74,11 @@ export type SpellEvent =
   | { type: 'release'; spell: SpellDef }
   | { type: 'cancel'; spell: SpellDef }
   | { type: 'impact'; spell: SpellDef; kind: Impact['kind']; at: THREE.Vector3 }
-  | { type: 'hit'; spell: SpellDef; target: CombatTarget; direct: boolean; report: HitReport; at: THREE.Vector3; disarmed?: boolean };
+  | { type: 'hit'; spell: SpellDef; target: CombatTarget; direct: boolean; report: HitReport; at: THREE.Vector3; disarmed?: boolean }
+  /** a shield stopped it (no damage) */
+  | { type: 'shielded'; spell: SpellDef; target: CombatTarget; at: THREE.Vector3 }
+  /** a shield sent it back: it now flies as the shield owner's spell */
+  | { type: 'reflected'; spell: SpellDef; target: CombatTarget; at: THREE.Vector3 };
 
 interface Casting {
   def: SpellDef;
@@ -99,7 +103,7 @@ interface Flying {
  *   target in the blast takes splash damage falling off with distance; one explosion damages
  *   a target at most once. Ground, solids and max range end the projectile too.
  */
-export class SpellSystem {
+export class SpellSystem implements Reflector {
   readonly world: { targets: CombatTarget[]; solids: THREE.Box3[]; groundY: number };
   onEvent: ((e: SpellEvent) => void) | null = null;
   onSound: ((s: SpellSound, at: THREE.Vector3) => void) | null = null;
@@ -203,6 +207,22 @@ export class SpellSystem {
     for (let i = this.flying.length - 1; i >= 0; i--) {
       const f = this.flying[i];
       const impact = f.projectile.step(dt, this.world);
+      // a shield in the way: it stops the spell, or (a parry) sends it back as its owner's
+      const t = impact?.kind === 'target' ? impact.target : null;
+      const shield = t?.intercept ? t.intercept(f.def, f.projectile) : null;
+      if (impact && t && shield === 'reflect' && t.reflector) {
+        this.flying.splice(i, 1);
+        t.reflector.adopt(f.def, f.projectile, this.caster.position);
+        this.emit({ type: 'reflected', spell: f.def, target: t, at: impact.point.clone() });
+        continue;
+      }
+      if (impact && t && shield) {
+        this.flying.splice(i, 1);
+        this.fx.projectileEnd(f.def, f.projectile, { ...impact, kind: 'solid', target: null });   // bursts on the shield
+        this.onSound?.('impact', impact.point);
+        this.emit({ type: 'shielded', spell: f.def, target: t, at: impact.point.clone() });
+        continue;
+      }
       if (impact) {
         this.flying.splice(i, 1);
         this.fx.projectileEnd(f.def, f.projectile, impact);
@@ -257,6 +277,29 @@ export class SpellSystem {
     this.fx.projectileStart(def, p);
     this.onSound?.('launch', origin);
     this.emit({ type: 'release', spell: def });
+  }
+
+  /**
+   * a spell another caster cast, sent back by this caster's shield: it flies on at the target
+   * nearest `toward` (its caster) as this caster's own, hitting only this caster's targets.
+   * The same projectile and effect continue (no cooldown is spent).
+   */
+  adopt(def: SpellDef, p: Projectile, toward: THREE.Vector3): void {
+    let aim: THREE.Vector3 | null = null;
+    let best = Infinity;
+    for (const t of this.world.targets) {
+      if (!t.targetable) continue;
+      t.getAimPoint(this.v2);
+      const d = Math.hypot(this.v2.x - toward.x, this.v2.z - toward.z);
+      if (d < best) {
+        best = d;
+        aim = (aim ?? new THREE.Vector3()).copy(this.v2);
+      }
+    }
+    const to = aim ?? toward.clone().setY(p.position.y);
+    p.redirect(this.v.subVectors(to, p.position).normalize(), 0.35);
+    this.flying.push({ def, projectile: p });
+    this.fx.projectileUpdate(def, p);
   }
 
   /** the target nearest to her facing direction within the angle and range, if any */

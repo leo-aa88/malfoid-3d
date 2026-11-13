@@ -25,7 +25,7 @@ export interface Opponent {
 
 export const CAMPAIGN: readonly Opponent[] = [
   { id: 'ginny', name: 'Ginny Weasley', reward: 'expelliarmus', playable: true },
-  { id: 'cho', name: 'Cho Chang', playable: false },
+  { id: 'cho', name: 'Cho Chang', playable: true },
   { id: 'luna', name: 'Luna Lovegood', playable: false },
   { id: 'hermione', name: 'Hermione Granger', playable: false },
   { id: 'harry', name: 'Harry Potter', playable: false },

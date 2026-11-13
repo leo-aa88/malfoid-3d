@@ -5,8 +5,8 @@ Potter's potential romantic interests one by one, with fists, kicks and spells, 
 himself, and finally faces Bellatrix Lestrange. Built with Three.js + TypeScript + Vite.
 
 Like Mega Man, every opponent Malfoid beats in the campaign teaches her a spell: beating Ginny
-teaches her **Expelliarmus**. **Ginny Weasley**, the first opponent, is playable; the rest of the
-campaign is planned. The built characters
+teaches her **Expelliarmus**. **Ginny Weasley** and **Cho Chang**, the first two opponents, are
+playable; the rest of the campaign is planned. The built characters
 (`public/models/*.glb`) and sound effects (`public/sfx/`) are included, so the game runs straight
 from a clone.
 
@@ -27,8 +27,8 @@ The start screen offers three modes:
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with every spell and
-  no opening lines. **G** restarts the fight. Ginny can be picked now; Cho and a Malfoid mirror
-  match are listed as coming soon.
+  no opening lines. **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as
+  coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, ...) with **3 lives** for the whole run:
   - a win teaches Malfoid the opponent's spell and moves on to the next opponent;
@@ -52,7 +52,7 @@ The campaign, in order:
 | Order | Opponent | Gameplay focus | Story purpose | Malfoid learns | Status |
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | Expelliarmus | playable |
-| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | – | planned |
+| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | – | playable |
 | 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | – | planned |
 | 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | – | planned |
 | 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | – | planned |
@@ -72,9 +72,36 @@ The duel against Ginny has three difficulties:
 | Normal | 160 | faster reactions; guards up when you're close and after taking a hit; counters blocked strikes; punishes openings; reads your wand wind-up to dodge Confringo; real combos; stays close while you have your wand |
 | Hard | 240 | all of the above, quicker and more often |
 
+When she moves while facing Malfoid (backing off, stepping round her) her legs follow the way she
+goes: a reversed walk backwards, a side-step sideways; her dodge is a quick sidestep.
+
 Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and the wand
 lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only fight
 with her fists. See `docs/ginny/REPORT.md` for details.
+
+### Cho Chang
+
+The Ravenclaw seeker: an evasive duellist who fights from range and punishes predictable attacks,
+above all repeated Confringos. See `docs/cho/REPORT.md`.
+
+- **Spacing:** she keeps 4–7 m away and circles round you (trunks turn her back), steps back
+  when you crowd her, closes in when you are far.
+- **Stupefy:** a fast bright-red bolt (8 damage, a stagger, 4 s), her counterattack after a
+  dodge, a stopped spell, or an opening (a whiffed heavy strike, a cast, a stagger).
+- **Ventus:** a short, wide gust that throws you back (3 damage, 7 s) when you crowd her.
+- **Protego:** a shield before her for up to 0.9 s, then 5 s before she can raise it again.
+  It stops spells from the front; raised just as a spell arrives (within 0.2 s) it **sends it
+  back** at you. Lowering it leaves her slow for a moment. Melee hits it like a guard.
+- **Seeker's reflex:** quick sidesteps and back-steps (real movement, no teleport).
+- **Not omniscient:** she reacts after a delay, often just takes the hit, and her parries are
+  only sometimes timed right; the more Confringos you throw in quick succession, the readier
+  she is for the next.
+
+| Level | Cho's HP | How she fights |
+|---|---|---|
+| Easy | 100 | slow reactions, rarely shields, seldom parries, few counters |
+| Normal | 130 | quicker; shields and counters more, parries now and then |
+| Hard | 170 | sharp reactions, frequent dodges and counters, the best-timed parries |
 
 ## Expelliarmus (P)
 
@@ -192,11 +219,18 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/CombatTarget.ts` – what any attack hits; `FighterTarget.ts` – a character as a target
   (health, blocking, reactions, disarm, defeat).
 - `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
-  cast); `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning.
-- `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned).
+  cast, retrieve her wand; with an evasive style also circle, shield, dodge, counter, push);
+  `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning of each opponent.
+- `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned);
+  `Stupefy.ts`, `Ventus.ts` (+ its gust effect) – Cho's spells.
+- `combat/Protego.ts` – the shield (timing, perfect window, cooldown); `ProtegoFx.ts` – its look.
+  A shield's owner takes over a reflected spell (`SpellSystem.adopt`).
+- `game/opponents.ts` – the opponents as definitions (model, faces, spells, AI per difficulty,
+  voice lines); `game/Opponent.ts` builds one in the game. The duel code names no opponent.
 - `game/campaign.ts` – the campaign: the opponents in order, lives, the spells each one
   teaches, the saved run.
-- `character/faces.ts` – Ginny's expressions and speaking mouth.
+- `character/faces.ts` – Ginny's and Cho's expressions and speaking mouths. Besides shape keys a
+  face may set `blush` (a cheek tint in the face shader) and `tears` (the base mesh's tear cards).
 - `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
   `Confringo.ts` (tuning), `Projectile.ts` + `collision.ts` (swept collision: no tunnelling),
   `SpellEmitter.ts` (where spells leave from: the wand tip),
@@ -242,6 +276,7 @@ override with `BLENDER=...`).
 ```bash
 make model        # textures + build/malfoid.blend + public/models/malfoid.glb
 make ginny        # Ginny: build/ginny.blend + public/models/ginny.glb (MF_CHAR=ginny)
+make cho          # Cho: build/cho.blend + public/models/cho.glb (MF_CHAR=cho)
 make help         # all targets (renders, dev, build, clean, ...)
 ```
 

@@ -5,10 +5,50 @@ import type { FighterTarget } from '../FighterTarget';
 import { AttackButton, COMBOS, MOVES } from '../moves';
 import { sweepBox } from '../spells/collision';
 import type { SpellDef, SpellSystem } from '../spells/SpellSystem';
+import { PROTEGO, Protego } from '../Protego';
+import type { DodgeState } from '../../character/AnimationController';
 
 export type AIState =
   | 'IDLE' | 'OBSERVE' | 'APPROACH' | 'RETREAT' | 'BLOCK' | 'MELEE_ATTACK' | 'CAST' | 'DODGE' | 'STAGGER' | 'RECOVER'
-  | 'RETRIEVE';
+  | 'RETRIEVE' | 'CIRCLE' | 'PROTEGO';
+
+/**
+ * An evasive duellist's habits (Cho), on top of the shared ones. Ginny has none, so none of
+ * this changes her. Chances are per opportunity, times in s, distances in m.
+ */
+export interface EvasiveStyle {
+  /** she keeps the opponent this far away, circling inside it */
+  preferredRange: [number, number];
+  /** s between changes of circling direction */
+  circleSwitch: [number, number];
+  /** an attack she sees coming within reach: a quick sidestep / step back (dodge clips) */
+  dodgeClipChance: number;
+  /** after a dodge or a stopped spell: Stupefy straight back */
+  counterChance: number;
+  counterDelay: [number, number];
+  /** a bolt she sees coming: Protego instead of a dodge (when the shield is ready) */
+  shieldChance: number;
+  /** ... and timed into the perfect window (a parry that reflects it) */
+  perfectChance: number;
+  /** how far off her shield timing may be (s, either way): a parry can come too early or late */
+  timingError: number;
+  /** each Confringo cast at her in the last SPAM_WINDOW s adds this to both chances above */
+  spamBonus: number;
+  /** crowded within pushRange (being attacked, or very close): Ventus */
+  pushChance: number;
+  pushRange: number;
+  /** the opponent comes inside the preferred range: a quick step back */
+  backStepChance: number;
+}
+
+/** s over which repeated Confringo casts make her expect the next one */
+const SPAM_WINDOW = 12.0;
+/** however much Confringo she has seen, she shields at most this often and parries at most this often
+ * (a parry should stay a satisfying surprise, not the answer to every cast) */
+const MAX_SHIELD = 0.65;
+const MAX_PERFECT = 0.4;
+/** a circling step is blocked if a trunk is this close ahead (m) */
+const CIRCLE_LOOKAHEAD = 0.9;
 
 /** s she heads for her dropped wand before thinking again (a trunk in the way, a fight to answer) */
 const RETRIEVE_TIME = 3.0;
@@ -35,6 +75,8 @@ export interface AIParams {
   smartCombos: boolean;          // presses real two-hit combos (hard-hitting finishers) instead of random pairs
   pressure: number;              // stays close while the opponent still has a wand (no room to cast)
   guardAfterHit: number;         // after a hit reaction, guard up at once (breaks a string of hits)
+  /** an evasive duellist's extra habits (Cho); absent for Ginny */
+  evasive?: EvasiveStyle;
 }
 
 export const GINNY_AI: AIParams = {
@@ -80,6 +122,8 @@ export class FighterAI {
   private readonly tmp = new THREE.Vector3();
   private readonly tmp2 = new THREE.Vector3();
   private readonly dodgeDir = new THREE.Vector3();
+  private readonly tmpA = new THREE.Vector3();
+  private readonly tmpB = new THREE.Vector3();
   private seenBolts = new Set<number>();
   private boltSeenAt = new Map<number, number>();  // projectile id -> her reaction time left
   private wasBlocking = false;
@@ -87,7 +131,18 @@ export class FighterAI {
   onState: ((s: AIState) => void) | null = null;
   /** the opponent's spells (to dodge her bolts and punish her casts) */
   opponentSpells: SpellSystem | null = null;
+  /** her Protego (evasive style), and her short-range push spell (Ventus) */
+  shield: Protego | null = null;
+  pushSpell: SpellDef | null = null;
   params: AIParams;
+  private clock = 0;                              // game time (s)
+  private circleSide: 1 | -1 = 1;
+  private shieldAt = -1;                          // s until she raises Protego (-1: not planned)
+  private counterAt = -1;                         // s until her counter-spell (-1: none planned)
+  private readonly opponentCasts: number[] = [];  // game times of the opponent's Confringo casts
+  private countedCast = false;
+  private readAt = -99;                           // game time she last read a cast
+  private dodged: DodgeState | null = null;
 
   constructor(
     private readonly self: Malfoid,
@@ -112,14 +167,32 @@ export class FighterAI {
     this.think = on ? this.startDelay : 0;
     this.seenBolts.clear();
     this.boltSeenAt.clear();
+    this.shieldAt = -1;
+    this.counterAt = -1;
+    this.opponentCasts.length = 0;
     if (!on) {
       this.self.stop();
       this.self.setHold('block', false);
+      this.shield?.lower();
     }
+  }
+
+  /** her shield stopped (or reflected) a spell: an evasive duellist may answer at once */
+  shieldResult(result: 'reflect' | 'absorb'): void {
+    const ev = this.params.evasive;
+    if (!ev || !this.active) return;
+    if (Math.random() < ev.counterChance + (result === 'reflect' ? 0.2 : 0)) this.counterAt = rand(ev.counterDelay[0], ev.counterDelay[1]);
+  }
+
+  /** Confringo casts at her in the last SPAM_WINDOW s */
+  get recentConfringos(): number {
+    while (this.opponentCasts.length && this.clock - this.opponentCasts[0] > SPAM_WINDOW) this.opponentCasts.shift();
+    return this.opponentCasts.length;
   }
 
   update(dt: number): void {
     const P = this.params;
+    this.clock += dt;
     this.timer -= dt;
     this.think -= dt;
     this.attackReady -= dt;
@@ -137,6 +210,8 @@ export class FighterAI {
 
     // a hit reaction overrides everything; then a short recovery
     if (me.reacting && me.reacting !== 'pickup') {
+      this.shieldAt = -1;                            // a hit breaks her concentration
+      this.shield?.lower();
       if (this.state !== 'STAGGER') {
         me.stop();
         me.setHold('block', false);
@@ -178,18 +253,31 @@ export class FighterAI {
       if (!this.readCast && os.castTime >= rel - 0.16 && os.castTime < rel) {
         this.readCast = true;
         const aimedAtMe = Math.abs(angDiff(this.opponent.facingAngle, this.angleFrom(this.opponent.position, me.position))) < 0.8;
-        if (aimedAtMe && dist > 1.5 && Math.random() < P.dodgeChance && !this.combat.busy && !this.spells.isCasting
+        const def = os.castingSpell;
+        if (def?.id === 'confringo' && !this.countedCast) {
+          this.countedCast = true;
+          this.opponentCasts.push(this.clock);
+        }
+        if (P.evasive && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting) {
+          // the bolt reaches her this long from now (the rest of the wind-up, then its flight)
+          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          this.readAt = this.clock;
+          this.evade(arrive);
+        } else if (aimedAtMe && dist > 1.5 && Math.random() < P.dodgeChance && !this.combat.busy && !this.spells.isCasting
             && this.state !== 'DODGE') {
           const side = Math.random() < 0.5 ? -1 : 1;
           const to = this.dirToOpponent();
           this.dodgeDir.set(-to.z * side, 0, to.x * side);
           me.setHold('block', false);
           this.pendingSecond = null;
-          this.go('DODGE', 0.55);
+          // a quick sidestep clip if her model has one (her legs then step the way she goes);
+          // otherwise she runs aside
+          if (!this.dodgeClip(this.sideOf(this.dodgeDir))) this.go('DODGE', 0.55);
         }
       }
     } else {
       this.readCast = false;
+      this.countedCast = false;
     }
 
     // a bolt already flying at her: she sees it after her reaction time and may sidestep it
@@ -208,13 +296,42 @@ export class FighterAI {
         this.boltSeenAt.set(b.id, left);
         if (left > 0) continue;
         this.seenBolts.add(b.id);
-        if (Math.random() < P.dodgeChance) {
+        if (P.evasive) {
+          // (one decision per spell: a cast she already read is not judged again in flight)
+          if (this.clock - this.readAt > 1.0 && this.state !== 'PROTEGO' && !this.self.dodging) {
+            this.evade(Math.max(0, along - 0.5) / Math.max(1, b.spec.speed));
+          }
+        } else if (Math.random() < P.dodgeChance) {
           // step off the bolt's line, to the side she is already on
           const side = Math.sign(toMe.x * -b.direction.z + toMe.z * b.direction.x) || (Math.random() < 0.5 ? -1 : 1);
           this.dodgeDir.set(-b.direction.z * side, 0, b.direction.x * side).normalize();
           me.setHold('block', false);
           this.pendingSecond = null;
-          this.go('DODGE', 0.45);
+          if (!this.dodgeClip(this.sideOf(this.dodgeDir))) this.go('DODGE', 0.45);
+        }
+      }
+    }
+
+    // Protego (planned when she read the cast): up just before the bolt arrives, then down
+    if (this.shieldAt >= 0) {
+      this.shieldAt -= dt;
+      if (this.shieldAt <= 0) {
+        this.shieldAt = -1;
+        const free = !me.reacting && !me.dodging && !this.combat.busy && !this.spells.isCasting;
+        if (free && this.shield?.raise()) this.go('PROTEGO', 0.75);
+      }
+    }
+    // a counter-spell (after a dodge or a stopped spell): as soon as she can cast
+    if (this.counterAt >= 0) {
+      this.counterAt -= dt;
+      if (this.counterAt <= 0 && this.state !== 'PROTEGO' && !this.self.dodging) {
+        this.counterAt = -1;
+        if (this.spells.canCast(this.spell) && dist <= this.spell.aimRange && this.lineOfSight()) {
+          me.lookAt(angle);
+          if (this.spells.cast(this.spell)) {
+            this.go('CAST');
+            return;
+          }
         }
       }
     }
@@ -262,12 +379,54 @@ export class FighterAI {
         }
         return;
       case 'DODGE':
+        if (this.dodged) {
+          // a dodge clip carries her; when it ends she may answer with a counter-spell
+          me.lookAt(angle);
+          if (!me.dodging || this.timer <= 0) {
+            const ev = P.evasive;
+            if (ev && Math.random() < ev.counterChance) this.counterAt = rand(ev.counterDelay[0], ev.counterDelay[1]);
+            this.dodged = null;
+            this.go('OBSERVE');
+          }
+          return;
+        }
         me.move(this.dodgeDir, true, angle);
         if (this.timer <= 0) {
           me.stop();
           this.go('OBSERVE');
         }
         return;
+      case 'PROTEGO':
+        // shield up (or about to be): stand braced facing the opponent
+        me.stop();
+        me.lookAt(angle);
+        if (this.shield && !this.shield.up && this.shieldAt < 0) {
+          this.go('RECOVER', P.recover + 0.35);     // lowering it leaves her slower to act
+          return;
+        }
+        if (this.timer <= 0) {
+          this.shield?.lower();
+          this.go('RECOVER', P.recover + 0.35);
+        }
+        return;
+      case 'CIRCLE': {
+        // round the opponent, keeping her preferred distance; a trunk ahead turns her back
+        const ev = P.evasive!;
+        const to = this.dirToOpponent();
+        const mid = (ev.preferredRange[0] + ev.preferredRange[1]) / 2;
+        const radial = Math.max(-0.7, Math.min(0.7, (dist - mid) * 0.5));
+        const dir = this.tmp2.set(-to.z * this.circleSide + to.x * radial, 0, to.x * this.circleSide + to.z * radial);
+        if (this.blocked(dir)) {
+          this.circleSide = this.circleSide > 0 ? -1 : 1;
+          dir.set(-to.z * this.circleSide + to.x * radial, 0, to.x * this.circleSide + to.z * radial);
+        }
+        me.move(dir, false, angle);
+        if (this.timer <= 0) {
+          me.stop();
+          this.go('OBSERVE');
+        }
+        break;
+      }
       case 'CAST':
         me.stop();
         if (!this.spells.isCasting) this.go('OBSERVE');
@@ -303,13 +462,24 @@ export class FighterAI {
         }
         return;
       }
-      case 'RETREAT':
-        me.move(this.dirToOpponent().negate(), false, angle);
-        if (this.timer <= 0 || dist > P.castRange[1]) {
+      case 'RETREAT': {
+        // an evasive duellist badly crowded turns and sprints away on a diagonal (her back is
+        // open while she runs: a fair chance); otherwise she backs off facing the opponent
+        const ev = P.evasive;
+        if (ev && dist < ev.preferredRange[0] * 0.8) {
+          const to = this.dirToOpponent();
+          const dir = this.tmp2.set(-to.x + -to.z * this.circleSide * 0.8, 0, -to.z + to.x * this.circleSide * 0.8);
+          if (this.blocked(dir, 1.2)) this.circleSide = this.circleSide > 0 ? -1 : 1;
+          me.move(dir, true);
+        } else {
+          me.move(this.dirToOpponent().negate(), false, angle);
+        }
+        if (this.timer <= 0 || dist > P.castRange[1] || (ev && dist > ev.preferredRange[0] + 0.5)) {
           me.stop();
           this.go('OBSERVE');
         }
         break;
+      }
       default:
         me.stop();
         me.lookAt(angle);
@@ -330,7 +500,16 @@ export class FighterAI {
     // an opening: the opponent whiffed a heavy strike, is reeling, casting or picking up her wand
     const open = this.opponentCombat.vulnerable || !!this.opponent.reacting
       || (!!this.opponentSpells?.isCasting && this.opponentSpells.castTime < 0.3);
-    if (open && P.punishChance > 0 && dist <= P.runDistance && Math.random() < P.punishChance) {
+    if (open && P.evasive && dist <= this.spell.aimRange && Math.random() < P.punishChance
+        && this.spells.canCast(this.spell) && this.lineOfSight()) {
+      // an evasive duellist punishes from range: Stupefy into the opening
+      me.lookAt(angle);
+      if (this.spells.cast(this.spell)) {
+        this.go('CAST');
+        return;
+      }
+    }
+    if (open && P.punishChance > 0 && dist <= P.runDistance && Math.random() < P.punishChance && !P.evasive) {
       if (dist <= P.meleeRange + 0.12 && me.canStrike && !this.combat.busy) {
         this.strike(true);
       } else {
@@ -343,6 +522,21 @@ export class FighterAI {
       this.selfTarget.recentHits = 0;
       this.go('RETREAT', rand(P.retreatTime[0], P.retreatTime[1]));
       return;
+    }
+    // crowded: Ventus throws the opponent back
+    const ev = P.evasive;
+    if (ev && this.pushSpell && dist <= ev.pushRange && this.spells.canCast(this.pushSpell)
+        && (this.opponentCombat.busy || this.selfTarget.recentHits > 0 || dist < 1.3) && Math.random() < ev.pushChance) {
+      me.lookAt(angle);
+      if (this.spells.cast(this.pushSpell)) {
+        this.go('CAST');
+        return;
+      }
+    }
+    // an attack she sees coming, in reach: an evasive duellist steps out of it
+    if (ev && this.noticed && dist < 1.6 && Math.random() < ev.dodgeClipChance) {
+      this.noticed = false;
+      if (this.dodgeClip(Math.random() < 0.5 ? 'dodge_back' : this.freeSide())) return;
     }
     // block an attack she has seen coming (only if it can reach her)
     if (this.noticed && dist < 1.4) {
@@ -357,8 +551,9 @@ export class FighterAI {
       this.go('RETRIEVE', RETRIEVE_TIME);
       return;
     }
-    // her spell: only while the opponent still has a wand, from a distance, in clear sight
-    if (this.opponent.hasWand && dist >= P.castRange[0] && dist <= P.castRange[1] && this.spells.canCast(this.spell)
+    // her spell: only while the opponent still has a wand (an evasive duellist's Stupefy
+    // isn't about the wand), from a distance, in clear sight
+    if ((this.opponent.hasWand || ev) && dist >= P.castRange[0] && dist <= P.castRange[1] && this.spells.canCast(this.spell)
         && this.lineOfSight() && Math.random() < P.castChance) {
       me.lookAt(angle);
       if (this.spells.cast(this.spell)) {
@@ -386,6 +581,22 @@ export class FighterAI {
       }
       return;
     }
+    // an evasive duellist keeps her distance: back off when crowded, close in when far,
+    // circle in between
+    if (ev) {
+      if (dist < ev.preferredRange[0]) {
+        if (dist < ev.preferredRange[0] * 0.6 && Math.random() < ev.backStepChance && this.dodgeClip('dodge_back')) return;
+        this.go('RETREAT', rand(0.5, 0.9));
+        return;
+      }
+      if (dist > ev.preferredRange[1]) {
+        this.go('APPROACH', 1.5);
+        return;
+      }
+      if (this.state !== 'CIRCLE' || Math.random() < 0.3) this.circleSide = Math.random() < 0.5 ? -1 : 1;
+      this.go('CIRCLE', rand(ev.circleSwitch[0], ev.circleSwitch[1]));
+      return;
+    }
     // out of reach: close in, unless she would rather keep her distance for the spell
     // (with pressure she would rather stay in the opponent's face while they can still cast)
     const crowd = this.opponent.hasWand && Math.random() < P.pressure;
@@ -395,6 +606,69 @@ export class FighterAI {
       return;
     }
     this.go('OBSERVE');
+  }
+
+  /**
+   * a spell is on its way (reaching her in `arrive` s): Protego (sometimes timed into the
+   * perfect window) or a sidestep, or nothing at all. Repeated Confringos make her readier.
+   */
+  private evade(arrive: number): void {
+    const ev = this.params.evasive!;
+    const spam = this.recentConfringos * ev.spamBonus;
+    // (the caps limit what repeated Confringos add, never a level's own odds)
+    const boosted = (base: number, cap: number) => Math.min(Math.max(base, cap), base + spam);
+    const perfect = Math.random() < boosted(ev.perfectChance, MAX_PERFECT);
+    // too close for a plain block (it would go up inside the perfect window): dodge instead
+    const room = perfect || arrive > PROTEGO.perfectWindow + 0.05;
+    if (room && this.shield?.ready && this.state !== 'PROTEGO' && Math.random() < boosted(ev.shieldChance, MAX_SHIELD)) {
+      // a parry goes up just before the bolt arrives, off by her timing error (so it can come
+      // too early or too late); a plain block goes up well ahead and holds, clear of the
+      // perfect window, so a block never turns into a parry by accident
+      this.shieldAt = perfect ? Math.max(0, arrive - rand(0.03, 0.12) + rand(-ev.timingError, ev.timingError))
+        : Math.max(0, arrive - rand(0.45, 0.6));
+      this.self.stop();
+      this.pendingSecond = null;
+      this.go('PROTEGO', this.shieldAt + 0.75);
+      return;
+    }
+    if (Math.random() < this.params.dodgeChance) this.dodgeClip(this.freeSide());
+  }
+
+  /** a dodge clip if her model has one, else nothing (false) */
+  private dodgeClip(kind: DodgeState): boolean {
+    if (this.combat.busy || this.spells.isCasting) return false;
+    this.self.setHold('block', false);
+    if (!this.self.dodge(kind)) return false;
+    this.dodged = kind;
+    this.pendingSecond = null;
+    this.go('DODGE', 0.6);
+    return true;
+  }
+
+  /** the dodge clip that moves her along dir (to her left or right) */
+  private sideOf(dir: THREE.Vector3): DodgeState {
+    const a = this.self.facingAngle;
+    return dir.x * Math.cos(a) - dir.z * Math.sin(a) >= 0 ? 'dodge_left' : 'dodge_right';
+  }
+
+  /** the side with room to sidestep (a trunk on one side sends her the other way) */
+  private freeSide(): DodgeState {
+    const a = this.self.facingAngle;
+    const left = this.tmp2.set(Math.cos(a), 0, -Math.sin(a));
+    const leftFree = !this.blocked(left, 1.3);
+    const rightFree = !this.blocked(left.negate(), 1.3);
+    if (leftFree !== rightFree) return leftFree ? 'dodge_left' : 'dodge_right';
+    return Math.random() < 0.5 ? 'dodge_left' : 'dodge_right';
+  }
+
+  /** a trunk within `ahead` m along dir (hip height)? */
+  private blocked(dir: THREE.Vector3, ahead = CIRCLE_LOOKAHEAD): boolean {
+    const p = this.self.position;
+    const from = this.tmpA.set(p.x, 0.9, p.z);
+    const l = Math.hypot(dir.x, dir.z) || 1;
+    const to = this.tmpB.set(p.x + (dir.x / l) * ahead, 0.9, p.z + (dir.z / l) * ahead);
+    for (const box of this.solids()) if (sweepBox(from, to, 0.25, box) >= 0) return true;
+    return false;
   }
 
   /** a strike, or a two-hit combo; fast: open with the jab (counters and punishes) */

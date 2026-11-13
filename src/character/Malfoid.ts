@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AnimationController, AnimationState, ActionState, HoldState, ReactionState, StrikeState } from './AnimationController';
-import { ToonMaterials } from './ToonMaterials';
+import { AnimationController, AnimationState, ActionState, DodgeState, HoldState, ReactionState, StrikeState } from './AnimationController';
+import { FaceFx, ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 import type { SpellEmitter } from '../combat/spells/SpellEmitter';
 import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
@@ -12,6 +12,21 @@ export const IDLE_ANNOYED_TIMEOUT = 10;
 
 export const WALK_SPEED = 1.15;   // m/s
 export const RUN_SPEED = 2.9;     // m/s
+/**
+ * Moving while facing her opponent (an AI circling or backing off): the clip follows where she
+ * goes. Closest to forward / back: the walk (reversed for back); closest to her left / right:
+ * the side-step ('strafe', reversed for right), if her model has it. The rest of the angle,
+ * up to 45 degrees, is taken by turning her hips towards the travel direction while the spine
+ * turns back (chest and head keep facing the opponent), so the planted foot stays planted.
+ * STRAFE_SPEED is the side-step's own speed (combat.STRAFE_STRIDE / STRAFE_T).
+ */
+export const STRAFE_SPEED = 0.64;  // m/s
+const STRAFE_SWITCH = 0.17;       // rad (10 degrees): hysteresis between forward/back and sideways
+const TWIST = { spine: -0.4, chest: -0.35, neck: -0.25 };   // shares of the counter-turn
+const TWIST_RATE = 10;            // 1/s: how fast the hips turn into the travel direction
+/** how far each dodge carries her (m) and its cross-fade (s) */
+export const DODGE_DISTANCE: Record<DodgeState, number> = { dodge_left: 1.25, dodge_right: 1.25, dodge_back: 1.0 };
+const FADE_DODGE = 0.05;
 const TURN_RATE = 9.0;            // rad/s response of the facing direction
 const ACCEL = 8.0;                // 1/s speed smoothing
 const TURN_IN_PLACE = 1.6;        // rad: larger direction changes play the turn clip
@@ -23,7 +38,7 @@ export type Weights = Record<string, number>;
 export interface CharacterOptions {
   name: string;
   /** standing-still clip */
-  idleClip?: 'idle' | 'confident';
+  idleClip?: 'idle' | 'confident' | 'cho_idle';
   /** after IDLE_ANNOYED_TIMEOUT s without input: cross the arms, annoyed face (Malfoid) */
   annoyedIdle?: boolean;
   /** named faces (shape-key weights) for setExpression(); 'annoyed' is used by the annoyed idle */
@@ -31,6 +46,13 @@ export interface CharacterOptions {
   /** the face with the mouth fully open while speaking (setTalk(1)); 0 keeps the rest face */
   talk?: Weights;
 }
+
+/**
+ * Face channels that are not shape keys, set in expressions like one: 'blush' tints the
+ * cheeks (0..1); 'tears' shows the base mesh's tear cards (above 0.5), which keys such as
+ * Teary_Eyes push out of the face.
+ */
+export const FACE_FX_KEYS = ['blush', 'tears'] as const;
 
 /**
  * Malfoid's open mouth while she speaks (setTalk scales it): the base mesh's "a" viseme, a
@@ -100,6 +122,9 @@ export class Malfoid {
   // reactions (hit, stagger, knockback, disarmed, pickup): timed here, push her back
   private reaction: { kind: ReactionState; t: number; dur: number } | null = null;
   private readonly slide = new THREE.Vector3();
+  private readonly dodgeVec = new THREE.Vector3();   // the whole dodge (m, world)
+  private dodgeT = 0;
+  private dodgeDur = 0;
   private lookTarget: number | null = null;     // turn towards this when standing (AI)
   private pickupSpot: THREE.Vector3 | null = null;   // steps to the wand while bending down for it
   private strafeFace: number | null = null;     // keep facing this while moving (AI)
@@ -123,6 +148,17 @@ export class Malfoid {
   private readonly faceKeys: string[] = [];
   private talk = 0;
   private headBone: THREE.Object3D | null = null;
+  private faceFx: FaceFx | null = null;
+  /** strafing: the clip axis she steps along (0 forward, ±pi/2 her left/right, pi back) */
+  private strafeAxis = 0;
+  private hipYaw = 0;
+  private readonly twistBones: { hips?: THREE.Bone; spine?: THREE.Bone; chest?: THREE.Bone; neck?: THREE.Bone } = {};
+  /** each twisted bone's pose before the twist: put back before the next frame's animation (a
+   * bone with no track in a clip is never reset by the mixer, so a twist would add up) */
+  private readonly untwisted = new Map<THREE.Bone, THREE.Quaternion>();
+  private readonly tq = new THREE.Quaternion();
+  private readonly tq2 = new THREE.Quaternion();
+  private static readonly UP = new THREE.Vector3(0, 1, 0);
 
   static async load(url: string, metaUrl: string, options?: CharacterOptions): Promise<Malfoid> {
     const [gltf, meta] = await Promise.all([
@@ -136,7 +172,9 @@ export class Malfoid {
     }
     m.meta = meta;
     m.root.add(gltf.scene);
-    new ToonMaterials().apply(gltf.scene);
+    const toon = new ToonMaterials();
+    toon.apply(gltf.scene);
+    m.faceFx = toon.faceFx;
     gltf.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh && mesh.morphTargetDictionary && 'vrc.blink' in mesh.morphTargetDictionary) {
@@ -159,6 +197,11 @@ export class Malfoid {
       if ((o as THREE.Bone).isBone && o.name === 'hand_R') hand = o as THREE.Bone;
     });
     if (!hand) throw new Error('model has no hand_R bone');
+    gltf.scene.traverse((o) => {
+      if ((o as THREE.Bone).isBone && ['hips', 'spine', 'chest', 'neck'].includes(o.name)) {
+        m.twistBones[o.name as 'hips'] = o as THREE.Bone;
+      }
+    });
     m.wand = new Wand(hand);
     m.wandGrip = new WandGrip(gltf.scene, gltf.animations);
     return m;
@@ -220,9 +263,35 @@ export class Malfoid {
     return this.wand.state === 'hand';
   }
 
-  /** blocking right now (the block pose is held) */
+  /** blocking right now (the block pose is held; Protego's shield guards like a block too) */
   get blocking(): boolean {
-    return this.hold === 'block';
+    return this.hold === 'block' || this.hold === 'protego';
+  }
+
+  /**
+   * a quick evasive step (Cho's dodge clips): to her left, right or back, dist m over the
+   * clip, keeping her facing. Real movement (trees still stop her), no invulnerability: a hit
+   * interrupts it. false if she can't (busy, or her model has no such clip).
+   */
+  dodge(kind: DodgeState, dist = DODGE_DISTANCE[kind]): boolean {
+    if (this.action || this.hold || this.strike || this.reaction || this.defeated || !this.animation.has(kind)) return false;
+    const a = this.facing;
+    if (kind === 'dodge_back') this.dodgeVec.set(-Math.sin(a), 0, -Math.cos(a));
+    else this.dodgeVec.set(Math.cos(a), 0, -Math.sin(a)).multiplyScalar(kind === 'dodge_left' ? 1 : -1);
+    this.dodgeVec.multiplyScalar(dist);
+    this.dodgeT = 0;
+    this.dodgeDur = this.animation.duration(kind);
+    this.action = kind;
+    this.moving = false;
+    this.speed = 0;
+    this.animation.restart(kind, FADE_DODGE);
+    this.resetIdleTimer();
+    return true;
+  }
+
+  /** the dodge being made (null: none) */
+  get dodging(): DodgeState | null {
+    return this.action && this.action !== 'jump' ? this.action : null;
   }
 
   /**
@@ -235,7 +304,7 @@ export class Malfoid {
     if (kind !== 'pickup') this.pickupSpot = null;
     if (this.strike) this.endStrike();
     this.castLock = false;
-    this.action = null;
+    this.action = null;                          // (a dodge is cut short too)
     this.hold = null;
     this.reaction = { kind, t: 0, dur: this.animation.duration(kind) };
     this.animation.restart(kind, 0.06);
@@ -398,6 +467,14 @@ export class Malfoid {
       this.root.position.addScaledVector(this.slide, dt);
       this.slide.multiplyScalar(Math.exp(-5.0 * dt));
     }
+    // a dodge carries her its distance over the clip (fastest in the middle of the step)
+    if (this.dodging) {
+      const t0 = this.dodgeT;
+      this.dodgeT = Math.min(this.dodgeDur, this.dodgeT + dt);
+      const f = (t: number) => (1 - Math.cos((Math.PI * t) / this.dodgeDur)) / 2;    // 0..1 of the distance
+      this.root.position.addScaledVector(this.dodgeVec, f(this.dodgeT) - f(t0));
+      if (this.dodgeT >= this.dodgeDur) this.action = null;
+    }
     // walking onto her dropped wand picks it up
     if (this.wand.state === 'dropped' && !this.reaction && !this.strike && !this.action && !this.defeated) {
       const w = this.wand.getWorldPosition(new THREE.Vector3());
@@ -422,6 +499,8 @@ export class Malfoid {
     let turnDiff = 0;
     let moveAngle = this.facing;
     let backwards = false;
+    let sideways = 0;                                    // +1 / -1: side-stepping to her left / right
+    let hipGoal = 0;
     if (steer && this.strafeFace !== null) {
       // keeps facing her opponent: steps towards, away or round them
       const want = this.strafeFace;
@@ -429,6 +508,20 @@ export class Malfoid {
       this.facing += d * (1 - Math.exp(-TURN_RATE * dt));
       moveAngle = Math.atan2(this.desiredDir.x, this.desiredDir.z);
       backwards = Math.cos(moveAngle - this.facing) < -0.2;
+      if (this.animation.has('strafe') && !this.wantRunning) {
+        // the clip axis nearest the travel direction (with a little hysteresis), the rest
+        // taken by the hips
+        const rel = wrap(moveAngle - this.facing);
+        let best = this.strafeAxis;
+        for (const ax of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+          if (Math.abs(wrap(rel - ax)) < Math.abs(wrap(rel - best)) - (ax === this.strafeAxis ? 0 : STRAFE_SWITCH)) best = ax;
+        }
+        this.strafeAxis = best;
+        hipGoal = wrap(rel - best);
+        backwards = Math.abs(best) > 3;
+        sideways = Math.abs(Math.abs(best) - Math.PI / 2) < 0.1 ? Math.sign(best) : 0;
+        if (sideways) target = Math.min(target, STRAFE_SPEED);
+      }
     } else if (steer) {
       const want = Math.atan2(this.desiredDir.x, this.desiredDir.z);
       turnDiff = Math.atan2(Math.sin(want - this.facing), Math.cos(want - this.facing));
@@ -467,6 +560,8 @@ export class Malfoid {
       state = 'turn';
     } else if (this.speed > (WALK_SPEED + RUN_SPEED) * 0.5 || (this.moving && this.wantRunning && this.speed > 0.4)) {
       state = 'run';
+    } else if (sideways && (this.speed > 0.15 || this.moving)) {
+      state = 'strafe';
     } else if (this.speed > 0.15 || this.moving) {
       state = 'walk';
     } else if (this.opts.annoyedIdle && this.idleSeconds >= IDLE_ANNOYED_TIMEOUT) {
@@ -478,6 +573,9 @@ export class Malfoid {
     // stepping back while facing her opponent: the walk plays backwards
     if (state === 'walk') this.animation.setTimeScale((backwards ? -1 : 1) * Math.max(this.speed, 0.35) / this.meta.walk_speed);
     if (state === 'run') this.animation.setTimeScale(Math.max(this.speed, 1.2) / this.meta.run_speed);
+    if (state === 'strafe') this.animation.setTimeScale(sideways * Math.max(this.speed, 0.3) / STRAFE_SPEED);
+    for (const [b, q] of this.untwisted) b.quaternion.copy(q);
+    this.untwisted.clear();
     if (this.frozen) {
       this.resetIdleTimer();
       this.animation.mixer.setTime(0);      // fixed reference pose for visual comparisons
@@ -490,6 +588,10 @@ export class Malfoid {
       if ((SPELL_CLIPS as readonly string[]).includes(this.strike)) this.wand.draw();
       else this.wand.stow();
     }
+    // strafing: the hips turned into the travel direction, the upper body turned back
+    const goal = state === 'walk' || state === 'strafe' ? Math.max(-0.8, Math.min(0.8, hipGoal)) : 0;
+    this.hipYaw += (goal - this.hipYaw) * (1 - Math.exp(-TWIST_RATE * dt));
+    if (Math.abs(this.hipYaw) > 1e-3) this.twist(this.hipYaw);
     this.wand.update(dt);
     this.wandGrip.apply(this.wand.state === 'hand' ? this.wand.drawn : 0);
     this.root.updateMatrixWorld();
@@ -503,6 +605,26 @@ export class Malfoid {
    * Development hook for the visual comparison tool: replace the resting
    * expression (shape-key weights) and switch blinking on/off.
    */
+  /** turn a bone about the world vertical by angle (after the mixer has posed it) */
+  private turnBone(b: THREE.Bone | undefined, angle: number): void {
+    if (!b?.parent) return;
+    this.untwisted.set(b, b.quaternion.clone());
+    b.parent.updateWorldMatrix(true, false);
+    b.parent.getWorldQuaternion(this.tq2);
+    this.tq.setFromAxisAngle(Malfoid.UP, angle);
+    // local' = parent^-1 * R * parent * local
+    b.quaternion.premultiply(this.tq2.clone().invert().multiply(this.tq).multiply(this.tq2));
+  }
+
+  /** hips turned by yaw, the spine, chest and neck turned back so the head keeps its facing */
+  private twist(yaw: number): void {
+    const t = this.twistBones;
+    this.turnBone(t.hips, yaw);
+    this.turnBone(t.spine, TWIST.spine * yaw);
+    this.turnBone(t.chest, TWIST.chest * yaw);
+    this.turnBone(t.neck, TWIST.neck * yaw);
+  }
+
   /** Development hook: hold her still in idle frame 0 (no breathing / head motion). */
   debugFreeze(on: boolean): void {
     this.frozen = on;
@@ -559,5 +681,23 @@ export class Malfoid {
         inf[i] = v;
       }
     }
+    // the face channels that aren't shape keys: the same blend as a key
+    if (this.faceFx) {
+      const fx: Record<string, number> = {};
+      for (const k of FACE_FX_KEYS) {
+        const rest = this.restFace[k] ?? 0;
+        let v = rest + ((annoyedFace[k] ?? rest) - rest) * a;
+        if (this.expressionBlend > 1e-3) v += ((this.exprFace[k] ?? rest) - v) * this.expressionBlend;
+        fx[k] = v;
+      }
+      this.faceFx.blush.value = fx.blush;
+      const tears = fx.tears > 0.5;
+      for (const t of this.faceFx.tears) t.visible = tears;
+    }
   }
+}
+
+/** angle wrapped to -pi..pi */
+function wrap(a: number): number {
+  return Math.atan2(Math.sin(a), Math.cos(a));
 }

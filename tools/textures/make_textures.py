@@ -4,7 +4,7 @@ Only colour changes, no geometry. Malfoid: pale "NeutralFair" skin preset, the b
 iris art recoloured to deep green, blonde-brown brows. Ginny: warmer fair skin, the base's
 brown iris art in warm brown, reddish-brown brows, natural brown lashes, freckles.
 
-  MF_CHAR=malfoid|ginny python3 tools/textures/make_textures.py [ASSET_DIR] [OUT_DIR]
+  MF_CHAR=malfoid|ginny|cho python3 tools/textures/make_textures.py [ASSET_DIR] [OUT_DIR]
 """
 import os
 import sys
@@ -117,7 +117,10 @@ def paint_scalp(img, m=None):
 
 
 LASH_BOX = (2560, 2960, 4096, 4096)       # x0, y0, x1, y1: lash / liner cards in the head texture
-LASH_INK = np.array([24, 21, 23] if P['lashes'] == 'black' else [52, 28, 20], np.float32)   # black liner / natural dark brown
+# lash ink and how much of the painted shading each keeps: Malfoid's black liner, Ginny's
+# natural dark brown, Cho's soft black (elegant, not a sharp liner)
+LASHES = {'black': ([24, 21, 23], 0.18), 'brown': ([52, 28, 20], 0.35), 'soft_black': ([30, 25, 28], 0.30)}
+LASH_INK = np.array(LASHES[P['lashes']][0], np.float32)
 CREASE_RGB = np.array([214, 168, 158], np.float32)     # faint crease line, like the atlas
 
 
@@ -147,7 +150,7 @@ def black_lashes(img):
     stroke &= ~crease
     reg[stroke, 3] = 0
     lash = sel & ~crease & ~stroke
-    keep = 0.18 if P['lashes'] == 'black' else 0.35          # natural lashes keep more of the painted shading
+    keep = LASHES[P['lashes']][1]                             # natural lashes keep more of the painted shading
     reg[lash, :3] = LASH_INK + (reg[lash, :3] - LASH_INK) * keep
     reg[crease, :3] = CREASE_RGB
     print('lashes recoloured: %d px, crease softened: %d px, inner-lid stroke removed: %d px'

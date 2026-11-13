@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import type { Malfoid } from '../character/Malfoid';
 import type { ReactionState } from '../character/AnimationController';
-import type { CombatTarget, HitBounds, HitReport, HitRequest } from './CombatTarget';
+import type { CombatTarget, HitBounds, HitReport, HitRequest, Reflector } from './CombatTarget';
+import type { Protego } from './Protego';
+import type { Projectile } from './spells/Projectile';
+import type { SpellDef } from './spells/SpellSystem';
 import type { HitEffect } from './moves';
 
 /** fraction of the damage that gets through a block */
@@ -30,6 +33,12 @@ export class FighterTarget implements CombatTarget {
   recentHits = 0;
   /** a blocked strike leaves the attacker open for this much longer (s) */
   readonly blockRecoil = 0.35;
+  /** her Protego, if she has one (Cho): spells reaching its front are stopped or reflected */
+  shield: Protego | null = null;
+  /** her own spell system: a reflected spell becomes hers */
+  reflector: Reflector | null = null;
+  /** the shield stopped or reflected a spell */
+  onShield: ((result: 'reflect' | 'absorb', spell: SpellDef) => void) | null = null;
 
   constructor(readonly fighter: Malfoid, public maxHp = 100) {
     this.hp = maxHp;
@@ -51,6 +60,14 @@ export class FighterTarget implements CombatTarget {
     out.yMax = HEIGHT;
     out.radius = RADIUS;
     return out;
+  }
+
+  intercept(spell: SpellDef, projectile: Projectile): 'reflect' | 'absorb' | null {
+    if (!this.shield || this.fighter.defeated) return null;
+    const r = this.shield.intercept(projectile.direction);
+    if (r === 'reflect' && !this.reflector) return 'absorb';
+    if (r) this.onShield?.(r, spell);
+    return r;
   }
 
   getAimPoint(out: THREE.Vector3): THREE.Vector3 {
