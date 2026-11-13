@@ -26,7 +26,14 @@
         <div class="big">Malfoid</div>
         <div class="sub">Choose a mode</div>
         <button type="button" data-mode="training"><b>Training</b><span>practise on the dummy</span></button>
-        <button type="button" data-mode="duel"><b>Duel</b><span>fight Ginny Weasley</span></button>
+        <div class="duel-pick">
+          <div class="duel-title"><b>Duel</b><span>fight Ginny Weasley</span></div>
+          <div class="levels">
+            <button type="button" data-mode="duel" data-level="easy">Easy</button>
+            <button type="button" data-mode="duel" data-level="normal">Normal</button>
+            <button type="button" data-mode="duel" data-level="hard">Hard</button>
+          </div>
+        </div>
       </div>
     </div>
     <div id="loading">Loading Malfoid…</div>
