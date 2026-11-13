@@ -1,8 +1,12 @@
 # malfoid-3d
 
-Interactive anime-style 3D viewer of **Malfoid**, a Slytherin student, built with Three.js +
-TypeScript + Vite. The built character (`public/models/malfoid.glb`) is included, so the viewer runs
-straight from a clone.
+An anime-style 3D fighting game in the browser: **Malfoid**, a Slytherin student, duels Harry
+Potter's potential romantic interests one by one, with fists, kicks and spells, then Harry
+himself, and finally faces Bellatrix Lestrange. Built with Three.js + TypeScript + Vite.
+
+**Ginny Weasley**, the first opponent, is playable; the rest of the campaign is planned. The built characters
+(`public/models/*.glb`) and sound effects (`public/sfx/`) are included, so the game runs straight
+from a clone.
 
 ## Run
 
@@ -16,13 +20,35 @@ site in `dist/`.
 
 ## Modes
 
-The start screen offers **Training**, with the dummy only, in the studio scene, and **Duel**,
-against Ginny Weasley, an AI-controlled opponent, in the **Forbidden Woods**. The woods are an
-infinite procedural forest that streams in chunks around the player, with no walls. See
-`src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
-`src/scene/forest/config.ts`.
+The start screen offers two modes:
 
-The duel has three difficulties:
+- **Training:** Malfoid against a training dummy in the studio scene, to practise strikes,
+  combos and Confringo.
+- **Duel:** Malfoid against an AI-controlled opponent in the **Forbidden Woods**, an infinite
+  procedural forest that streams in chunks around the player, with no walls. See
+  `src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
+  `src/scene/forest/config.ts`.
+
+## Opponents
+
+The campaign, in order:
+
+| Order | Opponent | Gameplay focus | Story purpose | Status |
+|---|---|---|---|---|
+| 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | playable |
+| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | planned |
+| 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | planned |
+| 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | planned |
+| 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | planned |
+| 6 | Bellatrix Lestrange | Crucio, Imperio, multiple opponents | First genuinely terrifying boss | planned |
+
+Each opponent is built by the same character pipeline as Malfoid (their own profile in
+`tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
+spells and AI tuning.
+
+### Ginny Weasley
+
+The duel against Ginny has three difficulties:
 
 | Level | Ginny's HP | How she fights |
 |---|---|---|
@@ -30,16 +56,20 @@ The duel has three difficulties:
 | Normal | 160 | faster reactions; guards up when you're close and after taking a hit; counters blocked strikes; punishes openings; reads your wand wind-up to dodge Confringo; real combos; stays close while you have your wand |
 | Hard | 240 | all of the above, quicker and more often |
 
-A strike blocked by a fighter leaves the attacker slow to recover, an opening for either side.
+Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and the wand
+lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only fight
+with her fists. See `docs/ginny/REPORT.md` for details.
 
-Every duel opens with the fighters' lines: Malfoid speaks, then Ginny replies, each in a
-close-up, and nobody can move or attack until **DUEL!** appears. The winner gets the last word.
-The speakers' mouths open and close with the loudness of their lines (`audio/duelVoices.ts`).
+## How a duel runs
 
-In a duel, Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and
-the wand lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only
-fight with her fists. **Change mode** in the HUD returns to the start screen. See
-`docs/ginny/REPORT.md` for details.
+- **Opening lines:** Malfoid speaks, then her opponent replies, each in a close-up. Nobody can
+  move or attack until **DUEL!** appears.
+- **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
+  to recover, an opening for either side. **G** (or the HUD button) restarts the duel.
+- **The last word:** the winner says her line after the KO.
+- **Lip movement:** the speakers' mouths open and close with the loudness of their lines
+  (`audio/duelVoices.ts`).
+- **Leaving:** **Change mode** in the HUD returns to the start screen.
 
 ## Controls
 
@@ -103,7 +133,7 @@ The Blasting Curse, cast with her wand. She keeps the wand up her right sleeve. 
 it slides out into her hand. It stays there afterwards, while she walks, runs, jumps or idles,
 and goes back up the sleeve as soon as she punches or kicks.
 
-She turns towards the dummy if it is within 60°, raises the wand while fire gathers at its tip,
+She turns towards her target (the dummy or her opponent) if it is within 60°, raises the wand while fire gathers at its tip,
 and thrusts it at the target. At 0.42 s a fiery bolt leaves the tip, flies at 18 m/s with a
 flame trail and sparks, and explodes on the first thing it touches: a target, a solid, or the
 ground. If it touches nothing, it fizzles out at 25 m.
@@ -123,7 +153,7 @@ ground. If it touches nothing, it fizzles out at 25 m.
 
 Screenshots from the viewer are in `docs/confringo/`.
 
-## Viewer (`src/`)
+## Code (`src/`)
 
 - `character/Malfoid.ts` – loads the model, locomotion, idle → annoyed state machine, blinking and
   facial expression weights.
@@ -132,12 +162,13 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `character/CharacterController.ts` – key bindings and pause.
 - `combat/moves.ts` – strikes (timing, damage, hitbox, effect) and the combo table.
 - `combat/ComboSystem.ts` – input buffer, cancel windows, hit / block / miss, auto-facing.
-- `combat/TrainingDummy.ts` – the opponent: HP, guard, flinch / stagger / knockback / knockdown.
+- `combat/TrainingDummy.ts` – the training opponent: HP, guard, flinch / stagger / knockback / knockdown.
 - `combat/CombatTarget.ts` – what any attack hits; `FighterTarget.ts` – a character as a target
   (health, blocking, reactions, disarm, defeat).
-- `combat/ai/FighterAI.ts` – Ginny's behaviour (observe, approach, retreat, block, strike, cast).
+- `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
+  cast); `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning.
 - `combat/spells/Expelliarmus.ts` – Ginny's disarming spell.
-- `character/faces.ts` – Ginny's expressions.
+- `character/faces.ts` – Ginny's expressions and speaking mouth.
 - `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
   `Confringo.ts` (tuning), `Projectile.ts` + `collision.ts` (swept collision: no tunnelling),
   `SpellEmitter.ts` (where spells leave from: the wand tip),
@@ -152,17 +183,27 @@ Screenshots from the viewer are in `docs/confringo/`.
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, footsteps timed to
   the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
   the game just runs without it.
-
-`npm test` runs the spell logic tests in `tests/` (Node's test runner on an esbuild bundle).
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
 - `character/Wand.ts` – her wand (built at runtime), drawn from the sleeve to cast, the hand's
   grip, and the tip emitter.
 - `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
-- `camera/CameraController.ts`, `scene/SceneManager.ts` – orbit camera, lights, shadows.
+- `camera/CameraController.ts` – the follow camera (behind her, side-on in a duel, speaker
+  close-ups); `scene/SceneManager.ts` – lights, shadows, the studio / woods environments;
+  `scene/forest/` – the Forbidden Woods.
 
-## Rebuilding the model
+## Tests
 
-The model is generated from purchased assets that are **not** in this repository. To rebuild it you
+```bash
+npm test
+```
+
+Runs the logic tests in `tests/` with Node's test runner on an esbuild bundle: spells, Ginny's
+AI and combat, the forest (generation, collision, geometry), sound triggers and the voice lines.
+No browser or WebGL needed.
+
+## Rebuilding the models
+
+The characters are generated from purchased assets that are **not** in this repository. To rebuild it you
 need, in the repo root: `base_character.blend` and `Gumroad_Anime_Female_BaseMesh/` (anime base
 mesh), `Bell_Hair_01/` (hair) and `Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/`
 (uniform), plus Blender 4.5 (default path `~/.local/opt/blender-4.5.16-linux-x64/blender`,
