@@ -16,6 +16,8 @@ import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
 import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
+import { Sfx } from './audio/Sfx';
+import { connectCombatSounds } from './audio/combatSounds';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -216,7 +218,16 @@ async function start(): Promise<void> {
   document.getElementById('loading')!.remove();
 
   const pausedEl = document.getElementById('paused')!;
+  // sound effects (public/sfx); M mutes
+  const sfx = new Sfx(sm.camera);
+  const combatSounds = connectCombatSounds(sfx, { malfoid, ginny, combat, ginnyCombat, spells, ginnySpells, fighters: [malfoidTarget, ginnyTarget] });
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyM' || e.repeat) return;
+    sfx.setMuted(!sfx.muted);
+    hud.flashStatusText(sfx.muted ? 'SOUND OFF' : 'SOUND ON', 'miss');
+  });
   input.onPauseChange = (p) => {
+    sfx.setPaused(p);
     pausedEl.hidden = !p || menuOpen;
     if (!p && menuOpen) input.setPaused(true);          // Esc doesn't skip the mode select
   };
@@ -243,6 +254,7 @@ async function start(): Promise<void> {
       if (duelMode) ginny.update(dt);
       spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
       if (duelMode) ginnySpells.update(dt);
+      combatSounds.update(dt);              // footsteps follow the poses just updated
       malfoidTarget.update(dt);
       ginnyTarget.update(dt);
       if (duelMode) {
@@ -288,7 +300,7 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  Object.assign(window, { malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
+  Object.assign(window, { sfx, malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
     malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, forest, renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 
