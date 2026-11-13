@@ -48,7 +48,7 @@ function finish(g: THREE.BufferGeometry, colourAt: (p: THREE.Vector3, i: number)
  * A tube that narrows from r0 to r1 along a path, with knobbly bumps (bark, roots, branches).
  * colour(t, bump): t from 0 (start) to 1 (end).
  */
-function taperedTube(path: THREE.Vector3[], r0: number, r1: number, radial: number, segs: number, rand: () => number,
+export function taperedTube(path: THREE.Vector3[], r0: number, r1: number, radial: number, segs: number, rand: () => number,
   bump: number, colour: (t: number, b: number) => Col, flare = 0): THREE.BufferGeometry {
   const curve = new THREE.CatmullRomCurve3(path);
   const frames = curve.computeFrenetFrames(segs, false);
@@ -76,7 +76,7 @@ function taperedTube(path: THREE.Vector3[], r0: number, r1: number, radial: numb
       const b = s * radial + ((k + 1) % radial);
       const c = (s + 1) * radial + k;
       const d = (s + 1) * radial + ((k + 1) % radial);
-      idx.push(a, c, b, b, c, d);
+      idx.push(a, b, c, b, d, c);              // counter-clockwise seen from outside: faces point out
     }
   }
   // closed tip
@@ -84,7 +84,7 @@ function taperedTube(path: THREE.Vector3[], r0: number, r1: number, radial: numb
   const ti = verts.length / 3;
   verts.push(tip.x, tip.y, tip.z);
   bumps.push(1);
-  for (let k = 0; k < radial; k++) idx.push(segs * radial + k, ti, segs * radial + ((k + 1) % radial));
+  for (let k = 0; k < radial; k++) idx.push(segs * radial + k, segs * radial + ((k + 1) % radial), ti);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
   g.setIndex(idx);

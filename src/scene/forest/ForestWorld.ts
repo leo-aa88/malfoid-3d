@@ -101,7 +101,9 @@ export class ForestWorld {
     if (cfg.fadeBlockingTrees) addFade(this.treeNearMat);
     const leafMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     const glowMat = new THREE.MeshBasicMaterial({ color: '#6ff0d2', vertexColors: true });
-    this.mats.push(this.envMat, this.treeNearMat, leafMat, glowMat);
+    // grass blades are single triangles: visible from both sides
+    const grassMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: this.gradient, side: THREE.DoubleSide });
+    this.mats.push(this.envMat, this.treeNearMat, leafMat, glowMat, grassMat);
 
     // one slot (shared geometry + InstancedMesh) per shape
     for (let v = 0; v < TREE_VARIANTS; v++) {
@@ -115,7 +117,7 @@ export class ForestWorld {
     };
     for (const kind of Object.keys(PROP_VARIANTS) as PropKind[]) {
       for (let v = 0; v < PROP_VARIANTS[kind]; v++) {
-        const mat = kind === 'leaf' ? leafMat : kind === 'glowshroom' ? glowMat : this.envMat;
+        const mat = kind === 'leaf' ? leafMat : kind === 'glowshroom' ? glowMat : kind === 'grass' ? grassMat : this.envMat;
         this.addSlot(`prop:${kind}:${v}`, propGeo[kind](v), mat);
       }
     }

@@ -84,11 +84,11 @@ Things that follow the player:
   - the real controller ran Malfoid across a chunk border with Ginny's AI chasing
   - a fight on the x = −32 border landed 4 strikes, and Ginny went from 100 to 68 HP
 - **Long trip:** a 400 m walk in 2 m steps crossed 18 chunks.
-  - restreaming took a median of 4.5 ms per crossing (one spike of 39 ms)
-  - geometries (96), textures (31) and JS heap (61 MB) stayed constant
+  - restreaming took a median of 3.4 ms per crossing (one spike of 37 ms)
+  - geometries (96), textures (31) and JS heap (65 MB) stayed constant
   - the placement cache grew to 168 of its 400 limit
 - **Revisit:** back at the spawn, the trees nearby have identical positions and variants. The
-  screenshots differ by 0.38/255 on average, which is the moving fireflies and motes.
+  screenshots differ by 0.93/255 on average, which is the moving fireflies and motes.
 - **Rendering cost:** about 115 draw calls.
   - triangles: about 800k–850k in the woods, against 163k in the studio, which includes the
     characters' ~150k each
@@ -109,7 +109,10 @@ Things that follow the player:
   Ginny's AI, chasing with a tree straight in her way, slid round it and reached Malfoid in
   8 game seconds. Trees slow the AI but don't trap her; she has no path planning.
 - **Regression:** Training still uses the studio, all 8 combos land with the same damage, and
-  the 31 logic tests pass.
+  the 33 logic tests pass.
+- **Mesh winding:** trunks, branches, roots, logs and stumps were first built inside out, so the
+  near wall of every trunk was culled and they looked transparent. Fixed; a test now checks the
+  tube builder faces outwards, and all screenshots here were retaken after the fix.
 
 ## Quick tweaks
 | What | Where |
