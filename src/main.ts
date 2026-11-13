@@ -120,6 +120,7 @@ async function start(): Promise<void> {
       ginny.root.position.copy(malfoid.position).add(new THREE.Vector3(DUEL_DISTANCE, 0, 0));
       malfoid.setFacing(Math.PI / 2);
       ginny.setFacing(-Math.PI / 2);
+      cam.frame(malfoid.position, ginny.position);
       ginny.setExpression('confident', 1.5);
       hud.announce('DUEL!', 'duel');
     }
@@ -137,6 +138,7 @@ async function start(): Promise<void> {
   ginnyTarget.onDefeated = () => finish(malfoid);
 
   const input = new CharacterController(malfoid, combat);
+  input.viewYaw = () => cam.getYaw();
   input.onSpell = () => {
     if (!malfoid.hasWand) hud.flashStatusText('NO WAND', 'miss');
     else spells.cast(CONFRINGO);
@@ -233,7 +235,10 @@ async function start(): Promise<void> {
     hud.setFighters(malfoidTarget, ginnyTarget, duel ? ai.state : null);
     spellFx.setView(sm.camera, sm.renderer.domElement.height);
     ginnyFx.setView(sm.camera, sm.renderer.domElement.height);
-    cam.update(malfoid.position);
+    cam.update(malfoid.position, input.paused ? undefined : {
+      heading: malfoid.facingAngle, speed: malfoid.moveSpeed,
+      other: mode === 'duel' && !menuOpen ? ginny.position : null,
+    });
     sm.followShadow(malfoid.position);
     sm.render();
 

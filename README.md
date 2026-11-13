@@ -28,7 +28,7 @@ fight with her fists. **Change mode** in the HUD returns to the start screen. Se
 
 | Input | Action |
 |---|---|
-| W / A / S / D | walk away / towards / left / right (fixed to the starting view, so orbiting the camera doesn't steer her) |
+| W / A / S / D | walk away from / towards the camera, left / right on screen |
 | Shift + WASD | run |
 | Space | jump |
 | Left Ctrl | crouch (hold) |
@@ -41,7 +41,7 @@ fight with her fists. **Change mode** in the HUD returns to the start screen. Se
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
 | Esc | pause (click or Esc to resume) |
-| Left drag | orbit |
+| Left drag | orbit (the camera follows on its own: behind her as she moves, side-on to both fighters in a duel; a drag holds the view for a moment) |
 | Right drag | pan |
 | Wheel | zoom (towards the cursor) |
 | Reset Camera | restore the initial view |

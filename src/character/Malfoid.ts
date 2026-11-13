@@ -264,6 +264,11 @@ export class Malfoid {
     return this.wand.tip;
   }
 
+  /** ground speed (m/s) */
+  get moveSpeed(): number {
+    return this.speed;
+  }
+
   /** facing direction (rad, 0 = +z) */
   get facingAngle(): number {
     return this.facing;
