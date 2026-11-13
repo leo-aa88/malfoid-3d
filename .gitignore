@@ -175,7 +175,8 @@ tools/blender/malfoid/hair2.py
 /blueprint.png
 /facial_atlas.png
 /facial_atlas2.png
-public/sfx/
+# Windows download metadata (alternate-stream files copied over from WSL)
+*:Zone.Identifier
 
 # Ginny design references (kept local, like the Malfoid ones)
 /Ginny/
