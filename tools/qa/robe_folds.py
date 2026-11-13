@@ -25,7 +25,7 @@ fps = 30
 CLIPS = ['kick_high', 'kick_low', 'rising_kick', 'spin_kick', 'leg_sweep', 'walk', 'run', 'jump', 'crouch', 'turn',
          'idle_annoyed_start']
 # a character's own movement clips, when her model has them (Cho's dodges and Ventus)
-CLIPS += [c for c in ('dodge_left', 'dodge_right', 'dodge_back', 'cast_ventus', 'cho_idle') if c in bpy.data.actions]
+CLIPS += [c for c in ('dodge_left', 'dodge_right', 'dodge_back', 'cast_ventus', 'cho_idle', 'strafe') if c in bpy.data.actions]
 out = {'twin_gap_mm': round(gap * 1000, 2)}
 worst = {}
 for name in CLIPS:

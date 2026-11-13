@@ -82,6 +82,15 @@ hits, stagger, knockback, disarmed, wand pickup, the cast. Hers (`combat.EXTRA_C
 `dodge_back` (in place: the game moves her), `protego` (held, wand raised), `cast_quick`
 (Stupefy flick, release 0.20 s), `cast_ventus` (sweep and palm push, release 0.34 s).
 
+**Moving while facing Malfoid** (circling, backing off): the clip follows where she goes.
+Nearest forward or back: the walk (played reversed for back, so her legs step backwards);
+nearest her left or right: `strafe`, a duelling side-step (lead foot out, trail foot closes, the
+feet never cross; reversed for right; 0.64 m/s). The remaining angle, up to 45 degrees, turns her
+hips into the travel direction while the spine turns back, so her chest and head keep facing
+Malfoid. Measured in eight directions, the planted foot moves at 0-0.02 m/s (before: 0.9-1.2 m/s
+when circling or backing off on a diagonal, legs stepping forwards while she slid sideways). Only
+models with the `strafe` clip use this (Cho); Ginny moves as before.
+
 ## In the game
 
 - **Opponents as data** (`src/game/opponents.ts`): model, faces, spells, AI per difficulty,

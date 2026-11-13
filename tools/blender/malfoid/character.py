@@ -109,7 +109,8 @@ PROFILES = {
         },
         'crest': 'Cho_Crest.png',
         # her own clips (combat.EXTRA_CLIPS), built into her model only
-        'extra_clips': ('cho_idle', 'dodge_left', 'dodge_right', 'dodge_back', 'protego', 'cast_quick', 'cast_ventus'),
+        'extra_clips': ('cho_idle', 'dodge_left', 'dodge_right', 'dodge_back', 'protego', 'cast_quick', 'cast_ventus',
+                        'strafe'),
     },
 }
 

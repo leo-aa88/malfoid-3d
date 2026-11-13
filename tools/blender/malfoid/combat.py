@@ -590,6 +590,49 @@ def cast_ventus(sk, t):
     return spec
 
 
+# --- side-step walk (Cho circling her opponent while facing her)
+# A duelling-stance shuffle to her left: the lead (left) foot steps out, the trailing (right)
+# foot closes to it; the feet never cross. Played reversed it moves her right (the trail foot
+# leads). Feet land at phase 0 (left) and 0.5 (right), like the walk. In place: the game moves
+# her at STRAFE_SPEED.
+STRAFE_T = 0.5            # s per cycle (one step-together pair)
+STRAFE_STRIDE = 0.32      # m the body moves per cycle (STRAFE_SPEED = stride / T = 0.64 m/s)
+STRAFE_C = 0.145          # m: each foot's mean distance from her centre line (gap 13 cm, widest 45 cm)
+STRAFE_DUTY = 0.6         # stance fraction of a foot's cycle
+STRAFE_LIFT = 0.035       # m foot clearance in the swing
+
+
+def _strafe_foot(ph, sgn):
+    """x offset (m, + = her left) and lift of one foot; ph 0 = this foot lands"""
+    S, d = STRAFE_STRIDE, STRAFE_DUTY
+    land = sgn * STRAFE_C + 0.5 * d * S              # mean of its stance is at sgn * C
+    if ph < d:                                      # planted: moves with the ground (body moves +x)
+        return land - S * ph, 0.0
+    s = (ph - d) / (1 - d)                          # swing: back out to the landing spot
+    k = s * s * (3 - 2 * s)
+    return (land - S * d) + S * d * k, STRAFE_LIFT * sin(pi * s) ** 1.2
+
+
+def strafe(sk, t):
+    ph = (t / STRAFE_T) % 1.0
+    spec = A.idle_pose(0.0)
+    D = spec['D']
+    # weight shifts onto each foot as it takes the load; the hips dip as the feet come together
+    shift = 0.018 * sin(2 * pi * ph)
+    bob = -0.030 - 0.010 * cos(4 * pi * ph)
+    spec['t'] = Vector((shift, 0.0, bob))
+    D['hips'] = E(roll=2.5 * sin(2 * pi * ph), yaw=0.0, pitch=2.0)
+    D['spine'] = E(roll=-1.6 * sin(2 * pi * ph), pitch=2.0)
+    D['chest'] = E(roll=-0.8 * sin(2 * pi * ph))
+    D['head'] = E(roll=-0.6 * sin(2 * pi * ph))
+    A.arms_down(spec, swing_l=-2.0, swing_r=-2.0, add=22.0 + 3.0 * sin(2 * pi * ph), elbow=16.0)
+    for side, sgn, off in (('L', 1.0, 0.0), ('R', -1.0, 0.5)):
+        x, lift = _strafe_foot((ph - off) % 1.0, sgn)
+        # flat-footed side steps, toes turned out a little, knees soft and over the toes
+        spec['leg_' + side] = {'ankle': V(x, 0.0, rig.ANKLE_L.z + lift), 'foot': qz(sgn * 8.0), 'knee_out': 0.05}
+    return spec
+
+
 QUICK_RELEASE = 0.20    # s: Stupefy leaves the wand tip (viewer: STUPEFY.release)
 VENTUS_RELEASE = 0.34   # s: the gust leaves (viewer: VENTUS.release)
 EXTRA_CLIPS = {
@@ -600,12 +643,15 @@ EXTRA_CLIPS = {
     'protego': 0.22,       # held: the shield, wand raised
     'cast_quick': 0.45,    # Stupefy flick
     'cast_ventus': 0.70,   # Ventus sweep
+    'strafe': STRAFE_T,    # looping side-step to her left (reversed: to her right)
 }
 from .character import P as _P  # noqa: E402
 for _n in _P.get('extra_clips', ()):
     CLIPS[_n] = EXTRA_CLIPS[_n]
 if 'cho_idle' in CLIPS:
     LOOPING = LOOPING + ('cho_idle',)
+if 'strafe' in CLIPS:
+    LOOPING = LOOPING + ('strafe',)
 if 'protego' in CLIPS:
     HELD = HELD + ('protego',)
 
