@@ -24,6 +24,7 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
  * | K / I        | high / low kick            |
  * | O            | block (held)               |
  * | L            | cast Confringo             |
+ * | G            | start / stop a duel        |
  * | B            | dummy guard none/high/low  |
  * | N            | dummy in front of her      |
  * | Esc          | pause                      |
@@ -38,6 +39,8 @@ export class CharacterController {
   onDummyReset: (() => void) | null = null;
   /** spell keys (L: Confringo); called once per key press, never for auto-repeat */
   onSpell: ((spell: 'confringo') => void) | null = null;
+  /** start / stop a duel with Ginny */
+  onDuel: (() => void) | null = null;
 
   constructor(private readonly character: Malfoid, private readonly combat: ComboSystem) {
     window.addEventListener('keydown', (e) => {
@@ -55,6 +58,7 @@ export class CharacterController {
       if (attack) this.combat.press(attack);
       else if (e.code === 'Space') this.character.trigger('jump');
       else if (e.code === 'KeyL') this.onSpell?.('confringo');
+      else if (e.code === 'KeyG') this.onDuel?.();
       else if (e.code === 'KeyB') this.onDummyGuard?.();
       else if (e.code === 'KeyN') this.onDummyReset?.();
     });

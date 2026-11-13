@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CombatEvent } from '../combat/ComboSystem';
 import type { SpellEvent } from '../combat/spells/SpellSystem';
 import { DUMMY_MAX_HP, Guard } from '../combat/TrainingDummy';
+import type { FighterTarget } from '../combat/FighterTarget';
 
 /**
  * Combat overlay: "2 HIT COMBO" banner with the combo's name, damage numbers
@@ -18,6 +19,15 @@ export class CombatHud {
   private readonly spellState: HTMLElement;
   private readonly spellFill: HTMLElement;
   private spellShown = '';
+  private readonly duelBox: HTMLElement;
+  private readonly duelButton: HTMLButtonElement;
+  private readonly bars: { el: HTMLElement; fill: HTMLElement; text: HTMLElement; shown: number }[] = [];
+  private readonly aiText: HTMLElement;
+  private readonly announceEl = el('div', 'announce');
+  private announceTimer = 0;
+  onDuelButton: (() => void) | null = null;
+  onModeButton: (() => void) | null = null;
+  private readonly dummyBox: HTMLElement;
   private bannerTimer = 0;
   private hpShown = -1;
   private readonly v = new THREE.Vector3();
@@ -30,6 +40,7 @@ export class CombatHud {
       '<div class="hp"><div class="hp-fill"></div></div>' +
       '<div class="row"><span class="label">Guard</span><span class="guard"></span></div>';
     hud.append(box);
+    this.dummyBox = box;
     this.hpFill = box.querySelector('.hp-fill')!;
     this.hpText = box.querySelector('.hp-text')!;
     this.guardText = box.querySelector('.guard')!;
@@ -40,19 +51,85 @@ export class CombatHud {
     hud.append(this.spellBox);
     this.spellState = this.spellBox.querySelector('.spell-state')!;
     this.spellFill = this.spellBox.querySelector('.cd-fill')!;
+    // duel: both fighters' health, Ginny's state, start / stop
+    this.duelBox = el('div', 'duel-box');
+    this.duelBox.innerHTML =
+      '<div class="fighter"><div class="row"><span class="label">Malfoid</span><span class="hp-text"></span></div>' +
+      '<div class="hp"><div class="hp-fill"></div></div></div>' +
+      '<div class="fighter"><div class="row"><span class="label">Ginny</span><span class="hp-text"></span></div>' +
+      '<div class="hp"><div class="hp-fill ginny"></div></div></div>' +
+      '<div class="row"><span class="label">Ginny AI</span><span class="ai-state">waiting</span></div>' +
+      '<button class="duel-button" type="button">Restart duel [G]</button>';
+    hud.append(this.duelBox);
+    for (const f of this.duelBox.querySelectorAll<HTMLElement>('.fighter')) {
+      this.bars.push({ el: f, fill: f.querySelector('.hp-fill')!, text: f.querySelector('.hp-text')!, shown: -1 });
+    }
+    this.aiText = this.duelBox.querySelector('.ai-state')!;
+    this.duelButton = this.duelBox.querySelector('.duel-button')!;
+    this.duelButton.addEventListener('click', () => {
+      this.duelButton.blur();                          // keep the keys working
+      this.onDuelButton?.();
+    });
+    const mode = document.createElement('button');
+    mode.className = 'mode-button';
+    mode.type = 'button';
+    mode.textContent = 'Change mode';
+    mode.addEventListener('click', () => {
+      mode.blur();
+      this.onModeButton?.();
+    });
+    hud.append(mode);
+    document.body.append(this.announceEl);
   }
 
-  /** spell slot: name, key, seconds of cooldown left (0 = ready) out of total */
-  setSpell(name: string, key: string, left: number, total: number): void {
-    const ready = left <= 0;
-    const text = ready ? 'READY' : `${left.toFixed(1)}s`;
+  /** training shows the dummy's panel, the duel both fighters' health */
+  setMode(mode: 'training' | 'duel'): void {
+    this.dummyBox.hidden = mode !== 'training';
+    this.duelBox.hidden = mode !== 'duel';
+  }
+
+  setDuel(on: boolean): void {
+    this.duelBox.classList.toggle('on', on);
+  }
+
+  /** both fighters' health, and what Ginny's AI is doing (null: no duel) */
+  setFighters(a: FighterTarget, b: FighterTarget, aiState: string | null): void {
+    [a, b].forEach((f, i) => {
+      const bar = this.bars[i];
+      if (f.hp === bar.shown) return;
+      bar.shown = f.hp;
+      bar.fill.style.width = `${(100 * f.hp) / f.maxHp}%`;
+      bar.text.textContent = `${f.hp} / ${f.maxHp}`;
+    });
+    const t = aiState ?? 'waiting';
+    if (this.aiText.textContent !== t) this.aiText.textContent = t;
+  }
+
+  /** big centred text: DUEL!, DISARMED!, the winner */
+  announce(text: string, cls: string): void {
+    this.announceEl.textContent = text;
+    this.announceEl.className = 'announce ' + cls;
+    void this.announceEl.offsetWidth;
+    this.announceEl.classList.add('show');
+    this.announceTimer = 1.8;
+  }
+
+  /** short status line under the combo banner (NO WAND, MISS, ...) */
+  flashStatusText(text: string, cls: string): void {
+    this.flashStatus(text, cls);
+  }
+
+  /** spell slot: name, key, seconds of cooldown left (0 = ready) out of total; no wand: can't cast */
+  setSpell(name: string, key: string, left: number, total: number, hasWand = true): void {
+    const ready = left <= 0 && hasWand;
+    const text = !hasWand ? 'NO WAND' : ready ? 'READY' : `${left.toFixed(1)}s`;
     if (text === this.spellShown) return;
     if (!this.spellShown) this.spellBox.querySelector('.spell-name')!.textContent = `${name.toUpperCase()} [${key}]`;
     this.spellShown = text;
     this.spellState.textContent = text;
     this.spellBox.classList.toggle('ready', ready);
     this.spellBox.classList.toggle('cooling', !ready);
-    this.spellFill.style.width = `${ready ? 100 : (100 * (1 - left / total)).toFixed(1)}%`;
+    this.spellFill.style.width = `${ready ? 100 : !hasWand ? 0 : (100 * (1 - left / total)).toFixed(1)}%`;
   }
 
   /** damage numbers for spell hits (same pop-ups as melee) */
@@ -103,6 +180,10 @@ export class CombatHud {
   }
 
   update(dt: number): void {
+    if (this.announceTimer > 0) {
+      this.announceTimer -= dt;
+      if (this.announceTimer <= 0) this.announceEl.classList.remove('show');
+    }
     if (this.bannerTimer > 0) {
       this.bannerTimer -= dt;
       if (this.bannerTimer <= 0) this.banner.classList.remove('show');

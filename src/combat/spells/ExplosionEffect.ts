@@ -16,6 +16,9 @@ void main() {
 const FIRE_FRAG = /* glsl */ `
 uniform float uProgress;
 uniform float uTime;
+uniform vec3 uCold;
+uniform vec3 uHot;
+uniform vec3 uWhite;
 varying vec3 vNormal;
 varying vec3 vView;
 varying vec3 vPos;
@@ -35,8 +38,8 @@ void main() {
   float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
   float n = noise(vPos * 4.0 + vec3(0.0, -uTime * 4.0, 0.0)) * 0.65 + noise(vPos * 9.0 - uTime * 3.0) * 0.35;
   float heat = facing * 0.85 + n * 0.55 - uProgress * 1.05;
-  vec3 col = mix(vec3(0.65, 0.07, 0.0), vec3(1.0, 0.45, 0.06), smoothstep(0.0, 0.45, heat));
-  col = mix(col, vec3(1.0, 0.93, 0.68), smoothstep(0.5, 0.95, heat));
+  vec3 col = mix(uCold, uHot, smoothstep(0.0, 0.45, heat));
+  col = mix(col, uWhite, smoothstep(0.5, 0.95, heat));
   float a = smoothstep(-0.1, 0.35, heat) * (1.0 - uProgress) * (0.3 + 0.7 * facing);
   gl_FragColor = vec4(col, a);
 }`;
@@ -53,6 +56,11 @@ export interface ExplosionStyle {
   duration: number;         // s
   radius: number;           // m: the shockwave ring reaches this (the blast's reach)
   fireballRadius: number;   // m
+  sparks: number;           // particle count scale
+  fire: [THREE.Color, THREE.Color, THREE.Color];   // fireball shader: cold, hot, white-hot
+  flash: THREE.Color;
+  ring: THREE.Color;
+  tint: (r: number, g: number, b: number) => [number, number, number];
 }
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -74,18 +82,19 @@ export class ExplosionEffect {
 
   constructor(assets: ExplosionAssets, private readonly style: ExplosionStyle) {
     this.flashMat = new THREE.SpriteMaterial({
-      map: assets.glow, color: new THREE.Color(1.0, 0.85, 0.6), blending: THREE.AdditiveBlending,
+      map: assets.glow, color: style.flash, blending: THREE.AdditiveBlending,
       depthWrite: false, transparent: true,
     });
     this.flash = new THREE.Sprite(this.flashMat);
     this.fireMat = new THREE.ShaderMaterial({
       vertexShader: FIRE_VERT, fragmentShader: FIRE_FRAG,
-      uniforms: { uProgress: { value: 0 }, uTime: { value: 0 } },
+      uniforms: { uProgress: { value: 0 }, uTime: { value: 0 }, uCold: { value: style.fire[0] }, uHot: { value: style.fire[1] },
+        uWhite: { value: style.fire[2] } },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     });
     this.fireball = new THREE.Mesh(assets.sphere, this.fireMat);
     this.ringMat = new THREE.MeshBasicMaterial({
-      map: assets.ring, color: new THREE.Color(1.0, 0.55, 0.15), blending: THREE.AdditiveBlending,
+      map: assets.ring, color: style.ring, blending: THREE.AdditiveBlending,
       depthWrite: false, transparent: true, side: THREE.DoubleSide,
     });
     this.ring = new THREE.Mesh(assets.plane, this.ringMat);
@@ -114,24 +123,26 @@ export class ExplosionEffect {
     this.group.visible = true;
     this.apply();
     // sparks: fast, fall
-    for (let i = 0; i < 70; i++) {
+    const S = this.style.sparks;
+    const c = (r: number, g: number, b: number) => { const [R, G, B] = this.style.tint(r, g, b); return { r: R, g: G, b: B }; };
+    for (let i = 0; i < 70 * S; i++) {
       const v = randomDir().multiplyScalar(rand(3, 7.5)).addScaledVector(dir, -1.5);
       const w = Math.random();
-      particles.spawn({ x: at.x, y: at.y, z: at.z, vx: v.x, vy: v.y + 1.2, vz: v.z, r: 1, g: 0.75 + 0.25 * w, b: 0.35 + 0.4 * w,
+      particles.spawn({ x: at.x, y: at.y, z: at.z, vx: v.x, vy: v.y + 1.2, vz: v.z, ...c(1, 0.75 + 0.25 * w, 0.35 + 0.4 * w),
         size: rand(0.04, 0.08), sizeEnd: 0.01, life: rand(0.35, 0.7), drag: 1.6, gravity: -9.8 });
     }
     // flames: puff outwards and upwards, slow down
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < 46 * S; i++) {
       const v = randomDir().multiplyScalar(rand(0.8, 2.6));
       const hot = Math.random();
-      particles.spawn({ x: at.x, y: at.y, z: at.z, vx: v.x, vy: v.y + 0.6, vz: v.z, r: 1, g: 0.25 + 0.4 * hot, b: 0.04 + 0.08 * hot,
+      particles.spawn({ x: at.x, y: at.y, z: at.z, vx: v.x, vy: v.y + 0.6, vz: v.z, ...c(1, 0.25 + 0.4 * hot, 0.04 + 0.08 * hot),
         size: rand(0.35, 0.6), sizeEnd: 0.12, life: rand(0.3, 0.55), drag: 3.5, gravity: 1.5, alpha: 0.8 });
     }
     // embers: drift up and linger a little
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < 28 * S; i++) {
       const v = randomDir().multiplyScalar(rand(0.3, 1.2));
       particles.spawn({ x: at.x + v.x * 0.3, y: at.y + v.y * 0.3, z: at.z + v.z * 0.3, vx: v.x, vy: Math.abs(v.y) + rand(0.4, 1.1), vz: v.z,
-        r: 1, g: rand(0.35, 0.6), b: 0.08, size: rand(0.03, 0.06), sizeEnd: 0.015, life: rand(0.8, 1.5), drag: 1.2, gravity: 0.35 });
+        ...c(1, rand(0.35, 0.6), 0.08), size: rand(0.03, 0.06), sizeEnd: 0.015, life: rand(0.8, 1.5), drag: 1.2, gravity: 0.35 });
     }
   }
 

@@ -2,14 +2,17 @@ import * as THREE from 'three';
 import { MOVE_CLIPS, MoveId } from '../combat/moves';
 import { SPELL_CLIPS, SpellClip } from '../combat/spells/clips';
 
-export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed';
+export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident';
 /** one-shot movement: plays once, then hands control back to locomotion */
 export type ActionState = 'jump';
 /** held poses: play once and stay in the last frame while the key is down */
-export type HoldState = 'crouch' | 'block';
+export type HoldState = 'crouch' | 'block' | 'wand_ready';
+/** reactions: one-shot, timed by the character (hit, disarmed, picking the wand up) */
+export type ReactionState = 'hit' | 'stagger' | 'knockback' | 'disarmed' | 'pickup';
+export const REACTION_CLIPS: ReactionState[] = ['hit', 'stagger', 'knockback', 'disarmed', 'pickup'];
 /** strikes (driven by the combo system) */
 export type StrikeState = MoveId | SpellClip;
-export type AnimationState = LocomotionState | ActionState | HoldState | StrikeState;
+export type AnimationState = LocomotionState | ActionState | HoldState | StrikeState | ReactionState;
 
 const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   idle: 0.45,
@@ -17,14 +20,17 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   run: 0.25,
   turn: 0.25,
   idle_annoyed: 0.6,
+  confident: 0.45,
   jump: 0.08,
   crouch: 0.12,
   block: 0.08,
+  wand_ready: 0.12,
 };
 
 const STRIKE_FADE = 0.08;
 const LOOPS_WARP = new Set(['walk', 'run']);
-const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', ...MOVE_CLIPS, ...SPELL_CLIPS]);
+const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', 'wand_ready', ...MOVE_CLIPS, ...SPELL_CLIPS,
+  ...REACTION_CLIPS]);
 const ACTIONS = new Set<string>(['jump']);
 
 /**
@@ -68,6 +74,11 @@ export class AnimationController {
 
   has(clip: string): boolean {
     return this.actions.has(clip);
+  }
+
+  /** clip length in seconds (0 if the model has no such clip) */
+  duration(clip: string): number {
+    return this.actions.get(clip)?.getClip().duration ?? 0;
   }
 
   play(state: AnimationState, fade = fadeOf(state)): void {

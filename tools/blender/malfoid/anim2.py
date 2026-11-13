@@ -576,7 +576,7 @@ def _combat_clips(sk):
 
 def _one_shot():
     from . import combat
-    return ('idle_annoyed_start',) + tuple(combat.CLIPS)
+    return ('idle_annoyed_start',) + tuple(c for c in combat.CLIPS if c not in combat.LOOPING)
 
 
 FINGERS = ('index', 'middle', 'ring', 'pinky', 'thumb')

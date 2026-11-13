@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CombatTarget, HitReport } from '../CombatTarget';
-import type { Height } from '../moves';
+import type { Height, HitEffect } from '../moves';
 import type { SpellClip } from './clips';
 import { distanceToBounds, splashDamage, sweepBox } from './collision';
 import type { SpellEmitter } from './SpellEmitter';
@@ -27,6 +27,10 @@ export interface SpellDef {
   /** aim assist at the release: targets within this angle of her facing (rad) and range (m) */
   aimAngle: number;
   aimRange: number;
+  /** reaction of a directly hit target ('knockback' by default) */
+  hitEffect?: HitEffect;
+  /** a direct hit knocks the target's wand away (Expelliarmus) */
+  disarms?: boolean;
 }
 
 /** the caster as the spell system sees it (Malfoid) */
@@ -35,6 +39,8 @@ export interface Caster {
   readonly facingAngle: number;
   /** free to start an attack (not jumping, crouching, blocking, already casting) */
   readonly canStrike: boolean;
+  /** has a wand to cast with (true if omitted) */
+  readonly hasWand?: boolean;
   /** set while a spell is being cast, until its release: no melee meanwhile */
   castLock: boolean;
   readonly currentStrike: string | null;
@@ -68,7 +74,7 @@ export type SpellEvent =
   | { type: 'release'; spell: SpellDef }
   | { type: 'cancel'; spell: SpellDef }
   | { type: 'impact'; spell: SpellDef; kind: Impact['kind']; at: THREE.Vector3 }
-  | { type: 'hit'; spell: SpellDef; target: CombatTarget; direct: boolean; report: HitReport; at: THREE.Vector3 };
+  | { type: 'hit'; spell: SpellDef; target: CombatTarget; direct: boolean; report: HitReport; at: THREE.Vector3; disarmed?: boolean };
 
 interface Casting {
   def: SpellDef;
@@ -134,7 +140,8 @@ export class SpellSystem {
   }
 
   canCast(def: SpellDef): boolean {
-    return !this.casting && this.cooldownLeft(def) <= 0 && this.caster.canStrike && !this.meleeBusy();
+    return !this.casting && this.cooldownLeft(def) <= 0 && this.caster.canStrike && this.caster.hasWand !== false
+      && !this.meleeBusy();
   }
 
   /** returns true if the cast started */
@@ -288,9 +295,10 @@ export class SpellSystem {
       if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
       dir.normalize();
       const report = t.takeHit({
-        damage: def.directDamage, height: heightAt(at, t), effect: 'knockback', dir, knockback: def.directKnockback,
+        damage: def.directDamage, height: heightAt(at, t), effect: def.hitEffect ?? 'knockback', dir, knockback: def.directKnockback,
       });
-      this.emit({ type: 'hit', spell: def, target: t, direct: true, report, at: at.clone() });
+      const disarmed = def.disarms && report.result === 'hit' && t.disarm ? t.disarm(dir) : false;
+      this.emit({ type: 'hit', spell: def, target: t, direct: true, report, at: at.clone(), disarmed });
     }
     // splash: everyone else inside the blast and not shielded by a wall, once each
     for (const t of this.world.targets) {

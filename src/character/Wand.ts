@@ -60,6 +60,9 @@ function gradient(): THREE.DataTexture {
   return tex;
 }
 
+/** walking within this distance of a dropped wand picks it up (m); shown as a ring round it */
+export const WAND_PICKUP_RADIUS = 0.6;
+const GRAVITY = 9.8;
 const DRAW_TIME = 0.12;                // s: out of the sleeve into the hand
 const STOW_TIME = 0.1;                 // s: back up the sleeve (gone as the fists come up)
 const SLEEVE = 0.3;                    // m: how far up the forearm it rests when stowed
@@ -69,6 +72,8 @@ const SLEEVE = 0.3;                    // m: how far up the forearm it rests whe
  * stow() slides it back (she switches to her fists); hidden while stowed. Spells leave from
  * its tip.
  */
+export type WandState = 'hand' | 'flying' | 'dropped';
+
 export class Wand {
   readonly group = new THREE.Group();
   /** spells leave from here (rides on the wand, so it follows it as it is drawn) */
@@ -76,8 +81,16 @@ export class Wand {
   private readonly model = new THREE.Group();
   private out = 0;                      // 0 stowed .. 1 in the hand
   private want = 0;
+  /** in her hand (or sleeve), flying through the air, or lying on the floor */
+  state: WandState = 'hand';
+  private readonly mount = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), scale: new THREE.Vector3() };
+  private readonly vel = new THREE.Vector3();
+  private readonly spinAxis = new THREE.Vector3();
+  private spin = 0;
+  private readonly ring: THREE.Mesh;
+  private ringTime = 0;
 
-  constructor(hand: THREE.Bone) {
+  constructor(private readonly hand: THREE.Bone) {
     const f = handFrame(hand, 'R');
     const body = new THREE.Mesh(lathe(0), new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradient() }));
     const outline = new THREE.Mesh(lathe(OUTLINE), new THREE.MeshBasicMaterial({ color: '#1a0f08', side: THREE.BackSide }));
@@ -94,6 +107,51 @@ export class Wand {
     this.group.scale.setScalar(f.unit);
     hand.add(this.group);
     this.tip = new BoneEmitter(this.model, new THREE.Vector3(0, WAND_LENGTH + 0.012, 0), new THREE.Vector3(0, 1, 0));
+    this.mount.position.copy(this.group.position);
+    this.mount.quaternion.copy(this.group.quaternion);
+    this.mount.scale.copy(this.group.scale);
+    // pickup ring (shown round the wand while it lies on the floor)
+    this.ring = new THREE.Mesh(new THREE.RingGeometry(WAND_PICKUP_RADIUS - 0.035, WAND_PICKUP_RADIUS, 48),
+      new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }));
+    this.ring.rotation.x = -Math.PI / 2;
+    this.ring.name = 'wand_pickup_ring';
+    this.ring.renderOrder = 5;
+    this.ring.visible = false;
+    this.apply();
+  }
+
+  /** world position of the wand (where it lies when dropped) */
+  getWorldPosition(out: THREE.Vector3): THREE.Vector3 {
+    return this.group.getWorldPosition(out);
+  }
+
+  /**
+   * Knocked out of her hand (Expelliarmus): it leaves the hand as a scene object and flies
+   * along dir (horizontal unit vector) with a lift and a spin, then falls to the floor.
+   */
+  knockAway(scene: THREE.Scene, dir: THREE.Vector3, speed = 3.0, lift = 3.2): void {
+    if (this.state !== 'hand') return;
+    this.out = this.want = 1;
+    this.apply();
+    scene.attach(this.group);                       // keeps its world transform
+    this.state = 'flying';
+    this.vel.copy(dir).setY(0).normalize().multiplyScalar(speed);
+    this.vel.y = lift;
+    this.spinAxis.set(dir.z, 0, -dir.x).normalize();
+    this.spin = 14;                                  // rad/s, end over end
+    if (!this.ring.parent) scene.add(this.ring);
+  }
+
+  /** back into her hand (she picked it up) */
+  retrieve(): void {
+    if (this.state === 'hand') return;
+    this.hand.attach(this.group);
+    this.group.position.copy(this.mount.position);
+    this.group.quaternion.copy(this.mount.quaternion);
+    this.group.scale.copy(this.mount.scale);
+    this.state = 'hand';
+    this.out = this.want = 1;
+    this.ring.visible = false;
     this.apply();
   }
 
@@ -111,17 +169,44 @@ export class Wand {
   }
 
   update(dt: number): void {
-    if (this.out === this.want) return;
+    if (this.state === 'flying') this.fly(dt);
+    if (this.state === 'dropped') {
+      this.ringTime += dt;
+      (this.ring.material as THREE.MeshBasicMaterial).opacity = 0.45 + 0.25 * Math.sin(this.ringTime * 5);
+    }
+    if (this.state !== 'hand' || this.out === this.want) return;
     const step = dt / (this.want > this.out ? DRAW_TIME : STOW_TIME);
     this.out = this.want > this.out ? Math.min(this.want, this.out + step) : Math.max(this.want, this.out - step);
     this.apply();
+  }
+
+  private fly(dt: number): void {
+    const g = this.group;
+    this.vel.y -= GRAVITY * dt;
+    g.position.addScaledVector(this.vel, dt);
+    g.rotateOnWorldAxis(this.spinAxis, this.spin * dt);
+    // lands when it reaches the floor: lies flat along its length, a little above it
+    const floor = 0.012;
+    if (g.position.y <= floor + 0.02 && this.vel.y < 0) {
+      g.position.y = floor;
+      const along = new THREE.Vector3(0, 1, 0).applyQuaternion(g.quaternion).setY(0);
+      if (along.lengthSq() < 1e-6) along.set(1, 0, 0);
+      along.normalize();
+      g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), along);
+      // centre of the wand on the floor, not its grip point
+      g.position.addScaledVector(along, (WAND_LENGTH / 2 - BUTT) * g.scale.y);
+      this.state = 'dropped';
+      this.ringTime = 0;
+      this.ring.position.set(g.position.x, 0.006, g.position.z);
+      this.ring.visible = true;
+    }
   }
 
   private apply(): void {
     const k = this.out * this.out * (3 - 2 * this.out);
     // slides along the forearm: from inside the sleeve (behind the wrist) to the grip
     this.model.position.y = -BUTT - SLEEVE * (1 - k);
-    this.group.visible = this.out > 0.001;
+    this.group.visible = this.state !== 'hand' || this.out > 0.001;
   }
 }
 

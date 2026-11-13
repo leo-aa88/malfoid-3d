@@ -20,6 +20,13 @@
   "spin_kick": 0.95,
   "rising_kick": 0.85,
   "cast_confringo": 0.65,
+  "hit": 0.4,
+  "stagger": 0.75,
+  "knockback": 0.95,
+  "disarmed": 0.85,
+  "pickup": 0.95,
+  "wand_ready": 0.3,
+  "confident": 8.0,
   "jump": 0.95,
   "block": 0.22,
   "crouch": 0.3

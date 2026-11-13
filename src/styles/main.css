@@ -82,3 +82,38 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 /* white with a thick dark outline: readable over the explosion */
 .popup.spell { color: #fff; -webkit-text-stroke: 2px #4a1400; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9); }
 .popup.spell.heavy { font-size: 32px; }
+
+/* --- duel ------------------------------------------------------------------- */
+#hud .duel-box { margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+#hud .duel-box .fighter { margin-bottom: 4px; }
+#hud .duel-box .hp-fill { background: #3fa36b; }
+#hud .duel-box .hp-fill.ginny { background: #c7492a; }
+#hud .duel-box .ai-state { font-variant-numeric: tabular-nums; color: #ffb35c; }
+#hud .duel-box:not(.on) .ai-state { opacity: 0.55; }
+#hud .duel-button { background: #7a1f2b; }
+#hud .duel-button:hover { background: #932a37; }
+.announce {
+  position: fixed; top: 34%; left: 50%; transform: translateX(-50%); pointer-events: none; opacity: 0;
+  font: 900 46px/1 system-ui, sans-serif; letter-spacing: 0.08em; color: #fff; white-space: nowrap;
+  -webkit-text-stroke: 2px #3a0c10; text-shadow: 0 3px 0 #3a0c10, 0 0 22px rgba(255, 80, 60, 0.6);
+}
+.announce.show { animation: combo-in 1.8s ease-out forwards; }
+.announce.disarm { color: #ff8a80; }
+.announce.win { color: #ffe37a; }
+
+/* --- mode select ------------------------------------------------------------- */
+#mode { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(15, 18, 24, 0.55); }
+#mode[hidden] { display: none; }
+#mode .box { padding: 22px 30px; background: rgba(20, 24, 30, 0.88); border-radius: 12px; text-align: center; min-width: 260px; }
+#mode .big { font-size: 28px; font-weight: 700; letter-spacing: 0.08em; color: #9fe0bb; }
+#mode .sub { margin: 4px 0 14px; opacity: 0.75; }
+#mode button {
+  display: block; width: 100%; margin-top: 10px; padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer;
+  background: #2a6b4c; color: #fff; font: inherit; text-align: left;
+}
+#mode button[data-mode="duel"] { background: #7a1f2b; }
+#mode button:hover { filter: brightness(1.15); }
+#mode button b { display: block; font-size: 16px; }
+#mode button span { opacity: 0.8; font-size: 12px; }
+#hud .mode-button { background: #3b4252; }
+#hud [hidden] { display: none !important; }

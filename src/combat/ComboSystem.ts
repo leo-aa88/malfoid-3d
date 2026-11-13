@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import type { Malfoid } from '../character/Malfoid';
-import type { TrainingDummy, HitResult } from './TrainingDummy';
-import { DUMMY_RADIUS } from './TrainingDummy';
+import type { CombatTarget, HitBounds, HitResult } from './CombatTarget';
+import { emptyBounds } from './CombatTarget';
 import {
   AttackButton, Combo, COMBOS, COMBO_WINDOW, AUTO_FACE_ANGLE, AUTO_FACE_RANGE, MAX_SPACING_STEP, Move, MOVES, OPENERS,
 } from './moves';
 
 /** what happened, for the HUD */
 export type CombatEvent =
-  | { type: 'strike'; move: Move; result: HitResult; damage: number; ko: boolean; at: THREE.Vector3 }
+  | { type: 'strike'; move: Move; result: HitResult; damage: number; ko: boolean; at: THREE.Vector3; target: CombatTarget }
   | { type: 'whiff'; move: Move }
   | { type: 'combo'; hits: number; combo: Combo }
   | { type: 'broken'; reason: 'blocked' | 'missed' }
@@ -60,8 +60,15 @@ export class ComboSystem {
 
   private readonly tmp = new THREE.Vector3();
   private readonly dir = new THREE.Vector3();
+  private readonly b: HitBounds = emptyBounds();
+  /** the opponent this strike is aimed at (auto-facing, spacing) */
+  private focus: CombatTarget | null = null;
 
-  constructor(private readonly malfoid: Malfoid, private readonly dummy: TrainingDummy) {}
+  /**
+   * attacker: the character striking (Malfoid, or Ginny driven by her AI);
+   * targets: who her strikes can hit (the dummy, an opponent), asked each time
+   */
+  constructor(private readonly malfoid: Malfoid, private readonly targets: () => readonly CombatTarget[]) {}
 
   get busy(): boolean {
     return this.running !== null;
@@ -114,45 +121,91 @@ export class ComboSystem {
     if (this.autoFace()) this.running.spot = this.spacing(move);
   }
 
-  /** turn towards the dummy if it is roughly in front of her; true if she does */
-  private autoFace(): boolean {
-    if (!this.dummy.vulnerable) return false;
+  /** the opponent nearest to her facing within the auto-facing angle and range */
+  private pickFocus(): CombatTarget | null {
     const p = this.malfoid.position;
-    const d = this.tmp.subVectors(this.dummy.position, p);
-    d.y = 0;
-    if (d.length() > AUTO_FACE_RANGE) return false;
-    const want = Math.atan2(d.x, d.z);
     const f = this.malfoid.facingAngle;
-    const diff = Math.atan2(Math.sin(want - f), Math.cos(want - f));
-    if (Math.abs(diff) > AUTO_FACE_ANGLE) return false;
-    this.malfoid.faceToward(want);
+    let best: CombatTarget | null = null;
+    let score = Infinity;
+    for (const t of this.targets()) {
+      if (!t.targetable) continue;
+      t.getBounds(this.b);
+      const dx = this.b.x - p.x;
+      const dz = this.b.z - p.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > AUTO_FACE_RANGE) continue;
+      const diff = Math.abs(Math.atan2(Math.sin(Math.atan2(dx, dz) - f), Math.cos(Math.atan2(dx, dz) - f)));
+      if (diff > AUTO_FACE_ANGLE) continue;
+      const sc = dist + diff * 0.8;
+      if (sc < score) {
+        score = sc;
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  /** turn towards the opponent if it is roughly in front of her; true if she does */
+  private autoFace(): boolean {
+    this.focus = this.pickFocus();
+    if (!this.focus) return false;
+    this.focus.getBounds(this.b);
+    this.malfoid.faceToward(Math.atan2(this.b.x - this.malfoid.position.x, this.b.z - this.malfoid.position.z));
     return true;
   }
 
-  /** the spot at the move's range from the dummy, along the line to her (limited step) */
+  /** the spot at the move's range from the opponent, along the line to her (limited step) */
   private spacing(move: Move): THREE.Vector3 {
     const p = this.malfoid.position;
-    const d = this.tmp.subVectors(p, this.dummy.position).setY(0);
+    this.focus!.getBounds(this.b);
+    const c = new THREE.Vector3(this.b.x, p.y, this.b.z);
+    const d = this.tmp.subVectors(p, c).setY(0);
     const dist = d.length();
-    const want = THREE.MathUtils.clamp(move.range, dist - MAX_SPACING_STEP, dist + MAX_SPACING_STEP);
-    return this.dummy.position.clone().setY(p.y).addScaledVector(d.normalize(), want);
+    // move ranges are for the dummy's radius: keep the same gap to a wider target
+    const range = move.range + Math.max(0, this.b.radius - 0.16);
+    const want = THREE.MathUtils.clamp(range, dist - MAX_SPACING_STEP, dist + MAX_SPACING_STEP);
+    return c.addScaledVector(d.normalize(), want);
   }
 
-  /** is the dummy inside the strike's hitbox (relative to her position and facing)? */
-  private inHitbox(move: Move): boolean {
+  /** the nearest target inside the strike's hitbox (relative to her position and facing) */
+  private inHitbox(move: Move): CombatTarget | null {
     const p = this.malfoid.position;
-    const d = this.tmp.subVectors(this.dummy.position, p);
-    d.y = 0;
     const f = this.malfoid.facingAngle;
-    const fwd = d.x * Math.sin(f) + d.z * Math.cos(f);
-    const side = d.x * Math.cos(f) - d.z * Math.sin(f);
-    return fwd > 0 && fwd - DUMMY_RADIUS <= move.reach && Math.abs(side) <= move.width + DUMMY_RADIUS;
+    let best: CombatTarget | null = null;
+    let bestFwd = Infinity;
+    for (const t of this.targets()) {
+      if (!t.targetable) continue;
+      t.getBounds(this.b);
+      const dx = this.b.x - p.x;
+      const dz = this.b.z - p.z;
+      const fwd = dx * Math.sin(f) + dz * Math.cos(f);
+      const side = dx * Math.cos(f) - dz * Math.sin(f);
+      if (fwd > 0 && fwd - this.b.radius <= move.reach && Math.abs(side) <= move.width + this.b.radius && fwd < bestFwd) {
+        bestFwd = fwd;
+        best = t;
+      }
+    }
+    return best;
+  }
+
+  /** stop the current strike (she was hit): no hit, no combo, no queued press */
+  interrupt(): void {
+    if (!this.running) return;
+    this.running = null;
+    this.buffered = null;
+    this.linkWindow = null;
+    this.setVulnerable(false);
   }
 
   update(dt: number): void {
     this.clock += dt;
     const r = this.running;
     if (!r) return;
+    // something else took over her body (a hit reaction): the strike is cancelled
+    if (this.malfoid.currentStrike !== r.move.id) {
+      this.interrupt();
+      return;
+    }
     const m = r.move;
     r.t += dt * r.rate;
 
@@ -166,12 +219,14 @@ export class ComboSystem {
 
     // active frames: connect once
     if (r.outcome === 'pending' && r.t >= m.active[0]) {
-      if (this.inHitbox(m) && this.dummy.vulnerable) {
-        this.dir.subVectors(this.dummy.position, this.malfoid.position).setY(0).normalize();
-        const res = this.dummy.receive(m.damage, m.height, m.effect, this.dir);
+      const target = this.inHitbox(m);
+      if (target) {
+        target.getBounds(this.b);
+        this.dir.set(this.b.x - this.malfoid.position.x, 0, this.b.z - this.malfoid.position.z).normalize();
+        const res = target.takeHit({ damage: m.damage, height: m.height, effect: m.effect, dir: this.dir });
         r.outcome = res.result === 'hit' ? 'hit' : res.result === 'blocked' ? 'blocked' : 'missed';
-        const at = this.dummy.position.clone().setY(m.height === 'high' ? 1.55 : 1.0);
-        this.emit({ type: 'strike', move: m, result: res.result, damage: res.damage, ko: res.ko, at });
+        const at = new THREE.Vector3(this.b.x, m.height === 'high' ? 1.55 : 1.0, this.b.z);
+        this.emit({ type: 'strike', move: m, result: res.result, damage: res.damage, ko: res.ko, at, target });
         if (r.combo && r.openerHit && r.outcome === 'hit') this.emit({ type: 'combo', hits: 2, combo: r.combo });
       } else if (r.t >= m.active[1]) {
         r.outcome = 'missed';

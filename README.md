@@ -14,6 +14,16 @@ npm run dev
 Then open the URL Vite prints (usually http://localhost:5173). `npm run build` produces a static
 site in `dist/`.
 
+## Modes
+
+The start screen offers **Training**, with the dummy only, and **Duel**, against Ginny Weasley,
+an AI-controlled opponent.
+
+In a duel, Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her hand, and
+the wand lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only
+fight with her fists. **Change mode** in the HUD returns to the start screen. See
+`docs/ginny/REPORT.md` for details.
+
 ## Controls
 
 | Input | Action |
@@ -26,7 +36,8 @@ site in `dist/`.
 | K / I | high / low kick (roundhouse / shin kick) |
 | two strike keys quickly | combo (see below) |
 | O | block (hold) |
-| L | cast Confringo (5 s cooldown) |
+| L | cast Confringo (5 s cooldown; needs the wand) |
+| G | restart the duel (duel mode) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
 | Esc | pause (click or Esc to resume) |
@@ -104,7 +115,11 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/moves.ts` – strikes (timing, damage, hitbox, effect) and the combo table.
 - `combat/ComboSystem.ts` – input buffer, cancel windows, hit / block / miss, auto-facing.
 - `combat/TrainingDummy.ts` – the opponent: HP, guard, flinch / stagger / knockback / knockdown.
-- `combat/CombatTarget.ts` – what any attack hits (the dummy now, opponents later).
+- `combat/CombatTarget.ts` – what any attack hits; `FighterTarget.ts` – a character as a target
+  (health, blocking, reactions, disarm, defeat).
+- `combat/ai/FighterAI.ts` – Ginny's behaviour (observe, approach, retreat, block, strike, cast).
+- `combat/spells/Expelliarmus.ts` – Ginny's disarming spell.
+- `character/faces.ts` – Ginny's expressions.
 - `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
   `Confringo.ts` (tuning), `Projectile.ts` + `collision.ts` (swept collision: no tunnelling),
   `SpellEmitter.ts` (where spells leave from: the wand tip),
@@ -128,6 +143,7 @@ override with `BLENDER=...`).
 
 ```bash
 make model        # textures + build/malfoid.blend + public/models/malfoid.glb
+make ginny        # Ginny: build/ginny.blend + public/models/ginny.glb (MF_CHAR=ginny)
 make help         # all targets (renders, dev, build, clean, ...)
 ```
 
@@ -138,6 +154,9 @@ Blender runs with 4 threads (`-t 4`).
 - `textures/make_textures.py` – skin and face texture from the base mesh: pale skin preset, green
   irises, blonde brows, black lashes, blush and nose mark removed, scalp painted the hair's root tone.
 - `textures/make_crest.py` – the Slytherin crest painted for the robe.
+- `blender/malfoid/character.py` – everything that differs between Malfoid and Ginny (textures,
+  face, hair, uniform colours, crest). Malfoid's profile reproduces her model bit for bit.
+- `textures/make_crest_gryffindor.py` – Ginny's Gryffindor crest.
 - `blender/build_head.py` – the build, in stages: face expression → hair + earrings → humanoid
   skeleton → uniform → animations → GLB export.
 - `blender/malfoid/face.py` – resting expression (shape-key values) and the added face shape keys.
