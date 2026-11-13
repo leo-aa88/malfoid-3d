@@ -24,7 +24,8 @@ export const FOREST_CONFIG = {
   fogColor: '#253041',
   rocksEnabled: true,
   particlesEnabled: true,
-  /** trunks push the fighters out (no walking through trees); branches never collide */
+  /** trees (the flared trunk), big rocks, stumps and fallen logs are solid; roots, grass, bushes,
+   *  leaves and mushrooms stay walk-through (shapes in colliders.ts) */
   collisionEnabled: true,
   /** spells explode on trunks near the fighters */
   spellsHitTrees: true,

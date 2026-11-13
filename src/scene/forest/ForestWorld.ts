@@ -6,6 +6,7 @@ import {
 } from './geometry';
 import { ChunkData, clearingAt, generateChunk, PropKind, PROP_VARIANTS, TREE_VARIANTS, TreeInst } from './placement';
 import { fbm, smoothstep } from './random';
+import { chunkColliders, Collider, pushOut } from './colliders';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /*
@@ -69,6 +70,8 @@ export class ForestWorld {
   readonly stats = { chunks: 0, trees: 0, props: 0, rebuildMs: 0, groundMs: 0, rebuilds: 0, cached: 0 };
 
   private readonly cache = new Map<string, ChunkData>();
+  private readonly colliderCache = new Map<ChunkData, Collider[]>();
+  private readonly near: Collider[] = [];
   private readonly slots = new Map<string, Slot>();
   private readonly ground: THREE.Mesh;
   private readonly groundGeo: THREE.PlaneGeometry;
@@ -179,7 +182,11 @@ export class ForestWorld {
     }
     c = generateChunk(cx, cz, this.cfg);
     this.cache.set(key, c);
-    if (this.cache.size > CACHE_LIMIT) this.cache.delete(this.cache.keys().next().value!);
+    if (this.cache.size > CACHE_LIMIT) {
+      const old = this.cache.keys().next().value!;
+      this.colliderCache.delete(this.cache.get(old)!);
+      this.cache.delete(old);
+    }
     this.stats.cached = this.cache.size;
     return c;
   }
@@ -412,27 +419,42 @@ export class ForestWorld {
     }
   }
 
-  /** push a body (feet at pos, radius r) out of any tree trunk; slides round it */
+  /** a chunk's solid shapes: tree feet, big rocks, stumps, logs (cached with the chunk) */
+  colliders(cx: number, cz: number): Collider[] {
+    const c = this.chunk(cx, cz);
+    let list = this.colliderCache.get(c);
+    if (!list) {
+      list = chunkColliders(c);
+      this.colliderCache.set(c, list);
+    }
+    return list;
+  }
+
+  /**
+   * Push a body (feet at pos, radius r) out of trunks, big rocks, stumps and logs; it slides
+   * round them. Chunks are generated on demand, so a fighter far from the player still collides.
+   */
   resolve(pos: THREE.Vector3, r: number): void {
     if (!this.active || !this.cfg.collisionEnabled) return;
     const S = this.cfg.chunkSize;
     const cx = Math.floor(pos.x / S);
     const cz = Math.floor(pos.z / S);
+    const near = this.near;
+    near.length = 0;
     for (let dz = -1; dz <= 1; dz++) {
       for (let dx = -1; dx <= 1; dx++) {
-        // generated on demand: a fighter far from the player still collides correctly
-        for (const t of this.chunk(cx + dx, cz + dz).trees) {
-          const ex = pos.x - t.x;
-          const ez = pos.z - t.z;
-          const min = t.radius + r;
-          const d2 = ex * ex + ez * ez;
-          if (d2 >= min * min) continue;
-          const d = Math.sqrt(d2) || 1e-4;
-          pos.x = t.x + (ex / d) * min;
-          pos.z = t.z + (ez / d) * min;
+        for (const c of this.colliders(cx + dx, cz + dz)) {
+          // only shapes within reach of this body
+          const px = c.kind === 'circle' ? c.x : (c.ax + c.bx) / 2;
+          const pz = c.kind === 'circle' ? c.z : (c.az + c.bz) / 2;
+          const reach = c.kind === 'circle' ? c.r : Math.hypot(c.bx - c.ax, c.bz - c.az) / 2 + c.r;
+          if (Math.abs(px - pos.x) < reach + r + 0.5 && Math.abs(pz - pos.z) < reach + r + 0.5) near.push(c);
         }
       }
     }
+    const [x, z] = pushOut(pos.x, pos.z, r, near);
+    pos.x = x;
+    pos.z = z;
   }
 
   /** trunks near the fighters as boxes the spells can hit (filled into out, reused) */
@@ -450,7 +472,7 @@ export class ForestWorld {
             if (seen.has(t) || Math.hypot(t.x - c.x, t.z - c.z) > range) continue;
             seen.add(t);
             const b = this.boxPool[out.length] ?? (this.boxPool[out.length] = new THREE.Box3());
-            const r = t.radius * 0.8;
+            const r = t.radius * 1.5;                  // the trunk at chest height (flare included)
             b.min.set(t.x - r, 0, t.z - r);
             b.max.set(t.x + r, 7, t.z + r);
             out.push(b);
@@ -467,7 +489,10 @@ export class ForestWorld {
     const cz = Math.floor(z / S);
     for (let dz = -1; dz <= 1; dz++) {
       for (let dx = -1; dx <= 1; dx++) {
-        for (const t of this.chunk(cx + dx, cz + dz).trees) if (Math.hypot(t.x - x, t.z - z) < t.radius + clear) return false;
+        for (const c of this.colliders(cx + dx, cz + dz)) {
+          const [px, pz] = pushOut(x, z, clear, [c]);
+          if (px !== x || pz !== z) return false;
+        }
       }
     }
     return true;

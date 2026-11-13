@@ -48,8 +48,11 @@ The streaming world.
   is spread over several frames.
 - **Fading:** trees between the camera and either fighter are faded with an ordered dither,
   disappearing fully when close to the camera.
-- **Collision:** trunks are simple circles. A body is pushed out and slides round them. Data is
-  generated on demand wherever a fighter is, even far from the player.
+- **Collision** (`colliders.ts`): trees (a circle matching the flared trunk at body height),
+  big rocks and stumps (circles) and fallen logs (capsules along their real length) are solid.
+  A body is pushed out and slides round them. Small rocks, roots, grass, bushes, leaves and
+  mushrooms stay walk-through. Data is generated on demand wherever a fighter is, even far from
+  the player. Unit tests check the shapes against the built meshes.
 - **Spells:** trunks within 26 m of the fighters become boxes for the spell system, so Confringo
   explodes on trees.
 - **Sound hooks:** `onAmbience` fires 'wind', 'rustle', 'creature' and 'cue' events at random
@@ -94,8 +97,19 @@ Things that follow the player:
 - **Frame rate:** not measurable here. The headless test browser renders in software on a
   loaded machine and ran at 3–5 fps, the same as the empty studio, so frame rate needs checking
   on a real GPU.
+- **Collision:** walking straight into each solid kind stopped Malfoid exactly at its surface.
+
+  | Obstacle | Stopped at | Expected (shape + body radius) |
+  |---|---|---|
+  | Tree | 1.91 m from the trunk centre | flared trunk + 0.28 m |
+  | Big rock | 1.23 m | 0.95 + 0.28 m |
+  | Log | 0.53 m from its axis | 0.3 × 0.84 + 0.28 m |
+  | Stump | 0.93 m | 0.62 × 1.05 + 0.28 m |
+
+  Ginny's AI, chasing with a tree straight in her way, slid round it and reached Malfoid in
+  8 game seconds. Trees slow the AI but don't trap her; she has no path planning.
 - **Regression:** Training still uses the studio, all 8 combos land with the same damage, and
-  the 27 logic tests pass.
+  the 31 logic tests pass.
 
 ## Quick tweaks
 | What | Where |

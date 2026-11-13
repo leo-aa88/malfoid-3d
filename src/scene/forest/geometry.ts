@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { rng } from './random';
 import { LIVING_VARIANTS, TRUNK_RADIUS } from './placement';
+import { logLength } from './colliders';
 
 /*
  * The forest's shapes, built once from code (no model files) and reused by every chunk
@@ -248,7 +249,8 @@ export function rockGeometry(variant: number): THREE.BufferGeometry {
 
 export function logGeometry(variant: number): THREE.BufferGeometry {
   const rand = rng(6100 + variant * 71);
-  const L = 3 + rand() * 2;
+  rand();                                          // the draw logLength() makes
+  const L = logLength(variant);                    // shared with the log's collider
   const pts = [new THREE.Vector3(-L / 2, 0.22, 0), new THREE.Vector3(-L / 6, 0.26, (rand() - 0.5) * 0.4),
     new THREE.Vector3(L / 6, 0.24, (rand() - 0.5) * 0.4), new THREE.Vector3(L / 2, 0.18, 0)];
   const parts = [taperedTube(pts, 0.26, 0.17, 8, 8, rand, 0.1, (t, b) => mix(BARK_DARK, BARK_LIGHT, Math.max(0, b - 1) * 4 + t * 0.2))];
