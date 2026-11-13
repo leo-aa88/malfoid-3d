@@ -53,7 +53,7 @@ fight with her fists. **Change mode** in the HUD returns to the start screen. Se
 | G | restart the duel (duel mode) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
-| M | mute / unmute sound |
+| M | mute / unmute sound (the volume is set on the start menu and the pause screen) |
 | Esc | pause (click or Esc to resume) |
 | Left drag | orbit (the camera follows on its own: behind her as she moves, side-on to both fighters in a duel; a drag holds the view for a moment) |
 | Right drag | pan |
@@ -139,6 +139,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   `SpellEmitter.ts` (where spells leave from: the wand tip),
   `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion).
 - `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, spell cooldown.
+- `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
+  pause screen; remembered in the browser, with a short sample at the new level.
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, footsteps timed to

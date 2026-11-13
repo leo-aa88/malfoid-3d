@@ -18,6 +18,7 @@ import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
 import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 import { Sfx } from './audio/Sfx';
 import { connectCombatSounds } from './audio/combatSounds';
+import { VolumeControl } from './ui/VolumeControl';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -221,9 +222,12 @@ async function start(): Promise<void> {
   // sound effects (public/sfx); M mutes
   const sfx = new Sfx(sm.camera);
   const combatSounds = connectCombatSounds(sfx, { malfoid, ginny, combat, ginnyCombat, spells, ginnySpells, fighters: [malfoidTarget, ginnyTarget] });
+  // the volume control: on the start menu and the pause screen
+  const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat) return;
     sfx.setMuted(!sfx.muted);
+    volume.refresh();
     hud.flashStatusText(sfx.muted ? 'SOUND OFF' : 'SOUND ON', 'miss');
   });
   input.onPauseChange = (p) => {
@@ -234,7 +238,12 @@ async function start(): Promise<void> {
   input.setPaused(true);                                // the mode select comes first
   modeEl.hidden = false;
   hud.setMode('training');
-  pausedEl.addEventListener('click', () => input.setPaused(false));
+  // click to resume, but not at the end of a volume drag released outside the control
+  let pressInVolume = false;
+  pausedEl.addEventListener('pointerdown', (e) => (pressInVolume = !!(e.target as Element).closest('.volume')));
+  pausedEl.addEventListener('click', () => {
+    if (!pressInVolume) input.setPaused(false);
+  });
   const stateEl = document.getElementById('state')!;
   const fpsEl = document.getElementById('fps')!;
   const clock = new THREE.Clock();
@@ -300,7 +309,7 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  Object.assign(window, { sfx, malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
+  Object.assign(window, { sfx, volume, malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
     malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, forest, renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 
