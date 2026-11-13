@@ -102,6 +102,13 @@ export class AnimationController {
     this.fadeTo(action, fade, startAt);
   }
 
+  /** where the walk / run loop is in its cycle (0..1; the feet land at 0 and 0.5), or null */
+  get stridePhase(): number | null {
+    if ((this.stateName !== 'walk' && this.stateName !== 'run') || !this.current) return null;
+    const d = this.current.getClip().duration;
+    return d > 0 ? (((this.current.time / d) % 1) + 1) % 1 : null;
+  }
+
   /** playback speed of the current locomotion clip (keeps feet planted) */
   setTimeScale(scale: number): void {
     if (this.current) this.current.timeScale = scale;

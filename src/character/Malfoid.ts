@@ -157,6 +157,11 @@ export class Malfoid {
     return this.animation.state;
   }
 
+  /** walk / run cycle position (0..1, a foot lands at 0 and 0.5), null when not walking or running */
+  get stridePhase(): number | null {
+    return this.animation.stridePhase;
+  }
+
   get position(): THREE.Vector3 {
     return this.root.position;
   }

@@ -22,6 +22,8 @@ const REACTION: Record<HitEffect, ReactionState> = { flinch: 'hit', stagger: 'st
 export class FighterTarget implements CombatTarget {
   hp: number;
   onDefeated: (() => void) | null = null;
+  /** a hit got through (not blocked): damage dealt and its effect (sounds, ...) */
+  onHurt: ((damage: number, effect: HitEffect) => void) | null = null;
   /** seconds since the last hit (the AI uses it to tell when it is under pressure) */
   sinceHit = 99;
   /** hits taken in the last couple of seconds */
@@ -67,6 +69,7 @@ export class FighterTarget implements CombatTarget {
       return { result: 'blocked', damage: chip, ko };
     }
     this.hp = Math.max(0, this.hp - hit.damage);
+    this.onHurt?.(hit.damage, hit.effect);
     this.recentHits = this.sinceHit < 2.0 ? this.recentHits + 1 : 1;
     this.sinceHit = 0;
     const ko = this.hp === 0;
