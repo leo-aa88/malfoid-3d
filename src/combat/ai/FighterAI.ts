@@ -7,7 +7,11 @@ import { sweepBox } from '../spells/collision';
 import type { SpellDef, SpellSystem } from '../spells/SpellSystem';
 
 export type AIState =
-  | 'IDLE' | 'OBSERVE' | 'APPROACH' | 'RETREAT' | 'BLOCK' | 'MELEE_ATTACK' | 'CAST' | 'DODGE' | 'STAGGER' | 'RECOVER';
+  | 'IDLE' | 'OBSERVE' | 'APPROACH' | 'RETREAT' | 'BLOCK' | 'MELEE_ATTACK' | 'CAST' | 'DODGE' | 'STAGGER' | 'RECOVER'
+  | 'RETRIEVE';
+
+/** s she heads for her dropped wand before thinking again (a trunk in the way, a fight to answer) */
+const RETRIEVE_TIME = 3.0;
 
 /** everything that shapes how she fights (tuned in play) */
 export interface AIParams {
@@ -281,6 +285,24 @@ export class FighterAI {
         }
         break;
       }
+      case 'RETRIEVE': {
+        // to her dropped wand (walking onto it picks it up); running when it is far
+        if (me.hasWand || me.wand.state !== 'dropped') {
+          me.stop();
+          this.go('OBSERVE');
+          this.think = 0;
+          break;
+        }
+        const w = me.wand.getWorldPosition(this.tmp2);
+        const to = this.tmp.set(w.x - me.position.x, 0, w.z - me.position.z);
+        const d = to.length();
+        me.move(to.divideScalar(Math.max(d, 1e-6)), d > 1.5);
+        if (this.timer <= 0) {
+          me.stop();
+          this.go('OBSERVE');
+        }
+        return;
+      }
       case 'RETREAT':
         me.move(this.dirToOpponent().negate(), false, angle);
         if (this.timer <= 0 || dist > P.castRange[1]) {
@@ -329,6 +351,11 @@ export class FighterAI {
         this.go('BLOCK', rand(P.blockTime[0], P.blockTime[1]));
         return;
       }
+    }
+    // disarmed: her wand first (once it has landed)
+    if (!me.hasWand && me.wand.state === 'dropped') {
+      this.go('RETRIEVE', RETRIEVE_TIME);
+      return;
     }
     // her spell: only while the opponent still has a wand, from a distance, in clear sight
     if (this.opponent.hasWand && dist >= P.castRange[0] && dist <= P.castRange[1] && this.spells.canCast(this.spell)

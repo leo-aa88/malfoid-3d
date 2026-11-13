@@ -10,8 +10,9 @@ This is an anime Hogwarts duelling game in **Three.js + TypeScript + Vite** (`sr
 - **Characters:** Malfoid and Ginny are built by a **Blender 4.5 pipeline** (`tools/blender/`)
   from purchased assets that stay out of git. The outputs are `public/models/*.glb` + `.json`,
   which are committed.
-- **Modes:** Training puts Malfoid against a dummy in the studio scene. Duel puts her against
-  AI-controlled Ginny in the procedural Forbidden Woods.
+- **Modes:** Training puts Malfoid against a dummy in the studio scene. Practice (any opponent,
+  every spell) and Campaign (opponents in order, 3 lives, a spell learned per win) put her
+  against an AI opponent in the procedural Forbidden Woods.
 - **Docs:** `README.md` lists the code layout. `docs/*/REPORT.md` has the per-feature reports.
 
 ## Ground rules from the user
@@ -105,7 +106,7 @@ git checkout main && git pull --ff-only && git checkout -b feature/<name>
   - If no clips were added, `sha256sum public/models/malfoid.glb` must match the committed file.
   - If clips were added, compare every existing clip's keyframe data against
     `git show HEAD:public/models/malfoid.glb`: all must be identical, with only additions.
-- **Duel:** still starts, and Ginny's AI acts at the chosen difficulty.
+- **Duel:** practice and the campaign still start, and Ginny's AI acts at the chosen difficulty.
 
 ### 6. Commit and report
 
@@ -173,7 +174,8 @@ git checkout main && git pull --ff-only && git checkout -b feature/<name>
   - `malfoid`, `ginny`, `cam`
   - `combat`, `ginnyCombat`, `spells`, `ginnySpells`, `spellFx`, `ginnyFx`
   - `ai`, `dummy`, `malfoidTarget`, `ginnyTarget`
-  - `enterMode(mode, level)`, `openMenu()`, `setDuel()`
+  - `enterMode(mode, level)` (`'training'`, `'practice'`, `'campaign'`; a level with
+    `'campaign'` starts a new run), `openMenu()`, `setDuel()`, `campaign`
   - `forest`, `renderer`, `scene`, `input`, `CONFRINGO`
 - **Freezing a moment:** pause with an Escape keydown in the exact `requestAnimationFrame` where
   a condition holds. Pause CSS animations too (`document.getAnimations()`) so pop-ups show.

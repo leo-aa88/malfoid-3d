@@ -80,17 +80,20 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
     };
   }
 
-  // Confringo: the sound starts with the cast (it builds over the wind-up and roars through the
-  // release and the blast); a cast cancelled before the release cuts it
+  // Malfoid's Confringo: the sound starts with the cast (it builds over the wind-up and roars
+  // through the release and the blast); a cast cancelled before the release cuts it.
+  // Expelliarmus (Ginny's, and Malfoid's once learned) bursts at the release
   let confringo: { stop(): void } | null = null;
   chain(() => r.spells.onEvent, (f) => (r.spells.onEvent = f), (e) => {
-    if (e.type === 'cast') confringo = sfx.play('confringo', { at: r.malfoid.position.clone().setY(1.3), volume: 0.85 });
-    else if (e.type === 'cancel') {
+    if (e.spell.id === 'expelliarmus') {
+      if (e.type === 'release') sfx.play('expelliarmus', { at: r.malfoid.position.clone().setY(1.3), volume: 0.85 });
+    } else if (e.type === 'cast') {
+      confringo = sfx.play('confringo', { at: r.malfoid.position.clone().setY(1.3), volume: 0.85 });
+    } else if (e.type === 'cancel') {
       confringo?.stop();
       confringo = null;
     }
   });
-  // Expelliarmus bursts at the release
   chain(() => r.ginnySpells.onEvent, (f) => (r.ginnySpells.onEvent = f), (e) => {
     if (e.type === 'release') sfx.play('expelliarmus', { at: r.ginny.position.clone().setY(1.3), volume: 0.85 });
   });

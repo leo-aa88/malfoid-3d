@@ -24,6 +24,7 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
  * | K / I        | high / low kick            |
  * | O            | block (held)               |
  * | L            | cast Confringo             |
+ * | P            | cast Expelliarmus (learned)|
  * | G            | start / stop a duel        |
  * | B            | dummy guard none/high/low  |
  * | N            | dummy in front of her      |
@@ -39,8 +40,8 @@ export class CharacterController {
   /** training dummy: cycle its guard / bring it in front of her */
   onDummyGuard: (() => void) | null = null;
   onDummyReset: (() => void) | null = null;
-  /** spell keys (L: Confringo); called once per key press, never for auto-repeat */
-  onSpell: ((spell: 'confringo') => void) | null = null;
+  /** spell keys (L: Confringo, P: Expelliarmus); called once per key press, never for auto-repeat */
+  onSpell: ((spell: 'confringo' | 'expelliarmus') => void) | null = null;
   /** start / stop a duel with Ginny */
   onDuel: (() => void) | null = null;
   /** the camera's view direction (rad, target -> camera): W walks away from the camera */
@@ -65,6 +66,7 @@ export class CharacterController {
       if (attack) this.combat.press(attack);
       else if (e.code === 'Space') this.character.trigger('jump');
       else if (e.code === 'KeyL') this.onSpell?.('confringo');
+      else if (e.code === 'KeyP') this.onSpell?.('expelliarmus');
       else if (e.code === 'KeyG') this.onDuel?.();
       else if (e.code === 'KeyB') this.onDummyGuard?.();
       else if (e.code === 'KeyN') this.onDummyReset?.();

@@ -79,6 +79,13 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #hud .cd { height: 5px; margin-top: 4px; background: rgba(255, 255, 255, 0.12); border-radius: 3px; overflow: hidden; }
 #hud .cd-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #c2410c, #fb923c, #fde68a); }
 #hud .spell-box.cooling .cd-fill { background: #7c4a2a; }
+/* Expelliarmus (learned from Ginny): her crimson */
+#hud .spell-box.expelliarmus .spell-name { color: #ff7a70; }
+#hud .spell-box.expelliarmus.ready .spell-state { color: #ffb0a8; }
+#hud .spell-box.expelliarmus .cd-fill { background: linear-gradient(90deg, #8a0a14, #e5262f, #ffc2bd); }
+#hud .spell-box.expelliarmus.cooling .cd-fill { background: #6e2a2e; }
+#hud .spell-box.learned { animation: slot-in 0.6s ease-out; }
+@keyframes slot-in { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: none; } }
 /* white with a thick dark outline: readable over the explosion */
 .popup.spell { color: #fff; -webkit-text-stroke: 2px #4a1400; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9); }
 .popup.spell.heavy { font-size: 32px; }
@@ -111,21 +118,36 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
   display: block; width: 100%; margin-top: 10px; padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer;
   background: #2a6b4c; color: #fff; font: inherit; text-align: left;
 }
-#mode button[data-mode="duel"] { background: #7a1f2b; }
 #mode button:hover { filter: brightness(1.15); }
 #mode button b { display: block; font-size: 16px; }
 #mode button span { opacity: 0.8; font-size: 12px; }
 #hud .mode-button { background: #3b4252; }
 #hud [hidden] { display: none !important; }
 
-#mode .duel-pick { margin-top: 10px; padding: 10px 14px 12px; border-radius: 8px; background: #5a1720; text-align: left; }
-#mode .duel-title b { display: block; font-size: 16px; }
-#mode .duel-title span { opacity: 0.8; font-size: 12px; }
-#mode .levels { display: flex; gap: 8px; margin-top: 8px; }
-#mode .levels button { flex: 1; margin: 0; text-align: center; padding: 8px 6px; font-weight: 700; }
+#mode .pick { margin-top: 10px; padding: 10px 14px 12px; border-radius: 8px; text-align: left; }
+#mode .pick.practice { background: #3a2f5c; }
+#mode .pick.campaign { background: #5a1720; }
+#mode .pick-title b { display: block; font-size: 16px; }
+#mode .pick-title span { opacity: 0.8; font-size: 12px; }
+#mode .levels, #mode .opponents { display: flex; gap: 8px; margin-top: 8px; }
+#mode .levels button, #mode .opponents button { flex: 1; margin: 0; text-align: center; padding: 8px 6px; font-weight: 700; }
 #mode .levels button[data-level="easy"] { background: #8a3a2a; }
 #mode .levels button[data-level="normal"] { background: #a3242f; }
 #mode .levels button[data-level="hard"] { background: #c0102a; }
+#mode .practice .levels button[data-level="easy"] { background: #5b4a8f; }
+#mode .practice .levels button[data-level="normal"] { background: #6c3f9e; }
+#mode .practice .levels button[data-level="hard"] { background: #7f2fae; }
+#mode .levels button.confirm { outline: 2px solid #ffe37a; }
+#mode .opponents button { padding: 6px; background: rgba(255, 255, 255, 0.08); font-weight: 600; }
+#mode .opponents button.on { background: #9c7fe0; color: #160f2b; }
+#mode .opponents button:disabled { opacity: 0.45; cursor: default; filter: none; }
+#mode .opponents small { display: block; font-size: 10px; font-weight: 400; opacity: 0.8; }
+#mode .continue { margin-top: 8px; padding: 9px 12px; background: #c0102a; font-weight: 600; text-align: center; }
+#mode .continue:disabled { background: rgba(255, 255, 255, 0.08); cursor: default; filter: none; }
+#mode .continue small { display: block; font-weight: 400; font-size: 12px; opacity: 0.85; }
+#mode .new-run { margin-top: 8px; font-size: 12px; opacity: 0.75; }
+#mode .new-run.warn { opacity: 1; color: #ffe37a; }
+#mode [hidden] { display: none !important; }              /* `#mode button` would show a hidden button */
 
 /* --- sound volume (start menu and pause screen) ------------------------------- */
 .volume {
@@ -145,3 +167,28 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 @media (max-height: 640px) {
   body:has(#mode:not([hidden])) #help { display: none; }
 }
+
+/* --- campaign: lives, the result of a fight (a new spell, a lost life, game over) ---- */
+#hud .duel-box .lives { color: #ff6b6b; letter-spacing: 0.12em; }
+#result { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(15, 18, 24, 0.6); }
+#result[hidden] { display: none; }
+#result .box { padding: 24px 34px 22px; background: rgba(20, 24, 30, 0.92); border-radius: 12px; text-align: center;
+  min-width: 280px; max-width: calc(100vw - 32px); box-sizing: border-box; animation: result-in 0.5s ease-out; }
+#result .tag { font-weight: 700; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: #9fe0bb; }
+#result .title { margin: 8px 0 6px; font: 900 40px/1 system-ui, sans-serif; letter-spacing: 0.06em; color: #ffe37a;
+  text-transform: uppercase; -webkit-text-stroke: 1.5px #3a2a00; text-shadow: 0 3px 0 #3a2a00, 0 0 22px rgba(255, 200, 60, 0.5); }
+#result.spell .title { color: #ff8a80; -webkit-text-stroke-color: #3a0c10; text-shadow: 0 3px 0 #3a0c10, 0 0 22px rgba(255, 60, 50, 0.65); }
+#result.lost .tag, #result.over .tag { color: #ff8a80; }
+#result.over .title { color: #ff5a4f; -webkit-text-stroke-color: #3a0c10; text-shadow: 0 3px 0 #3a0c10, 0 0 22px rgba(255, 40, 30, 0.6); }
+#result .how { font-size: 15px; }
+#result .how .hearts { color: #ff6b6b; letter-spacing: 0.15em; font-size: 20px; }
+#result .how .hearts .gone { color: rgba(255, 255, 255, 0.2); }
+#result .next { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.12); opacity: 0.85; }
+#result .next:empty { display: none; }
+#result .next span { margin-left: 6px; font-size: 12px; opacity: 0.7; }
+#result .actions { display: flex; gap: 8px; margin-top: 14px; }
+#result .actions button { flex: 1; padding: 9px 12px; border: 0; border-radius: 8px; cursor: pointer; color: #fff; font: inherit;
+  font-weight: 600; background: #3b4252; white-space: nowrap; }
+#result .actions button.main { background: #2a6b4c; }
+#result .actions button:hover { filter: brightness(1.15); }
+@keyframes result-in { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: none; } }

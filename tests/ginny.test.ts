@@ -112,6 +112,8 @@ function aiSetup(dist: number, opponentArmed: boolean, params?: Partial<typeof G
     reacting: null as string | null, canStrike: true, moves: [] as THREE.Vector3[], looked: null as number | null,
     move(d: THREE.Vector3) { self.moves.push(d.clone()); }, stop() {}, lookAt(a: number | null) { self.looked = a; },
     setHold() {},
+    hasWand: true,
+    wand: { state: 'hand' as string, at: new THREE.Vector3(), getWorldPosition(o: THREE.Vector3) { return o.copy(self.wand.at); } },
   });
   const opp = Object.assign(fakeFighter(), { hasWand: opponentArmed });
   opp.root.position.set(0, 0, dist);
@@ -191,4 +193,24 @@ test('dodge: she sidesteps a bolt flying at her once she has seen it', () => {
   assert.equal(s.ai.state, 'DODGE');
   const step = s.self.moves[s.self.moves.length - 1];
   assert.ok(Math.abs(step.z) < 0.01 && Math.abs(step.x) > 0.99);        // across the bolt's line
+});
+
+test('disarmed: she goes for her wand once it lands (running when far), then fights on', () => {
+  const s = aiSetup(5, true, { castChance: 0 });
+  s.self.hasWand = false;
+  s.self.wand.state = 'flying';
+  s.self.wand.at.set(-4, 0, 0);
+  s.ai.setActive(true);
+  for (let i = 0; i < 20; i++) s.ai.update(DT);
+  assert.notEqual(s.ai.state, 'RETRIEVE', 'not while it is still in the air');
+  s.self.wand.state = 'dropped';
+  for (let i = 0; i < 20 && s.ai.state !== 'RETRIEVE'; i++) s.ai.update(DT);
+  assert.equal(s.ai.state, 'RETRIEVE');
+  s.ai.update(DT);
+  const step = s.self.moves[s.self.moves.length - 1];
+  assert.ok(step.x < -0.99, 'towards the wand');
+  s.self.hasWand = true;                                       // walked onto it: picked up
+  s.self.wand.state = 'hand';
+  s.ai.update(DT);
+  assert.equal(s.ai.state, 'OBSERVE');
 });

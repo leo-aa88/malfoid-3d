@@ -35,8 +35,11 @@ export const CONFRINGO_LOOK: SpellLook = {
   },
   blastLight: 9,
 };
-const MAX_PROJECTILES = 2;
-const MAX_EXPLOSIONS = 2;
+// one look can be cast by two fighters (Ginny's Expelliarmus, and Malfoid's once learned):
+// a charge orb each, and room for both of their bolts and blasts
+const MAX_CASTERS = 2;
+const MAX_PROJECTILES = 3;
+const MAX_EXPLOSIONS = 3;
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
@@ -95,7 +98,7 @@ export class ConfringoFx implements SpellFx {
   private readonly ring = ringTexture();
   private readonly sphere = new THREE.SphereGeometry(1, 24, 16);
   private readonly plane = new THREE.PlaneGeometry(1, 1);
-  private readonly charge: FireOrb;
+  private readonly charges: { orb: FireOrb; by: SpellEmitter | null }[] = [];
   private readonly bolts: { orb: FireOrb; id: number }[] = [];
   private readonly explosions: ExplosionEffect[] = [];
   private readonly orbLight: THREE.PointLight;
@@ -111,8 +114,11 @@ export class ConfringoFx implements SpellFx {
     this.root.name = name;
     scene.add(this.root);
     this.root.add(this.particles.points, this.orbLight, this.blastLight);
-    this.charge = new FireOrb(this.glow, this.sphere, look);
-    this.root.add(this.charge.group);
+    for (let i = 0; i < MAX_CASTERS; i++) {
+      const orb = new FireOrb(this.glow, this.sphere, look);
+      this.root.add(orb.group);
+      this.charges.push({ orb, by: null });
+    }
     for (let i = 0; i < MAX_PROJECTILES; i++) {
       const orb = new FireOrb(this.glow, this.sphere, look);
       this.root.add(orb.group);
@@ -154,16 +160,28 @@ export class ConfringoFx implements SpellFx {
 
   // --- SpellFx
 
-  castStart(): void {
-    this.charge.group.visible = true;
+  /** the charge orb of this caster's wand (taking a free one at the cast's start) */
+  private chargeOf(emitter: SpellEmitter, take = false): FireOrb | null {
+    let c = this.charges.find((x) => x.by === emitter);
+    if (!c && take) {
+      c = this.charges.find((x) => x.by === null) ?? this.charges[0];
+      c.by = emitter;
+    }
+    return c ? c.orb : null;
+  }
+
+  castStart(_def: SpellDef, emitter: SpellEmitter): void {
+    this.chargeOf(emitter, true)!.group.visible = true;
   }
 
   castUpdate(def: SpellDef, emitter: SpellEmitter, k: number): void {
+    const charge = this.chargeOf(emitter);
+    if (!charge) return;
     emitter.getWorldPosition(this.p);
     // gathers from 0.1 of the way in, brightens just before the thrust
     const grow = THREE.MathUtils.smoothstep(k, 0.15, 0.85);
     const peak = THREE.MathUtils.smoothstep(k, 0.8, 1.0);
-    this.charge.set(this.p, 0.012 + 0.022 * grow + 0.01 * peak, Math.min(1, grow * 1.2 + 0.1));   // at the wand tip
+    charge.set(this.p, 0.012 + 0.022 * grow + 0.01 * peak, Math.min(1, grow * 1.2 + 0.1));   // at the wand tip
     this.orbBoost = 0.5 * grow + 0.5 * peak;
     this.orbLight.position.copy(this.p);
     // sparks drawn in towards the tip
@@ -181,9 +199,12 @@ export class ConfringoFx implements SpellFx {
     void def;
   }
 
-  castEnd(): void {
-    this.charge.group.visible = false;
-    this.orbBoost = 0;
+  castEnd(_def: SpellDef, _released: boolean, emitter: SpellEmitter): void {
+    const c = this.charges.find((x) => x.by === emitter);
+    if (!c) return;
+    c.orb.group.visible = false;
+    c.by = null;
+    if (this.charges.every((x) => x.by === null)) this.orbBoost = 0;
   }
 
   projectileStart(_def: SpellDef, p: Projectile): void {
@@ -270,7 +291,7 @@ export class ConfringoFx implements SpellFx {
   dispose(): void {
     this.root.removeFromParent();
     this.particles.dispose();
-    this.charge.dispose();
+    for (const c of this.charges) c.orb.dispose();
     for (const b of this.bolts) b.orb.dispose();
     for (const e of this.explosions) e.dispose();
     this.glow.dispose();

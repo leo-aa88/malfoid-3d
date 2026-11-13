@@ -44,7 +44,8 @@ function setup() {
   const sfx = new FakeSfx();
   const malfoid = new FakeFighter();
   const ginny = new FakeFighter();
-  const sys = () => ({ onEvent: null });
+  const sys = () => ({ onEvent: null as ((e: unknown) => void) | null });
+  const spells = sys();
   const hurt = (name: string) => ({ name, fighter: { position: new THREE.Vector3() }, onHurt: null as ((d: number, e: HitEffect) => void) | null });
   const targets = [hurt('Malfoid'), hurt('Ginny')];
   const sounds = connectCombatSounds(sfx as unknown as Sfx, {
@@ -52,7 +53,7 @@ function setup() {
     ginny: ginny as unknown as Malfoid,
     combat: sys() as unknown as ComboSystem,
     ginnyCombat: sys() as unknown as ComboSystem,
-    spells: sys() as unknown as SpellSystem,
+    spells: spells as unknown as SpellSystem,
     ginnySpells: sys() as unknown as SpellSystem,
     fighters: targets as unknown as FighterTarget[],
   });
@@ -63,7 +64,7 @@ function setup() {
       sounds.update(DT);
     }
   };
-  return { sfx, malfoid, ginny, targets, run, sounds };
+  return { sfx, malfoid, ginny, targets, run, sounds, spells };
 }
 
 test('footsteps: two per walk cycle, none when standing or hidden', () => {
@@ -126,4 +127,16 @@ test('volume setting: stored values are read safely, − / + snap to 10 % steps 
   assert.equal(stepVolume(0, -1), 0);
   assert.equal(stepVolume(35, 1), 40);   // off-step values go to the next step that way
   assert.equal(stepVolume(35, -1), 30);
+});
+
+test("spell sounds: Malfoid's Confringo roars from the cast, her Expelliarmus bursts at the release", () => {
+  const { sfx, spells } = setup();
+  const ev = (type: string, id: string) => spells.onEvent!({ type, spell: { id } });
+  ev('cast', 'expelliarmus');
+  assert.equal(sfx.played.length, 0, 'no Confringo roar for an Expelliarmus wind-up');
+  ev('release', 'expelliarmus');
+  assert.deepEqual(sfx.played.map((p) => p.id), ['expelliarmus']);
+  ev('cast', 'confringo');
+  ev('release', 'confringo');
+  assert.deepEqual(sfx.played.map((p) => p.id), ['expelliarmus', 'confringo']);
 });

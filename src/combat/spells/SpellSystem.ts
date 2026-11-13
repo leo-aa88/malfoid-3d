@@ -55,7 +55,7 @@ export interface SpellFx {
   castStart(def: SpellDef, emitter: SpellEmitter): void;
   /** every frame of the cast until the release; charge 0..1 */
   castUpdate(def: SpellDef, emitter: SpellEmitter, charge: number): void;
-  castEnd(def: SpellDef, released: boolean): void;
+  castEnd(def: SpellDef, released: boolean, emitter: SpellEmitter): void;
   projectileStart(def: SpellDef, p: Projectile): void;
   projectileUpdate(def: SpellDef, p: Projectile): void;
   projectileEnd(def: SpellDef, p: Projectile, impact: Impact): void;
@@ -174,7 +174,7 @@ export class SpellSystem {
     this.casting = null;
     this.caster.castLock = false;
     if (this.caster.currentStrike === c.def.clip) this.caster.endStrike();
-    this.fx.castEnd(c.def, false);
+    this.fx.castEnd(c.def, false, this.emitter);
     this.emit({ type: 'cancel', spell: c.def });
   }
 
@@ -253,7 +253,7 @@ export class SpellSystem {
     const p = new Projectile(def.projectile, origin, dir.normalize());
     this.flying.push({ def, projectile: p });
     this.cooldowns.set(def.id, def.cooldown);
-    this.fx.castEnd(def, true);
+    this.fx.castEnd(def, true, this.emitter);
     this.fx.projectileStart(def, p);
     this.onSound?.('launch', origin);
     this.emit({ type: 'release', spell: def });

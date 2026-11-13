@@ -15,10 +15,8 @@ export class CombatHud {
   private readonly hpFill: HTMLElement;
   private readonly hpText: HTMLElement;
   private readonly guardText: HTMLElement;
-  private readonly spellBox: HTMLElement;
-  private readonly spellState: HTMLElement;
-  private readonly spellFill: HTMLElement;
-  private spellShown = '';
+  private readonly spellList = el('div', 'spell-list');
+  private readonly spellSlots = new Map<string, { box: HTMLElement; state: HTMLElement; fill: HTMLElement; shown: string }>();
   private readonly duelBox: HTMLElement;
   private readonly duelButton: HTMLButtonElement;
   private readonly bars: { el: HTMLElement; fill: HTMLElement; text: HTMLElement; shown: number }[] = [];
@@ -44,13 +42,7 @@ export class CombatHud {
     this.hpFill = box.querySelector('.hp-fill')!;
     this.hpText = box.querySelector('.hp-text')!;
     this.guardText = box.querySelector('.guard')!;
-    this.spellBox = el('div', 'spell-box ready');
-    this.spellBox.innerHTML =
-      '<div class="row"><span class="spell-name"></span><span class="spell-state"></span></div>' +
-      '<div class="cd"><div class="cd-fill"></div></div>';
-    hud.append(this.spellBox);
-    this.spellState = this.spellBox.querySelector('.spell-state')!;
-    this.spellFill = this.spellBox.querySelector('.cd-fill')!;
+    hud.append(this.spellList);               // one slot per spell (addSpell)
     // duel: both fighters' health, Ginny's state, start / stop
     this.duelBox = el('div', 'duel-box');
     this.duelBox.innerHTML =
@@ -60,6 +52,7 @@ export class CombatHud {
       '<div class="hp"><div class="hp-fill ginny"></div></div></div>' +
       '<div class="row"><span class="label">Ginny AI</span><span class="ai-state">waiting</span></div>' +
       '<div class="row"><span class="label">Difficulty</span><span class="level"></span></div>' +
+      '<div class="row lives-row"><span class="label">Lives</span><span class="lives"></span></div>' +
       '<button class="duel-button" type="button">Restart duel [G]</button>';
     hud.append(this.duelBox);
     for (const f of this.duelBox.querySelectorAll<HTMLElement>('.fighter')) {
@@ -83,10 +76,17 @@ export class CombatHud {
     document.body.append(this.announceEl);
   }
 
-  /** training shows the dummy's panel, the duel both fighters' health */
-  setMode(mode: 'training' | 'duel'): void {
+  /** training shows the dummy's panel, a duel both fighters' health; only practice restarts (G) */
+  setMode(mode: 'training' | 'practice' | 'campaign'): void {
     this.dummyBox.hidden = mode !== 'training';
-    this.duelBox.hidden = mode !== 'duel';
+    this.duelBox.hidden = mode === 'training';
+    this.duelButton.hidden = mode !== 'practice';
+    this.duelBox.querySelector<HTMLElement>('.lives-row')!.hidden = mode !== 'campaign';
+  }
+
+  /** the campaign's lives left (of total) */
+  setLives(left: number, total: number): void {
+    this.duelBox.querySelector('.lives')!.textContent = '♥'.repeat(left) + '♡'.repeat(Math.max(0, total - left));
   }
 
   setLevel(label: string): void {
@@ -124,17 +124,39 @@ export class CombatHud {
     this.flashStatus(text, cls);
   }
 
-  /** spell slot: name, key, seconds of cooldown left (0 = ready) out of total; no wand: can't cast */
-  setSpell(name: string, key: string, left: number, total: number, hasWand = true): void {
+  /** a spell slot: name, key and cooldown bar (cls styles it: 'confringo', 'expelliarmus') */
+  addSpell(id: string, name: string, key: string, cls: string): void {
+    const box = el('div', `spell-box ready ${cls}`);
+    box.innerHTML =
+      `<div class="row"><span class="spell-name">${name.toUpperCase()} [${key}]</span><span class="spell-state"></span></div>` +
+      '<div class="cd"><div class="cd-fill"></div></div>';
+    this.spellList.append(box);
+    this.spellSlots.set(id, { box, state: box.querySelector('.spell-state')!, fill: box.querySelector('.cd-fill')!, shown: '' });
+  }
+
+  /** show or hide a spell's slot (a spell not learned yet, or not allowed in this fight) */
+  showSpell(id: string, on: boolean): void {
+    const slot = this.spellSlots.get(id)!;
+    if (slot.box.hidden === !on) return;
+    slot.box.hidden = !on;
+    if (on) {                                  // a slot that appears pops in once
+      slot.box.classList.remove('learned');
+      void slot.box.offsetWidth;
+      slot.box.classList.add('learned');
+    }
+  }
+
+  /** a spell slot's state: seconds of cooldown left (0 = ready) out of total; no wand: can't cast */
+  setSpell(id: string, left: number, total: number, hasWand = true): void {
+    const slot = this.spellSlots.get(id)!;
     const ready = left <= 0 && hasWand;
     const text = !hasWand ? 'NO WAND' : ready ? 'READY' : `${left.toFixed(1)}s`;
-    if (text === this.spellShown) return;
-    if (!this.spellShown) this.spellBox.querySelector('.spell-name')!.textContent = `${name.toUpperCase()} [${key}]`;
-    this.spellShown = text;
-    this.spellState.textContent = text;
-    this.spellBox.classList.toggle('ready', ready);
-    this.spellBox.classList.toggle('cooling', !ready);
-    this.spellFill.style.width = `${ready ? 100 : !hasWand ? 0 : (100 * (1 - left / total)).toFixed(1)}%`;
+    if (text === slot.shown) return;
+    slot.shown = text;
+    slot.state.textContent = text;
+    slot.box.classList.toggle('ready', ready);
+    slot.box.classList.toggle('cooling', !ready);
+    slot.fill.style.width = `${ready ? 100 : !hasWand ? 0 : (100 * (1 - left / total)).toFixed(1)}%`;
   }
 
   /** damage numbers for spell hits (same pop-ups as melee) */
