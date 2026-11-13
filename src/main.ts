@@ -13,7 +13,8 @@ import { SpellSystem } from './combat/spells/SpellSystem';
 import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
-import { Difficulty } from './combat/ai/difficulty';
+import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
+import { FighterAI } from './combat/ai/FighterAI';
 import { Sfx } from './audio/Sfx';
 import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
@@ -456,6 +457,9 @@ async function start(): Promise<void> {
   pausedEl.addEventListener('click', () => {
     if (!pressInVolume) input.setPaused(false);
   });
+  // automated playtests: an AI in the player's place (window.setPlayerBot; never set in play)
+  let playerBot: { update(dt: number): void } | null = null;
+  const setPlayerBot = (bot: { update(dt: number): void } | null) => (playerBot = bot);
   const stateEl = document.getElementById('state')!;
   const fpsEl = document.getElementById('fps')!;
   const clock = new THREE.Clock();
@@ -470,6 +474,7 @@ async function start(): Promise<void> {
       input.locked = duel && voices.introRunning;
       if (input.locked) malfoid.resetIdleTimer();     // listening, not bored: no arms-crossed idle
       input.update();
+      playerBot?.update(dt);                // automated playtests drive Malfoid (debug only)
       const duelMode = isDuel();
       const foe = opp.char;
       if (duelMode) opp.ai.update(dt);
@@ -548,7 +553,7 @@ async function start(): Promise<void> {
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
-    opponents, opp: () => opp, setOpponent,
+    opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, forest,
     renderer: sm.renderer, scene: sm.scene, input, solids });
 }

@@ -216,7 +216,7 @@ test('she reads a Confringo wind-up and raises Protego to meet the bolt (a parry
 });
 
 test('repeated Confringos make her expect the next one; a stopped spell is answered with Stupefy', () => {
-  const s = aiSetup(5, { castChance: 0, dodgeChance: 0, evasive: { shieldChance: 0, counterChance: 1, counterDelay: [0.05, 0.05] } });
+  const s = aiSetup(5, { castChance: 0, dodgeChance: 0, evasive: { shieldChance: 0, spamBonus: 0, counterChance: 1, counterDelay: [0.05, 0.05] } });
   s.ai.setActive(true);
   s.opp.facingAngle = Math.PI;
   for (let k = 0; k < 3; k++) {
@@ -234,6 +234,9 @@ test('repeated Confringos make her expect the next one; a stopped spell is answe
 });
 
 test('crowded and under attack: Ventus; an attack she sees coming in reach: a dodge clip', () => {
+  const random = Math.random;
+  Math.random = () => 0.01;                              // every chance succeeds: the decision order is what's tested
+  try {
   const v = aiSetup(1.5, { castChance: 0, evasive: { pushChance: 1 } });
   v.oppCombat.busy = true;
   v.ai.setActive(true);
@@ -245,4 +248,7 @@ test('crowded and under attack: Ventus; an attack she sees coming in reach: a do
   for (let i = 0; i < 30 && !d.self.dodges.length; i++) d.ai.update(DT);
   assert.equal(d.self.dodges.length, 1);
   assert.equal(d.ai.state, 'DODGE');
+  } finally {
+    Math.random = random;
+  }
 });

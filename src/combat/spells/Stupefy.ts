@@ -6,11 +6,11 @@ import type { SpellLook } from './ConfringoFx';
  * Stupefy, the Stunning Spell (Cho's counterattack): a fast, bright red bolt from a quick
  * flick of the wand. Moderate damage and a brief stagger, no blast. All tuning here.
  */
-export const STUPEFY_COOLDOWN = 3.2;             // s, from the release
+export const STUPEFY_COOLDOWN = 4.0;             // s, from the release
 export const STUPEFY_SPEED = 24.0;               // m/s: faster than Confringo (18) and Expelliarmus (16)
 export const STUPEFY_MAX_RANGE = 22.0;           // m
 export const STUPEFY_PROJECTILE_RADIUS = 0.13;   // m
-export const STUPEFY_DAMAGE = 9;
+export const STUPEFY_DAMAGE = 8;
 export const STUPEFY_KNOCKBACK = 0.8;            // m/s slide given to the target
 export const STUPEFY_RELEASE = 0.20;             // s into the cast_quick clip (combat.QUICK_RELEASE)
 

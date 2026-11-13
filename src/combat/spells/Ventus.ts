@@ -42,11 +42,11 @@ export const VENTUS: SpellDef = {
 /** the look of the gust (pale wind, readable but see-through: the fighters stay visible) */
 const GUST = {
   colour: new THREE.Color(0.82, 0.92, 1.0),
-  opacity: 0.32,               // the cone at its strongest
+  opacity: 0.55,               // the cone at its strongest (additive: pale air, see-through)
   startRadius: 0.18,           // m at the wand
   endRadius: 0.95,             // m at full range
   fade: 0.22,                  // s for the cone to fade after the gust ends
-  streaksPerMetre: 9,          // wind-streak particles spawned along the path
+  streaksPerMetre: 16,         // wind-streak particles spawned along the path
   maxGusts: 2,
 };
 
@@ -151,7 +151,7 @@ export class VentusFx implements SpellFx {
       this.particles.spawn({
         x: p.position.x + side.x, y: p.position.y + Math.sin(a) * r * 0.7, z: p.position.z + side.z,
         vx: p.direction.x * 7, vy: 0.2, vz: p.direction.z * 7,
-        r: GUST.colour.r, g: GUST.colour.g, b: GUST.colour.b, size: 0.05, sizeEnd: 0.012, life: 0.24, drag: 3, alpha: 0.55,
+        r: GUST.colour.r, g: GUST.colour.g, b: GUST.colour.b, size: 0.08, sizeEnd: 0.02, life: 0.32, drag: 2.5, alpha: 0.7,
       });
     }
   }

@@ -5,7 +5,7 @@ import type { FighterTarget } from '../FighterTarget';
 import { AttackButton, COMBOS, MOVES } from '../moves';
 import { sweepBox } from '../spells/collision';
 import type { SpellDef, SpellSystem } from '../spells/SpellSystem';
-import type { Protego } from '../Protego';
+import { PROTEGO, Protego } from '../Protego';
 import type { DodgeState } from '../../character/AnimationController';
 
 export type AIState =
@@ -43,6 +43,10 @@ export interface EvasiveStyle {
 
 /** s over which repeated Confringo casts make her expect the next one */
 const SPAM_WINDOW = 12.0;
+/** however much Confringo she has seen, she shields at most this often and parries at most this often
+ * (a parry should stay a satisfying surprise, not the answer to every cast) */
+const MAX_SHIELD = 0.65;
+const MAX_PERFECT = 0.4;
 /** a circling step is blocked if a trunk is this close ahead (m) */
 const CIRCLE_LOOKAHEAD = 0.9;
 
@@ -456,13 +460,24 @@ export class FighterAI {
         }
         return;
       }
-      case 'RETREAT':
-        me.move(this.dirToOpponent().negate(), false, angle);
-        if (this.timer <= 0 || dist > P.castRange[1]) {
+      case 'RETREAT': {
+        // an evasive duellist badly crowded turns and sprints away on a diagonal (her back is
+        // open while she runs: a fair chance); otherwise she backs off facing the opponent
+        const ev = P.evasive;
+        if (ev && dist < ev.preferredRange[0] * 0.8) {
+          const to = this.dirToOpponent();
+          const dir = this.tmp2.set(-to.x + -to.z * this.circleSide * 0.8, 0, -to.z + to.x * this.circleSide * 0.8);
+          if (this.blocked(dir, 1.2)) this.circleSide = this.circleSide > 0 ? -1 : 1;
+          me.move(dir, true);
+        } else {
+          me.move(this.dirToOpponent().negate(), false, angle);
+        }
+        if (this.timer <= 0 || dist > P.castRange[1] || (ev && dist > ev.preferredRange[0] + 0.5)) {
           me.stop();
           this.go('OBSERVE');
         }
         break;
+      }
       default:
         me.stop();
         me.lookAt(angle);
@@ -598,11 +613,17 @@ export class FighterAI {
   private evade(arrive: number): void {
     const ev = this.params.evasive!;
     const spam = this.recentConfringos * ev.spamBonus;
-    if (this.shield?.ready && this.state !== 'PROTEGO' && Math.random() < Math.min(0.9, ev.shieldChance + spam)) {
-      const perfect = Math.random() < Math.min(0.85, ev.perfectChance + spam);
-      const err = rand(-ev.timingError, ev.timingError);
-      // a parry goes up just before the bolt arrives; otherwise she raises it early and holds
-      this.shieldAt = Math.max(0, (perfect ? arrive - rand(0.03, 0.12) : arrive - rand(0.32, 0.5)) + err);
+    // (the caps limit what repeated Confringos add, never a level's own odds)
+    const boosted = (base: number, cap: number) => Math.min(Math.max(base, cap), base + spam);
+    const perfect = Math.random() < boosted(ev.perfectChance, MAX_PERFECT);
+    // too close for a plain block (it would go up inside the perfect window): dodge instead
+    const room = perfect || arrive > PROTEGO.perfectWindow + 0.05;
+    if (room && this.shield?.ready && this.state !== 'PROTEGO' && Math.random() < boosted(ev.shieldChance, MAX_SHIELD)) {
+      // a parry goes up just before the bolt arrives, off by her timing error (so it can come
+      // too early or too late); a plain block goes up well ahead and holds, clear of the
+      // perfect window, so a block never turns into a parry by accident
+      this.shieldAt = perfect ? Math.max(0, arrive - rand(0.03, 0.12) + rand(-ev.timingError, ev.timingError))
+        : Math.max(0, arrive - rand(0.45, 0.6));
       this.self.stop();
       this.pendingSecond = null;
       this.go('PROTEGO', this.shieldAt + 0.75);

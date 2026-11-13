@@ -1,0 +1,170 @@
+# Cho Chang — implementation and validation report
+
+Cho is the second opponent: an evasive Ravenclaw duellist built from the same purchased assets
+and pipeline as Malfoid and Ginny. Every screenshot here is from the real Three.js viewer
+(headless Chromium, SwiftShader), not a Blender render.
+
+## Build
+
+- `make cho` (`MF_CHAR=cho`) → `build/cho.blend`, `public/models/cho.glb` (18.2 MB) + `.json`,
+  `build/textures/Cho_*`. Her values live in her profile in `tools/blender/malfoid/character.py`.
+- **Malfoid and Ginny are untouched:** after every pipeline change their GLB and JSON rebuilt
+  **byte-identical** to the committed files (sha256). Cho's own clips are added only to models
+  whose profile lists them (`extra_clips`).
+- Robe check (`tools/qa/robe_folds.py`, now finds any character's armature): **0 % folded area
+  and 0 crossed vertices** for every movement clip, Cho's dodges and Ventus included.
+- The reference images stay local (`/Cho/` in `.gitignore`).
+
+## Appearance
+
+![turnaround](compare_turnaround.png)
+
+- **Face:** the base face as authored plus half of the existing cheek-slim key (a slightly
+  tapered jaw; the Basis is untouched). Resting face: lids a touch lower, the lower lids up a
+  little (a soft almond opening), a faint smile: calm and attentive, neither Malfoid's glare nor
+  Ginny's wide eyes. No freckles.
+- **Eyes:** dark brown (#5B3A28 target) from the pack's own brown iris art: gradient, pupil and
+  highlights kept. Brows dark brown-black; lashes soft black (natural, not a sharp liner).
+- **Skin:** the pack's fair and warm presets blended (#F8E2D6 target).
+- **Hair:** the purchased Bell_Hair_01 cards, recoloured near-black with a cool blue sheen (the
+  ramp sits more neutral than the #1A2436 swatch: rendered, the bluer ramp read navy and the blue
+  bow vanished into it). Reshaped, not replaced:
+  - half-up: the upper back hair gathered behind the head (the existing gather from Ginny);
+  - side locks: front cards that swept across the cheeks are eased back beside them;
+  - **bangs:** the pack has a bare-forehead centre part, so 11 copies of its own strand cards
+    (their topology, UVs and texture) run from under the crown hair to the brows, showing the
+    strand's lighter mid-length and separated tips.
+- **The Ravenclaw bow** (`tools/blender/malfoid/ribbon.py`): real geometry at the gather point:
+  a wrapped knot, two puffy teardrop loops with a fold, two V-cut tails. Kept clear of the hair
+  surface. Knot and loops ride the head bone; the tails carry the hair's own skin weights, so
+  they sway with it. #2E4878.
+- **Star earrings** (`earrings.py`): a silver drop from each lobe with a four-point ridged star,
+  bound to the head bone.
+- **Uniform:** navy and silver tie, Ravenclaw-blue lining, a painted eagle crest
+  (`tools/textures/make_crest_ravenclaw.py`: peaked gold shield, blue field, eagle facing right,
+  laurel sprig, after the blueprint).
+
+| | | |
+|---|---|---|
+| ![front](head_front.png) | ![3/4](head_three_quarter.png) | ![side](head_side.png) |
+| ![back](head_back_bow.png) | ![bow](bow_close.png) | ![earring](earring_close.png) |
+| ![bangs](bangs_close.png) | ![crown](crown.png) | ![crest](crest.png) |
+
+### Three characters together
+
+![full](trio_full.png)
+![faces](trio_faces.png)
+![back](trio_back.png)
+
+## Expressions
+
+![expressions](compare_expressions.png)
+
+`CHO_FACES` in `src/character/faces.ts`: neutral, cheerful, thoughtful, worried, surprised,
+amused, blushing, sad, teary, determined, pain, from the base mesh's own keys. Two face channels
+were added that are not shape keys, so they follow every expression:
+- `blush`: the cheeks tinted in the face shader, over the area where the base pack painted its
+  blush (zero unless a face asks; Malfoid's and Ginny's faces never do).
+- `tears`: the base mesh's tear cards, shown only by the teary face.
+
+Sad, worried and teary are kept apart (`worried_sad_teary.png`): worried has raised brows and a
+tense mouth, sad looks down with a downturned mouth and no tears, teary has watery eyes and tears.
+`CHO_TALK` is her speaking mouth for the existing voice system.
+
+## Animation
+
+Shared with Malfoid and Ginny: walk, run, turn, jump, crouch, block, every strike and combo,
+hits, stagger, knockback, disarmed, wand pickup, the cast. Hers (`combat.EXTRA_CLIPS`):
+
+![clips](clips.png)
+
+`cho_idle` (composed, wand held low, a slow weight shift), `dodge_left` / `dodge_right` /
+`dodge_back` (in place: the game moves her), `protego` (held, wand raised), `cast_quick`
+(Stupefy flick, release 0.20 s), `cast_ventus` (sweep and palm push, release 0.34 s).
+
+## In the game
+
+- **Opponents as data** (`src/game/opponents.ts`): model, faces, spells, AI per difficulty,
+  voice lines, start distance, HUD colour. `src/game/Opponent.ts` builds each one's character,
+  health, combo system, spells, shield and AI; `main.ts` duels "the current opponent" and names
+  none. Practice: pick Ginny or Cho. Campaign: Cho is stage 2, after Ginny (Malfoid now has
+  Expelliarmus).
+- **Stupefy:** a fast (24 m/s) thin bright-red bolt, 8 damage, a stagger, 4 s cooldown.
+- **Ventus:** a short (3.6 m), wide gust through the spell system (trees stop it): 3 damage, a
+  strong knockback, 7 s cooldown. A translucent cone with wind streaks; no point lights.
+- **Protego:** up for at most 0.9 s, 5 s cooldown, a moment of slowness after lowering it. A
+  spell reaching its front is stopped; one arriving within 0.2 s of raising it is **reflected**:
+  the same projectile turns back at its caster as the shield owner's spell (`SpellSystem.adopt`,
+  `Projectile.redirect`), so it can only hit Malfoid and costs Cho nothing. It guards melee like
+  a block. A see-through dome shows it, flashing gold on a parry.
+- **Dodges:** real movement over the clip (trees still stop her), no invulnerability.
+- **Disarm:** Malfoid's Expelliarmus knocks Cho's wand away like anyone's; she runs back for it.
+
+| | | |
+|---|---|---|
+| ![start](duel_campaign_start.png) | ![stupefy](duel_stupefy.png) | ![ventus](duel_ventus.png) |
+| ![protego](duel_protego.png) | ![parry](duel_parry_reflected.png) | ![dodge](duel_dodge.png) |
+
+### Her AI
+
+The shared `FighterAI` gains an optional evasive style (Ginny has none, so her AI is unchanged):
+- keeps 4–7 m, circles (a trunk ahead turns her back), backs off when crowded (badly crowded:
+  turns and sprints away on a diagonal), closes in when far;
+- reads a wind-up: Protego (raised just before the bolt for a parry, with timing error, or well
+  ahead to block), or a sidestep to the free side; a bolt already in flight is judged once;
+- a stopped spell, a dodge or an opening is answered with Stupefy; Ventus when crowded;
+- repeated Confringos make her readier, up to caps (she never parries everything).
+
+| Level | HP | Reactions (s) | Shield | Parry | Counter | Timing error |
+|---|---|---|---|---|---|---|
+| Easy | 100 | 0.24–0.45 | 20 % | 6 % | 35 % | ±0.12 s |
+| Normal | 130 | 0.15–0.30 | 30 % | 14 % | 55 % | ±0.07 s |
+| Hard | 170 | 0.09–0.20 | 40 % | 24 % | 75 % | ±0.04 s |
+
+## Validation
+
+| Check | Result |
+|---|---|
+| `npm test` | **58 / 58** (`tests/cho.test.ts`: shield timing and cooldown, reflection ownership, block, Stupefy, Ventus range and shove, spacing, shield timed into the window, spam memory, counters, Ventus, dodges) |
+| Malfoid / Ginny GLB + JSON | byte-identical |
+| Robe folds (all clips) | 0 |
+| 8 combos | 8 / 8 with the expected damage |
+| Confringo | 20 direct, holding L casts once, cooldown frozen while paused, a miss ends at 25 m, effects clean up |
+| GPU (geometries / textures / programs) over repeated Stupefy, Ventus, shielded Confringo | 108/37/40 after warm-up, then 109/38/40 for three rounds |
+| Campaign | Ginny → "New spell: Expelliarmus" → Cho (P available, 3 lives, Cho's AI acts) |
+| Practice Ginny | duel starts, her AI acts |
+| Disarming Cho | STAGGER → RECOVER → RETRIEVE → wand back → CIRCLE |
+
+**Duels with a scripted Malfoid** (Ginny's Normal AI in the player's place; single runs, so
+indicative only):
+
+| Cho level / player style | Winner | Notes |
+|---|---|---|
+| Easy, mixed | Malfoid (68 HP left) | Cho never shielded |
+| Normal, mixed | Malfoid (76 HP left) | 5 dodges, Ventus once |
+| Normal, Confringo spam | **Cho** (70 / 130 left) | 1 block, 2 reflects, 14 dodges |
+| Hard, mixed | Cho (150 / 170 left) | 2 reflects |
+
+The same player that beats Normal Cho with mixed play loses when it spams Confringo: the
+intended lesson. One bug found this way and fixed: a shield meant only to block could go up late
+enough (with Easy's timing error and the headless 0.1 s frames) to land in the parry window, so
+Easy reflected 3 of 7 Confringos; plain blocks now go up well ahead and the error only affects
+parries.
+
+## Known limitations
+
+- **Bangs:** thinner and fewer than the reference's full, airy fringe; one strand at the parting
+  shows a stair-stepped alpha edge in close-ups, and the pack's straight-cut card ends show as
+  dark blocks near the left temple. Subtle at gameplay distance.
+- **Half-up:** as for Ginny, softer than drawn; the reference's braided crown sections are not
+  modelled.
+- **Spacing:** against an opponent who keeps chasing her, Cho's average distance was 2.8–3.9 m
+  (below her 4–7 m); she retreats a lot. A human player who keeps distance sees more circling.
+- **Hard** may be too hard against the scripted player (won with 150 / 170); needs human play.
+- **Voice and sound:** no Cho recordings yet, so her duel has no opening or win lines, and
+  Stupefy and Ventus borrow the Expelliarmus sound (pitched up and down).
+- **Phase 2** at 40 % HP (from the brainstorm) is not implemented.
+- **Headless only:** real frame rate and how the sounds land are untested; headless runs at
+  1–20 fps, so the AI's timing is exercised at 0.1 s frames.
+- **Hair secondary motion** uses the existing spring sway unchanged; not tuned specifically for
+  her length, and not inspected in motion beyond the duel screenshots.
