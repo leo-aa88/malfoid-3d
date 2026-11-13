@@ -10,9 +10,9 @@ import { loudnessEnvelope } from './envelope';
 
 const BASE = import.meta.env.BASE_URL;
 
-type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'walking'
+type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
   | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win';
-const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'walking',
+const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
   'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win'];
 interface Slice {
   file: FileId;
@@ -40,6 +40,8 @@ export const BANKS = {
   confringo: [slice('confringo', 0.10, 2.40)],
   // Expelliarmus bursts at once: played at the release
   expelliarmus: [slice('expelliarmus', 0.0, 1.62)],
+  // Protego's hum (steady for 2 s, longer than the shield ever stays up): played while it is up
+  protego: [slice('protego', 0.0, 99)],
   // single clean footsteps (the file's double scuffs and faint ones left out), levelled to one loudness
   step: [slice('walking', 2.31, 2.59, 1.15), slice('walking', 6.97, 7.17, 0.8), slice('walking', 8.75, 9.02, 0.97),
     slice('walking', 10.52, 10.78, 1.05), slice('walking', 11.465, 11.70, 0.94), slice('walking', 14.135, 14.41, 1.35),

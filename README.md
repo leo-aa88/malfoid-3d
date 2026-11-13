@@ -243,7 +243,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   (driven by `audio/envelope.ts`, the lines' loudness over time).
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
-  for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, footsteps timed to
+  for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, Protego's hum while
+  Cho's shield is up, footsteps timed to
   the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
   the game just runs without it.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.

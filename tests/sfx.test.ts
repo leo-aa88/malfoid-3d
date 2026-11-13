@@ -14,9 +14,10 @@ const DT = 1 / 60;
 
 class FakeSfx {
   played: { id: SoundId; opts: PlayOptions }[] = [];
+  stopped: SoundId[] = [];
   play(id: SoundId, opts: PlayOptions = {}) {
     this.played.push({ id, opts });
-    return { stop() {} };
+    return { stop: () => this.stopped.push(id) };
   }
   count(id: SoundId) {
     return this.played.filter((p) => p.id === id).length;
@@ -46,13 +47,14 @@ function setup() {
   const ginny = new FakeFighter();
   const sys = () => ({ onEvent: null as ((e: unknown) => void) | null });
   const spells = sys();
+  const shield = { up: false };
   const hurt = (name: string) => ({ name, fighter: { position: new THREE.Vector3() }, onHurt: null as ((d: number, e: HitEffect) => void) | null });
   const targets = [hurt('Malfoid'), hurt('Ginny')];
   const sounds = connectCombatSounds(sfx as unknown as Sfx, {
     malfoid: malfoid as unknown as Malfoid,
     combat: sys() as unknown as ComboSystem,
     spells: spells as unknown as SpellSystem,
-    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: sys() as unknown as SpellSystem }],
+    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: sys() as unknown as SpellSystem, protego: shield }],
     fighters: targets as unknown as FighterTarget[],
   });
   const run = (seconds: number) => {
@@ -62,7 +64,7 @@ function setup() {
       sounds.update(DT);
     }
   };
-  return { sfx, malfoid, ginny, targets, run, sounds, spells };
+  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield };
 }
 
 test('footsteps: two per walk cycle, none when standing or hidden', () => {
@@ -137,4 +139,20 @@ test("spell sounds: Malfoid's Confringo roars from the cast, her Expelliarmus bu
   ev('cast', 'confringo');
   ev('release', 'confringo');
   assert.deepEqual(sfx.played.map((p) => p.id), ['expelliarmus', 'confringo']);
+});
+
+test('Protego hums while the shield is up: once as it rises, faded out as it comes down', () => {
+  const { sfx, shield, run } = setup();
+  run(0.5);
+  assert.equal(sfx.count('protego'), 0);
+  shield.up = true;
+  run(0.6);
+  assert.equal(sfx.count('protego'), 1, 'started once, not restarted while up');
+  assert.deepEqual(sfx.stopped, []);
+  shield.up = false;
+  run(0.1);
+  assert.deepEqual(sfx.stopped, ['protego']);
+  shield.up = true;
+  run(0.1);
+  assert.equal(sfx.count('protego'), 2, 'the next shield hums again');
 });
