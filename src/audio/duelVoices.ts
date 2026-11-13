@@ -43,6 +43,21 @@ interface Line {
   delay: number;   // game time (s) after the previous line ends
 }
 
+/** an opponent's voice lines (null / empty: none recorded; the duel goes on without them) */
+export interface DuelLines {
+  /** the opening exchange, in order */
+  intro: { who: 'malfoid' | 'opponent'; id: SoundId }[];
+  malfoidWin: SoundId | null;
+  opponentWin: SoundId | null;
+}
+
+/** Ginny's duel: Malfoid's opening line, Ginny's reply, a line for each winner */
+export const GINNY_LINES: DuelLines = {
+  intro: [{ who: 'malfoid', id: 'malfoidOpening' }, { who: 'opponent', id: 'ginnyOpening' }],
+  malfoidWin: 'malfoidWin',
+  opponentWin: 'ginnyWin',
+};
+
 /** how open the mouth is for a loudness value */
 export function mouthOpen(loudness: number): number {
   return Math.min(1, Math.max(0, (loudness - VOICE.mouthFloor) / VOICE.mouthSpan));
@@ -58,23 +73,31 @@ export class DuelVoices {
   private intro = false;
   private readonly mouth = new Map<Speaker, number>();
 
-  constructor(private readonly sfx: VoicePlayer, private readonly malfoid: Speaker, private readonly ginny: Speaker) {}
+  constructor(private readonly sfx: VoicePlayer, private readonly malfoid: Speaker, private opponent: Speaker,
+    private lines: DuelLines = GINNY_LINES) {}
 
-  /** a duel starts: both opening lines, then onIntroDone */
+  /** who Malfoid fights, and their lines (silences anything being said) */
+  setOpponent(who: Speaker, lines: DuelLines): void {
+    this.stop();
+    this.opponent = who;
+    this.lines = lines;
+  }
+
+  /** a duel starts: the opening lines, then onIntroDone (at once if there are none) */
   startIntro(): void {
     this.stop();
     this.intro = true;
-    this.queue = [
-      { who: this.malfoid, id: 'malfoidOpening', delay: VOICE.introDelay },
-      { who: this.ginny, id: 'ginnyOpening', delay: VOICE.replyGap },
-    ];
-    this.wait = this.queue[0].delay;
+    this.queue = this.lines.intro.map((l, i) => ({
+      who: l.who === 'malfoid' ? this.malfoid : this.opponent, id: l.id, delay: i === 0 ? VOICE.introDelay : VOICE.replyGap,
+    }));
+    this.wait = this.queue[0]?.delay ?? 0;
   }
 
-  /** the duel is won: the winner's line (cuts anything still being said) */
+  /** the duel is won: the winner's line, if she has one (cuts anything still being said) */
   win(winner: Speaker): void {
     this.stop();
-    const id: SoundId = winner === this.malfoid ? 'malfoidWin' : 'ginnyWin';
+    const id = winner === this.malfoid ? this.lines.malfoidWin : this.lines.opponentWin;
+    if (!id) return;
     this.queue = [{ who: winner, id, delay: VOICE.winDelay }];
     this.wait = VOICE.winDelay;
   }
@@ -128,7 +151,7 @@ export class DuelVoices {
       this.onIntroDone?.();
     }
     // mouths of whoever isn't speaking close
-    for (const who of [this.malfoid, this.ginny]) if (who !== this.current?.line.who) this.drive(who, 0, dt);
+    for (const who of [this.malfoid, this.opponent]) if (who !== this.current?.line.who) this.drive(who, 0, dt);
   }
 
   private drive(who: Speaker, loudness: number, dt: number): void {

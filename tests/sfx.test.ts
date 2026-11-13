@@ -50,11 +50,9 @@ function setup() {
   const targets = [hurt('Malfoid'), hurt('Ginny')];
   const sounds = connectCombatSounds(sfx as unknown as Sfx, {
     malfoid: malfoid as unknown as Malfoid,
-    ginny: ginny as unknown as Malfoid,
     combat: sys() as unknown as ComboSystem,
-    ginnyCombat: sys() as unknown as ComboSystem,
     spells: spells as unknown as SpellSystem,
-    ginnySpells: sys() as unknown as SpellSystem,
+    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: sys() as unknown as SpellSystem }],
     fighters: targets as unknown as FighterTarget[],
   });
   const run = (seconds: number) => {

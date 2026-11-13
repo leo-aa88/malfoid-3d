@@ -4,24 +4,24 @@ import { SceneManager, STUDIO_LOOK } from './scene/SceneManager';
 import { FOREST_CONFIG, ForestWorld, forestLook, SPAWN_CENTRE } from './scene/forest';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
-import { GINNY_FACES, GINNY_TALK } from './character/faces';
 import { CharacterController } from './character/CharacterController';
 import { TrainingDummy, DUMMY_RADIUS, Guard } from './combat/TrainingDummy';
 import { ComboSystem } from './combat/ComboSystem';
 import { FighterTarget } from './combat/FighterTarget';
-import { FighterAI } from './combat/ai/FighterAI';
 import { CombatHud } from './ui/CombatHud';
 import { SpellSystem } from './combat/spells/SpellSystem';
 import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
-import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
+import { Difficulty } from './combat/ai/difficulty';
 import { Sfx } from './audio/Sfx';
 import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
 import { ALL_SPELLS, CAMPAIGN, CAMPAIGN_LIVES, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
+import { OPPONENTS, OpponentId } from './game/opponents';
+import { Opponent } from './game/Opponent';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -29,9 +29,8 @@ const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach o
 // path she takes to the right and still inside the auto-facing angle
 const DUMMY_START_ANGLE = -1.0;               // rad (+ is her left)
 const DUMMY_START_DISTANCE = 0.9;
-// Ginny waits at her other side, a few steps away, until a duel starts
-const GINNY_START = new THREE.Vector3(1.8, 0, -0.4);
-const DUEL_DISTANCE = 3.6;                    // m between them when a duel starts
+// an opponent waits at her other side, a few steps away, until a duel starts (hidden)
+const OPPONENT_WAIT = new THREE.Vector3(1.8, 0, -0.4);
 const FIGHTER_GAP = 0.45;                     // m centre to centre: fighters can't walk through each other
 
 /** push two bodies apart (centre to centre at least gap); share decides who moves (0: only a, 1: only b) */
@@ -50,21 +49,23 @@ function keepApart(a: THREE.Vector3, b: THREE.Vector3, gap: number, share = 0): 
 async function start(): Promise<void> {
   const sm = new SceneManager(document.getElementById('app')!);
   const cam = new CameraController(sm.camera, sm.renderer.domElement);
-  // ?char=ginny shows Ginny's model in the player's place (inspection)
-  const char = new URLSearchParams(location.search).get('char') === 'ginny' ? 'ginny' : 'malfoid';
-  const [malfoid, ginny] = await Promise.all([
-    Malfoid.load(`${BASE}models/${char}.glb`, `${BASE}models/${char}.json`,
-      char === 'ginny' ? { name: 'Ginny', idleClip: 'confident', expressions: GINNY_FACES, talk: GINNY_TALK } : undefined),
-    Malfoid.load(`${BASE}models/ginny.glb`, `${BASE}models/ginny.json`,
-      { name: 'Ginny', idleClip: 'confident', expressions: GINNY_FACES, talk: GINNY_TALK }),
+  // ?char=ginny / ?char=cho shows that model in the player's place (inspection)
+  const asked = new URLSearchParams(location.search).get('char') as OpponentId | null;
+  const char = asked && OPPONENTS[asked] ? OPPONENTS[asked] : null;
+  const ids = Object.keys(OPPONENTS) as OpponentId[];
+  const [malfoid, ...opponentChars] = await Promise.all([
+    Malfoid.load(`${BASE}models/${char?.model ?? 'malfoid'}.glb`, `${BASE}models/${char?.model ?? 'malfoid'}.json`, char?.character),
+    ...ids.map((id) => Malfoid.load(`${BASE}models/${OPPONENTS[id].model}.glb`, `${BASE}models/${OPPONENTS[id].model}.json`,
+      OPPONENTS[id].character)),
   ]);
-  malfoid.scene = ginny.scene = sm.scene;
-  sm.scene.add(malfoid.root, ginny.root);
-  ginny.root.position.copy(GINNY_START);
-  ginny.lookAt(Math.atan2(-GINNY_START.x, -GINNY_START.z));
-  ginny.root.visible = false;                         // shown in duel mode
+  malfoid.scene = sm.scene;
+  sm.scene.add(malfoid.root, ...opponentChars.map((c) => c.root));
+  for (const c of opponentChars) {
+    c.root.position.copy(OPPONENT_WAIT);
+    c.lookAt(Math.atan2(-OPPONENT_WAIT.x, -OPPONENT_WAIT.z));
+    c.update(1 / 60);
+  }
   malfoid.update(1 / 60);                             // posed (not in the bind pose) behind the mode select
-  ginny.update(1 / 60);
 
   // training dummy
   const dummy = new TrainingDummy();
@@ -78,33 +79,32 @@ async function start(): Promise<void> {
 
   // who can be hit: the dummy and the fighters
   const malfoidTarget = new FighterTarget(malfoid);
-  const ginnyTarget = new FighterTarget(ginny);
   const solids: THREE.Box3[] = [];
   // training: the dummy in the studio; practice (any opponent, every spell, straight into the
   // fight) and the campaign (opponents in order, lives, spells learned): a duel in the woods
   type Mode = 'training' | 'practice' | 'campaign';
   let mode: Mode = 'training';
   const isDuel = () => mode !== 'training';
-  const malfoidTargets = () => (isDuel() ? [ginnyTarget] : [dummy]);
+  let opp: Opponent;                                  // whom Malfoid duels (set below)
+  const malfoidTargets = () => (isDuel() ? [opp.target] : [dummy]);
   const combat = new ComboSystem(malfoid, malfoidTargets);
-  const ginnyCombat = new ComboSystem(ginny, () => [malfoidTarget]);
   const hud = new CombatHud(sm.camera, document.getElementById('hud')!);
   combat.onEvent = (e) => hud.handle(e);
-  ginnyCombat.onEvent = (e) => hud.handle(e);
 
-  // spells: each caster casts from her own wand tip; Malfoid's spells hit the dummy and
-  // Ginny, Ginny's Expelliarmus hits Malfoid. One effect pool per look: Malfoid's Expelliarmus
-  // shares Ginny's red pool (a charge orb each), which Malfoid's spell system advances (it
-  // runs in every mode)
+  // spells: each caster casts from her own wand tip; Malfoid's spells hit the dummy or her
+  // opponent, the opponent's hit Malfoid. One effect pool per look (each lit pool adds point
+  // lights to every lit material): Malfoid's Expelliarmus shares Ginny's red pool (a charge
+  // orb each); Malfoid's spell system advances both of her pools (it runs in every mode)
   const spellFx = new ConfringoFx(sm.scene);
   const ginnyFx = new ConfringoFx(sm.scene, EXPELLIARMUS_LOOK, 'expelliarmus_fx');
   const spells = new SpellSystem(malfoid, malfoid.spellEmitter, () => combat.busy,
     new SpellFxSet({ confringo: spellFx, expelliarmus: ginnyFx }, [spellFx, ginnyFx]), { solids, groundY: 0 });
-  const ginnySpells = new SpellSystem(ginny, ginny.spellEmitter, () => ginnyCombat.busy,
-    new SpellFxSet({ expelliarmus: ginnyFx }, []), { targets: [malfoidTarget], solids, groundY: 0 });
   spells.onEvent = (e) => {
     hud.handleSpell(e);
     if (e.type === 'hit' && e.disarmed) hud.announce('DISARMED!', 'disarm');
+    // her spell met the opponent's shield: stopped, or (a parry) sent straight back at her
+    if (e.type === 'shielded') hud.flashStatusText('PROTEGO', 'miss');
+    if (e.type === 'reflected') hud.announce('REFLECTED!', 'disarm');
   };
   hud.addSpell('confringo', CONFRINGO.name, 'L', 'confringo');
   hud.addSpell('expelliarmus', SPELL_INFO.expelliarmus.name, SPELL_INFO.expelliarmus.key, 'expelliarmus');
@@ -120,31 +120,47 @@ async function start(): Promise<void> {
   const campaign = new Campaign(store);
   type FightResult = { won: true; r: WinResult } | { won: false; r: LossResult };
   let pendingResult: FightResult | null = null;     // a campaign fight just ended: shown once the winner's line ends
-  ginnySpells.onEvent = (e) => {
-    hud.handleSpell(e);
-    if (e.type === 'hit' && e.disarmed) {
-      hud.announce('DISARMED!', 'disarm');
-      ginny.setExpression('teasing', 1.6);
-    }
-  };
-
-  // Ginny's AI: only fights once a duel has been started (G or the HUD button)
-  const ai = new FighterAI(ginny, ginnyTarget, ginnyCombat, ginnySpells, EXPELLIARMUS, malfoid, combat, () => solids);
-  ai.opponentSpells = spells;                         // she sees Malfoid's casts and bolts
+  // the opponents (OPPONENTS: Ginny, Cho): each with her own health, combo system, spells,
+  // shield and AI; only the one being duelled is shown and updated. The AI only fights once a
+  // duel has started.
+  const world = { scene: sm.scene, malfoid, malfoidTarget, malfoidCombat: combat, malfoidSpells: spells, solids,
+    pools: { confringo: spellFx, expelliarmus: ginnyFx } };
+  const opponents = {} as Record<OpponentId, Opponent>;
+  ids.forEach((id, i) => {
+    const o = new Opponent(OPPONENTS[id], opponentChars[i], world);
+    opponents[id] = o;
+    o.combat.onEvent = (e) => hud.handle(e);
+    o.spells.onEvent = (e) => {
+      hud.handleSpell(e);
+      if (e.type === 'hit' && e.disarmed) {
+        hud.announce('DISARMED!', 'disarm');
+        o.char.setExpression(o.def.faces.disarmedFoe, 1.6);
+      }
+    };
+    o.target.onDefeated = () => { if (o === opp) finish(malfoid); };
+  });
+  opp = opponents.ginny;
   let level: Difficulty = 'easy';
   const setLevel = (l: Difficulty) => {
     level = l;
-    ai.params = DIFFICULTY[l].ai;
-    ginnyTarget.maxHp = DIFFICULTY[l].hp;
-    hud.setLevel(DIFFICULTY[l].label);
-  };
-  ai.onState = (s) => {
-    if (s === 'CAST' || s === 'MELEE_ATTACK') ginny.setExpression('determined', 0.9);
-    else if (s === 'RETREAT') ginny.setExpression('frustrated', 1.0);
+    opp.setLevel(l);
+    hud.setLevel(opp.def.difficulty[l].label);
   };
   // sounds, and the duel's voice lines (the fighters' mouths follow them)
   const sfx = new Sfx(sm.camera);
-  const voices = new DuelVoices(sfx, malfoid, ginny);
+  const voices = new DuelVoices(sfx, malfoid, opp.char);
+  /** duel this opponent (the others are hidden and still) */
+  const setOpponent = (id: OpponentId) => {
+    if (opp !== opponents[id]) {
+      opp.ai.setActive(false);
+      opp.char.root.visible = false;
+      opp.char.root.position.copy(OPPONENT_WAIT);
+    }
+    opp = opponents[id];
+    voices.setOpponent(opp.char, opp.def.lines);
+    hud.setOpponent(opp.def.name, opp.def.hudColour);
+    spells.world.targets = malfoidTargets();
+  };
   voices.onIntroDone = () => startFight();
   let duel = false;
   let duelOver = 0;
@@ -156,18 +172,16 @@ async function start(): Promise<void> {
     if (on) {
       // a fresh start: full health, wands back, facing each other a few steps apart
       malfoidTarget.reset();
-      ginnyTarget.reset();
+      opp.reset();
       if (!malfoid.hasWand) malfoid.wand.retrieve();
-      if (!ginny.hasWand) ginny.wand.retrieve();
       spells.reset();
-      ginnySpells.reset();
       // side by side across the screen (the camera looks along -z): Malfoid on the left
-      // facing right, Ginny on the right facing left
-      ginny.root.position.copy(malfoid.position).add(new THREE.Vector3(DUEL_DISTANCE, 0, 0));
+      // facing right, her opponent on the right facing left
+      opp.char.root.position.copy(malfoid.position).add(new THREE.Vector3(opp.def.startDistance, 0, 0));
       malfoid.setFacing(Math.PI / 2);
-      ginny.setFacing(-Math.PI / 2);
-      cam.frame(malfoid.position, ginny.position);
-      ginny.setExpression('confident', 5);
+      opp.char.setFacing(-Math.PI / 2);
+      cam.frame(malfoid.position, opp.char.position);
+      opp.char.setExpression(opp.def.faces.start, 5);
       malfoid.resetIdleTimer();                       // she starts in her stance, not the bored arms-crossed idle
       // campaign: the opening lines first, the fight (both fighters) starts once they are
       // said; practice: straight into the fight
@@ -175,21 +189,21 @@ async function start(): Promise<void> {
       else voices.stop();
       closeUpOn = null;
     }
-    ai.setActive(false);
+    opp.ai.setActive(false);
     hud.setDuel(on);
     if (on && mode !== 'campaign') startFight();
   };
   const startFight = () => {
-    if (!duel || duelOver || ai.active) return;
-    ai.setActive(true);
-    if (closeUpOn) cam.frame(malfoid.position, ginny.position);   // back to the duel view
+    if (!duel || duelOver || opp.ai.active) return;
+    opp.ai.setActive(true);
+    if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
     closeUpOn = null;
     hud.announce('DUEL!', 'duel');
   };
   const finish = (winner: Malfoid) => {
     if (!duel || duelOver) return;
     duelOver = 1;
-    ai.setActive(false);
+    opp.ai.setActive(false);
     hud.announce(`${winner.name.toUpperCase()} WINS`, 'win');
     if (mode === 'campaign') {
       // a win teaches her the opponent's spell and the next one is up; a loss costs a life
@@ -197,11 +211,11 @@ async function start(): Promise<void> {
       hud.setLives(campaign.run?.lives ?? 0, CAMPAIGN_LIVES);
       refreshMenu();
     }
-    if (winner === ginny) ginny.setExpression('happy', 4);
+    if (winner === opp.char) opp.char.setExpression(opp.def.faces.win, 4);
+    else if (opp.def.faces.lose) opp.char.setExpression(opp.def.faces.lose, 99);
     voices.win(winner);
   };
-  malfoidTarget.onDefeated = () => finish(ginny);
-  ginnyTarget.onDefeated = () => finish(malfoid);
+  malfoidTarget.onDefeated = () => finish(opp.char);
 
   const input = new CharacterController(malfoid, combat);
   input.viewYaw = () => cam.getYaw();
@@ -235,7 +249,7 @@ async function start(): Promise<void> {
     const next = campaign.opponent;
     continueBtn.hidden = !run;
     if (run) {
-      const status = `${'♥'.repeat(run.lives)} · ${DIFFICULTY[run.level].label}`;
+      const status = `${'♥'.repeat(run.lives)} · ${run.level[0].toUpperCase()}${run.level.slice(1)}`;
       continueBtn.disabled = !next?.playable;
       continueBtn.innerHTML = next?.playable ? `Continue: ${next.name}<small>${status}</small>`
         : `Next: ${next?.name ?? 'the end'} · coming soon<small>${status}</small>`;
@@ -264,12 +278,16 @@ async function start(): Promise<void> {
   }
   continueBtn.addEventListener('click', () => enterMode('campaign'));
   modeEl.querySelector('button[data-mode="training"]')!.addEventListener('click', () => enterMode('training'));
+  // practice: pick the opponent (a chip), then the difficulty starts the fight
+  let practiceOpponent: OpponentId = 'ginny';
   for (const b of modeEl.querySelectorAll<HTMLButtonElement>('.practice .levels button')) {
-    b.addEventListener('click', () => enterMode('practice', b.dataset.level as Difficulty));
+    b.addEventListener('click', () => enterMode('practice', b.dataset.level as Difficulty, practiceOpponent));
   }
-  // practice: the opponent (only Ginny can be fought in this build)
   for (const b of modeEl.querySelectorAll<HTMLButtonElement>('.practice .opponents button')) {
     b.addEventListener('click', () => {
+      b.blur();
+      if (!(b.dataset.opponent! in OPPONENTS)) return;
+      practiceOpponent = b.dataset.opponent as OpponentId;
       for (const o of modeEl.querySelectorAll('.practice .opponents button')) o.classList.toggle('on', o === b);
     });
   }
@@ -328,24 +346,29 @@ async function start(): Promise<void> {
     input.setPaused(true);
     resultEl.hidden = false;
   };
-  const enterMode = (m: Mode, l?: Difficulty) => {
+  /** training; practice against `who` (default: the last one picked); the campaign's next opponent */
+  const enterMode = (m: Mode, l?: Difficulty, who?: OpponentId) => {
     if (m === 'campaign') {
       if (l || !campaign.run) campaign.start(l ?? level);   // (debugging: enterMode('campaign', level) starts a run)
-      if (!campaign.opponent?.playable) {             // the next opponent isn't in this build yet
+      const next = campaign.opponent;
+      if (!next?.playable || !(next.id in OPPONENTS)) {    // the next opponent isn't in this build yet
         openMenu();
         return;
       }
+      who = next.id as OpponentId;
       l = campaign.run!.level;
       hud.setLives(campaign.run!.lives, CAMPAIGN_LIVES);
     }
+    if (m === 'practice') who = who ?? practiceOpponent;
+    if (who) setOpponent(who);
     mode = m;
-    if (l) setLevel(l);
+    if (l || who) setLevel(l ?? level);
     menuOpen = false;
     modeEl.hidden = true;
     resultEl.hidden = true;
     spells.world.targets = malfoidTargets();
     dummy.root.visible = m === 'training';
-    ginny.root.visible = isDuel();
+    for (const o of Object.values(opponents)) o.char.root.visible = isDuel() && o === opp;
     hud.setMode(m);
     refreshSpells();
     setEnvironment(isDuel());
@@ -359,7 +382,7 @@ async function start(): Promise<void> {
       malfoidTarget.reset();
     } else {
       // the duel starts in the spawn clearing of the woods
-      malfoid.root.position.set(SPAWN_CENTRE.x - DUEL_DISTANCE / 2, 0, SPAWN_CENTRE.z);
+      malfoid.root.position.set(SPAWN_CENTRE.x - opp.def.startDistance / 2, 0, SPAWN_CENTRE.z);
       setDuel(true);
     }
     input.setPaused(false);
@@ -387,9 +410,8 @@ async function start(): Promise<void> {
   const forest = new ForestWorld(FOREST_CONFIG);
   sm.scene.add(forest.group);
   forest.atmosphere.setMoon(new THREE.Vector3(...FOREST_CONFIG.moonOffset));
-  // spells hit trunks: both casters share one list of solids, refilled each frame
+  // spells hit trunks: every caster shares one list of solids, refilled each frame
   spells.world.solids = solids;
-  ginnySpells.world.solids = solids;
   const setEnvironment = (woods: boolean) => {
     sm.setEnvironment(woods ? 'woods' : 'studio', woods ? forestLook() : STUDIO_LOOK);
     forest.setActive(woods);
@@ -408,7 +430,8 @@ async function start(): Promise<void> {
 
   const pausedEl = document.getElementById('paused')!;
   // sound effects (public/sfx); M mutes
-  const combatSounds = connectCombatSounds(sfx, { malfoid, ginny, combat, ginnyCombat, spells, ginnySpells, fighters: [malfoidTarget, ginnyTarget] });
+  const combatSounds = connectCombatSounds(sfx, { malfoid, combat, spells,
+    opponents: Object.values(opponents), fighters: [malfoidTarget, ...Object.values(opponents).map((o) => o.target)] });
   // the volume control: on the start menu and the pause screen
   const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
   window.addEventListener('keydown', (e) => {
@@ -443,28 +466,32 @@ async function start(): Promise<void> {
   sm.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (!input.paused) {
-      // during the opening lines nobody moves: Malfoid's controls are locked, Ginny's AI is off
+      // during the opening lines nobody moves: Malfoid's controls are locked, the AI is off
       input.locked = duel && voices.introRunning;
       if (input.locked) malfoid.resetIdleTimer();     // listening, not bored: no arms-crossed idle
       input.update();
       const duelMode = isDuel();
-      if (duelMode) ai.update(dt);
+      const foe = opp.char;
+      if (duelMode) opp.ai.update(dt);
       combat.update(dt);
-      if (duelMode) ginnyCombat.update(dt);
+      if (duelMode) opp.combat.update(dt);
       voices.update(dt);                    // voice lines and mouths: before the pose update applies them
       malfoid.update(dt);
-      if (duelMode) ginny.update(dt);
+      if (duelMode) foe.update(dt);
       spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
-      if (duelMode) ginnySpells.update(dt);
+      if (duelMode) {
+        opp.spells.update(dt);
+        opp.update(dt);                     // her shield
+      }
       combatSounds.update(dt);              // footsteps follow the poses just updated
       malfoidTarget.update(dt);
-      ginnyTarget.update(dt);
+      opp.target.update(dt);
       if (duelMode) {
-        keepApart(malfoid.position, ginny.position, FIGHTER_GAP, 0.5);
+        keepApart(malfoid.position, foe.position, FIGHTER_GAP, 0.5);
         forest.resolve(malfoid.position, 0.28);           // trunks are solid; nothing else is
-        forest.resolve(ginny.position, 0.28);
-        forest.fillSolids(solids, [malfoid.position, ginny.position]);
-        forest.update(dt, malfoid.position, [malfoid.position, ginny.position], sm.camera, sm.renderer.domElement.height);
+        forest.resolve(foe.position, 0.28);
+        forest.fillSolids(solids, [malfoid.position, foe.position]);
+        forest.update(dt, malfoid.position, [malfoid.position, foe.position], sm.camera, sm.renderer.domElement.height);
       }
       else if (!dummy.down) keepApart(malfoid.position, dummy.position, DUMMY_RADIUS + 0.22);
       if (!duelMode) dummy.update(dt, malfoid.position);
@@ -482,9 +509,10 @@ async function start(): Promise<void> {
     hud.setDummy(dummy.hp, dummy.guard);
     hud.setSpell('confringo', spells.cooldownLeft(CONFRINGO), CONFRINGO.cooldown, malfoid.hasWand);
     if (mySpells.has('expelliarmus')) hud.setSpell('expelliarmus', spells.cooldownLeft(EXPELLIARMUS), EXPELLIARMUS.cooldown, malfoid.hasWand);
-    hud.setFighters(malfoidTarget, ginnyTarget, duel ? ai.state : null);
+    hud.setFighters(malfoidTarget, opp.target, duel ? opp.ai.state : null);
     spellFx.setView(sm.camera, sm.renderer.domElement.height);
     ginnyFx.setView(sm.camera, sm.renderer.domElement.height);
+    opp.setView(sm.camera, sm.renderer.domElement.height);
     // voice lines: cut to a close-up of whoever speaks (her mouth is readable) and hold it
     // through the pause between the opening lines; the fight cuts back to the duel view
     const speaker = voices.speaking as Malfoid | null;
@@ -496,7 +524,7 @@ async function start(): Promise<void> {
     }
     cam.update(malfoid.position, input.paused || closeUpOn ? undefined : {
       heading: malfoid.facingAngle, speed: malfoid.moveSpeed,
-      other: isDuel() && !menuOpen ? ginny.position : null,
+      other: isDuel() && !menuOpen ? opp.char.position : null,
     });
     sm.followShadow(malfoid.position);
     sm.render();
@@ -514,8 +542,15 @@ async function start(): Promise<void> {
     }
   });
   // expose for debugging / automated checks
-  Object.assign(window, { sfx, volume, voices, malfoid, ginny, cam, combat, ginnyCombat, dummy, spells, ginnySpells, spellFx, ginnyFx, ai,
-    malfoidTarget, ginnyTarget, setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, forest, renderer: sm.renderer, scene: sm.scene, input, solids });
+  const g = opponents.ginny;
+  const c = opponents.cho;
+  Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, malfoidTarget,
+    // Ginny's systems by their old names, Cho's, and whoever is being duelled
+    ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
+    cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
+    opponents, opp: () => opp, setOpponent,
+    setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, forest,
+    renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 
 start().catch((err) => {

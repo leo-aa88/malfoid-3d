@@ -84,6 +84,14 @@ export class CombatHud {
     this.duelBox.querySelector<HTMLElement>('.lives-row')!.hidden = mode !== 'campaign';
   }
 
+  /** whom Malfoid duels: her name on the health bar and the AI row, her bar's colour */
+  setOpponent(name: string, colour: string): void {
+    const labels = this.duelBox.querySelectorAll<HTMLElement>('.label');   // Malfoid, opponent, AI, ...
+    labels[1].textContent = name;
+    labels[2].textContent = `${name} AI`;
+    this.bars[1].fill.style.background = colour;
+  }
+
   /** the campaign's lives left (of total) */
   setLives(left: number, total: number): void {
     this.duelBox.querySelector('.lives')!.textContent = '♥'.repeat(left) + '♡'.repeat(Math.max(0, total - left));

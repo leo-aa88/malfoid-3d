@@ -51,6 +51,18 @@ export class Projectile {
     this.direction.copy(direction).normalize();
   }
 
+  /**
+   * sent back (a reflected spell): alive again, flying along dir (unit) from a little way
+   * along it (clear of the shield that sent it), its range counted afresh
+   */
+  redirect(dir: THREE.Vector3, nudge: number): void {
+    this.direction.copy(dir).normalize();
+    this.position.addScaledVector(this.direction, nudge);
+    this.previous.copy(this.position);
+    this.travelled = 0;
+    this.alive = true;
+  }
+
   step(dt: number, world: CollisionWorld): Impact | null {
     if (!this.alive) return null;
     this.age += dt;

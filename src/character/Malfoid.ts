@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AnimationController, AnimationState, ActionState, HoldState, ReactionState, StrikeState } from './AnimationController';
+import { AnimationController, AnimationState, ActionState, DodgeState, HoldState, ReactionState, StrikeState } from './AnimationController';
 import { FaceFx, ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 import type { SpellEmitter } from '../combat/spells/SpellEmitter';
@@ -12,6 +12,9 @@ export const IDLE_ANNOYED_TIMEOUT = 10;
 
 export const WALK_SPEED = 1.15;   // m/s
 export const RUN_SPEED = 2.9;     // m/s
+/** how far each dodge carries her (m) and its cross-fade (s) */
+export const DODGE_DISTANCE: Record<DodgeState, number> = { dodge_left: 1.25, dodge_right: 1.25, dodge_back: 1.0 };
+const FADE_DODGE = 0.05;
 const TURN_RATE = 9.0;            // rad/s response of the facing direction
 const ACCEL = 8.0;                // 1/s speed smoothing
 const TURN_IN_PLACE = 1.6;        // rad: larger direction changes play the turn clip
@@ -23,7 +26,7 @@ export type Weights = Record<string, number>;
 export interface CharacterOptions {
   name: string;
   /** standing-still clip */
-  idleClip?: 'idle' | 'confident';
+  idleClip?: 'idle' | 'confident' | 'cho_idle';
   /** after IDLE_ANNOYED_TIMEOUT s without input: cross the arms, annoyed face (Malfoid) */
   annoyedIdle?: boolean;
   /** named faces (shape-key weights) for setExpression(); 'annoyed' is used by the annoyed idle */
@@ -107,6 +110,9 @@ export class Malfoid {
   // reactions (hit, stagger, knockback, disarmed, pickup): timed here, push her back
   private reaction: { kind: ReactionState; t: number; dur: number } | null = null;
   private readonly slide = new THREE.Vector3();
+  private readonly dodgeVec = new THREE.Vector3();   // the whole dodge (m, world)
+  private dodgeT = 0;
+  private dodgeDur = 0;
   private lookTarget: number | null = null;     // turn towards this when standing (AI)
   private pickupSpot: THREE.Vector3 | null = null;   // steps to the wand while bending down for it
   private strafeFace: number | null = null;     // keep facing this while moving (AI)
@@ -230,9 +236,35 @@ export class Malfoid {
     return this.wand.state === 'hand';
   }
 
-  /** blocking right now (the block pose is held) */
+  /** blocking right now (the block pose is held; Protego's shield guards like a block too) */
   get blocking(): boolean {
-    return this.hold === 'block';
+    return this.hold === 'block' || this.hold === 'protego';
+  }
+
+  /**
+   * a quick evasive step (Cho's dodge clips): to her left, right or back, dist m over the
+   * clip, keeping her facing. Real movement (trees still stop her), no invulnerability: a hit
+   * interrupts it. false if she can't (busy, or her model has no such clip).
+   */
+  dodge(kind: DodgeState, dist = DODGE_DISTANCE[kind]): boolean {
+    if (this.action || this.hold || this.strike || this.reaction || this.defeated || !this.animation.has(kind)) return false;
+    const a = this.facing;
+    if (kind === 'dodge_back') this.dodgeVec.set(-Math.sin(a), 0, -Math.cos(a));
+    else this.dodgeVec.set(Math.cos(a), 0, -Math.sin(a)).multiplyScalar(kind === 'dodge_left' ? 1 : -1);
+    this.dodgeVec.multiplyScalar(dist);
+    this.dodgeT = 0;
+    this.dodgeDur = this.animation.duration(kind);
+    this.action = kind;
+    this.moving = false;
+    this.speed = 0;
+    this.animation.restart(kind, FADE_DODGE);
+    this.resetIdleTimer();
+    return true;
+  }
+
+  /** the dodge being made (null: none) */
+  get dodging(): DodgeState | null {
+    return this.action && this.action !== 'jump' ? this.action : null;
   }
 
   /**
@@ -245,7 +277,7 @@ export class Malfoid {
     if (kind !== 'pickup') this.pickupSpot = null;
     if (this.strike) this.endStrike();
     this.castLock = false;
-    this.action = null;
+    this.action = null;                          // (a dodge is cut short too)
     this.hold = null;
     this.reaction = { kind, t: 0, dur: this.animation.duration(kind) };
     this.animation.restart(kind, 0.06);
@@ -407,6 +439,14 @@ export class Malfoid {
     if (this.slide.lengthSq() > 1e-6) {
       this.root.position.addScaledVector(this.slide, dt);
       this.slide.multiplyScalar(Math.exp(-5.0 * dt));
+    }
+    // a dodge carries her its distance over the clip (fastest in the middle of the step)
+    if (this.dodging) {
+      const t0 = this.dodgeT;
+      this.dodgeT = Math.min(this.dodgeDur, this.dodgeT + dt);
+      const f = (t: number) => (1 - Math.cos((Math.PI * t) / this.dodgeDur)) / 2;    // 0..1 of the distance
+      this.root.position.addScaledVector(this.dodgeVec, f(this.dodgeT) - f(t0));
+      if (this.dodgeT >= this.dodgeDur) this.action = null;
     }
     // walking onto her dropped wand picks it up
     if (this.wand.state === 'dropped' && !this.reaction && !this.strike && !this.action && !this.defeated) {
