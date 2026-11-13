@@ -4,7 +4,9 @@ An anime-style 3D fighting game in the browser: **Malfoid**, a Slytherin student
 Potter's potential romantic interests one by one, with fists, kicks and spells, then Harry
 himself, and finally faces Bellatrix Lestrange. Built with Three.js + TypeScript + Vite.
 
-**Ginny Weasley**, the first opponent, is playable; the rest of the campaign is planned. The built characters
+Like Mega Man, every opponent Malfoid beats in the campaign teaches her a spell: beating Ginny
+teaches her **Expelliarmus**. **Ginny Weasley**, the first opponent, is playable; the rest of the
+campaign is planned. The built characters
 (`public/models/*.glb`) and sound effects (`public/sfx/`) are included, so the game runs straight
 from a clone.
 
@@ -20,27 +22,41 @@ site in `dist/`.
 
 ## Modes
 
-The start screen offers two modes:
+The start screen offers three modes:
 
-- **Training:** Malfoid against a training dummy in the studio scene, to practise strikes,
-  combos and Confringo.
-- **Duel:** Malfoid against an AI-controlled opponent in the **Forbidden Woods**, an infinite
-  procedural forest that streams in chunks around the player, with no walls. See
-  `src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
-  `src/scene/forest/config.ts`.
+- **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
+  spell, to practise strikes, combos and spells.
+- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell and
+  no opening lines. **G** restarts the fight. Ginny can be picked now; Cho and a Malfoid mirror
+  match are listed as coming soon.
+- **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
+  (Ginny, then Cho, ...) with **3 lives** for the whole run:
+  - a win teaches Malfoid the opponent's spell and moves on to the next opponent;
+  - a loss costs a life and the same opponent is fought again;
+  - with no lives left it's **game over**: the run starts again from Ginny, at the difficulty
+    chosen again, and the spells learned are forgotten.
+
+  A campaign fight can't be restarted with G. The run (difficulty, lives, the next opponent,
+  the spells learned) is remembered in the browser, so the start screen offers to continue
+  it; starting a new run while one is in progress takes a second click. Rules and lives are in
+  `src/game/campaign.ts`.
+
+Practice and the campaign are fought in the **Forbidden Woods**, an infinite procedural forest
+that streams in chunks around the player, with no walls. See `src/scene/forest/` and
+`docs/forest/REPORT.md`; all values are in `src/scene/forest/config.ts`.
 
 ## Opponents
 
 The campaign, in order:
 
-| Order | Opponent | Gameplay focus | Story purpose | Status |
-|---|---|---|---|---|
-| 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | playable |
-| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | planned |
-| 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | planned |
-| 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | planned |
-| 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | planned |
-| 6 | Bellatrix Lestrange | Crucio, Imperio, multiple opponents | First genuinely terrifying boss | planned |
+| Order | Opponent | Gameplay focus | Story purpose | Malfoid learns | Status |
+|---|---|---|---|---|---|
+| 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | Expelliarmus | playable |
+| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | – | planned |
+| 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | – | planned |
+| 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | – | planned |
+| 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | – | planned |
+| 6 | Bellatrix Lestrange | Crucio, Imperio, multiple opponents | First genuinely terrifying boss | – | planned |
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
@@ -60,13 +76,22 @@ Ginny's signature spell is Expelliarmus. It knocks Malfoid's wand out of her han
 lands on the floor inside a ring. Until Malfoid walks over and picks it up, she can only fight
 with her fists. See `docs/ginny/REPORT.md` for details.
 
+## Expelliarmus (P)
+
+Malfoid learns Ginny's Disarming Charm by beating her in the campaign (in training and practice
+she always has it; in the campaign, never against Ginny herself). A red bolt: 4 damage, a
+stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
+from Confringo's, and its own slot in the HUD. A disarmed opponent runs back to her wand and
+picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.ts`.
+
 ## How a duel runs
 
-- **Opening lines:** Malfoid speaks, then her opponent replies, each in a close-up. Nobody can
-  move or attack until **DUEL!** appears.
+- **Opening lines (campaign):** Malfoid speaks, then her opponent replies, each in a close-up.
+  Nobody can move or attack until **DUEL!** appears. Practice goes straight to the fight.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
-  to recover, an opening for either side. **G** (or the HUD button) restarts the duel.
-- **The last word:** the winner says her line after the KO.
+  to recover, an opening for either side. In practice, **G** (or the HUD button) restarts it.
+- **The last word:** the winner says her line after the KO. In the campaign the result follows:
+  the spell learned and the next opponent, the lives left, or game over.
 - **Lip movement:** the speakers' mouths open and close with the loudness of their lines
   (`audio/duelVoices.ts`).
 - **Leaving:** **Change mode** in the HUD returns to the start screen.
@@ -84,7 +109,8 @@ with her fists. See `docs/ginny/REPORT.md` for details.
 | two strike keys quickly | combo (see below) |
 | O | block (hold) |
 | L | cast Confringo (5 s cooldown; needs the wand) |
-| G | restart the duel (duel mode) |
+| P | cast Expelliarmus (8 s cooldown; needs the wand; learned from Ginny in the campaign) |
+| G | restart the fight (practice) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
 | M | mute / unmute sound (the volume is set on the start menu and the pause screen) |
@@ -167,13 +193,16 @@ Screenshots from the viewer are in `docs/confringo/`.
   (health, blocking, reactions, disarm, defeat).
 - `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
   cast); `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning.
-- `combat/spells/Expelliarmus.ts` – Ginny's disarming spell.
+- `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned).
+- `game/campaign.ts` – the campaign: the opponents in order, lives, the spells each one
+  teaches, the saved run.
 - `character/faces.ts` – Ginny's expressions and speaking mouth.
 - `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
   `Confringo.ts` (tuning), `Projectile.ts` + `collision.ts` (swept collision: no tunnelling),
   `SpellEmitter.ts` (where spells leave from: the wand tip),
-  `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion).
-- `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, spell cooldown.
+  `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion; one pool
+  per look, shared by every caster of that spell), `SpellFxSet.ts` (a caster's spells to their pools).
+- `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, a cooldown slot per spell, lives.
 - `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
   pause screen; remembered in the browser, with a short sample at the new level.
 - `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement
@@ -198,7 +227,8 @@ npm test
 ```
 
 Runs the logic tests in `tests/` with Node's test runner on an esbuild bundle: spells, Ginny's
-AI and combat, the forest (generation, collision, geometry), sound triggers and the voice lines.
+AI and combat, the forest (generation, collision, geometry), sound triggers, the voice lines and
+the campaign (lives, order, spells learned).
 No browser or WebGL needed.
 
 ## Rebuilding the models

@@ -14,7 +14,7 @@
       <button id="reset-camera" type="button">Reset Camera</button>
     </div>
     <div id="help">
-      <b>W A S D</b> move · <b>Shift</b> run · <b>Space</b> jump · <b>Left Ctrl</b> crouch · <b>O</b> block · <b>L</b> Confringo · <b>M</b> mute · <b>Esc</b> pause<br />
+      <b>W A S D</b> move · <b>Shift</b> run · <b>Space</b> jump · <b>Left Ctrl</b> crouch · <b>O</b> block · <b>L</b> Confringo<span id="help-expelliarmus" hidden> · <b>P</b> Expelliarmus</span> · <b>M</b> mute · <b>Esc</b> pause<br />
       <b>J</b> / <b>U</b> high / low punch · <b>K</b> / <b>I</b> high / low kick · two quickly = combo · <b>B</b> dummy guard · <b>N</b> dummy in front · <b>G</b> restart the duel<br />
       <b>Left drag</b> orbit · <b>Right drag</b> pan · <b>Wheel</b> zoom
     </div>
@@ -34,13 +34,28 @@
       <div class="box">
         <div class="big">Malfoid</div>
         <div class="sub">Choose a mode</div>
-        <button type="button" data-mode="training"><b>Training</b><span>practise on the dummy</span></button>
-        <div class="duel-pick">
-          <div class="duel-title"><b>Duel</b><span>fight Ginny Weasley</span></div>
+        <button type="button" data-mode="training"><b>Training</b><span>the dummy, every spell</span></button>
+        <div class="pick practice">
+          <div class="pick-title"><b>Practice</b><span>any opponent, every spell</span></div>
+          <div class="opponents">
+            <button type="button" data-opponent="ginny" class="on">Ginny</button>
+            <button type="button" data-opponent="cho" disabled>Cho<small>soon</small></button>
+            <button type="button" data-opponent="malfoid" disabled>Malfoid<small>soon</small></button>
+          </div>
           <div class="levels">
-            <button type="button" data-mode="duel" data-level="easy">Easy</button>
-            <button type="button" data-mode="duel" data-level="normal">Normal</button>
-            <button type="button" data-mode="duel" data-level="hard">Hard</button>
+            <button type="button" data-mode="practice" data-level="easy">Easy</button>
+            <button type="button" data-mode="practice" data-level="normal">Normal</button>
+            <button type="button" data-mode="practice" data-level="hard">Hard</button>
+          </div>
+        </div>
+        <div class="pick campaign">
+          <div class="pick-title"><b>Campaign</b><span>3 lives · Ginny, Cho, Luna, Hermione, Harry, Bellatrix</span></div>
+          <button type="button" class="continue" data-mode="campaign" hidden></button>
+          <div class="new-run">New campaign</div>
+          <div class="levels">
+            <button type="button" data-mode="campaign" data-level="easy">Easy</button>
+            <button type="button" data-mode="campaign" data-level="normal">Normal</button>
+            <button type="button" data-mode="campaign" data-level="hard">Hard</button>
           </div>
         </div>
         <div class="volume">
@@ -50,6 +65,15 @@
           <button type="button" data-vol="+" aria-label="Raise the sound volume">+</button>
           <span class="vol-value">80%</span>
         </div>
+      </div>
+    </div>
+    <div id="result" hidden>
+      <div class="box">
+        <div class="tag"></div>
+        <div class="title"></div>
+        <div class="how"></div>
+        <div class="next"></div>
+        <div class="actions"></div>
       </div>
     </div>
     <div id="loading">Loading Malfoid…</div>
