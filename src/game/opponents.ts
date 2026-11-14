@@ -54,6 +54,9 @@ export interface OpponentDef {
    * look it is Ventus's gust */
   push?: SpellDef;
   pushLook?: SpellLook;
+  /** a second ranged spell her AI alternates with the first (Susan's Expelliarmus); its look is
+   * the shared pool's (Malfoid has the spell too) */
+  altSpell?: SpellDef;
   /** she has Protego */
   protego?: boolean;
   /** she heals herself with Episkey (amount and charges per level: difficulty[level].heal) */
@@ -115,6 +118,9 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     look: IMPEDIMENTA_LOOK,
     push: DEPULSO,
     pushLook: DEPULSO_LOOK,
+    // she alternates Impedimenta with Expelliarmus, and meets spells with Protego
+    altSpell: EXPELLIARMUS,
+    protego: true,
     episkey: true,
     resolve: HUFFLEPUFF_RESOLVE,
     // she holds her ground: the duel starts at a middle distance, Malfoid must come to her
@@ -123,7 +129,7 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     arena: 'pitch',
     lines: SUSAN_LINES,
     faces: { start: 'determined', attack: 'neutral', retreat: 'worried', disarmedFoe: 'determined', heal: 'comforted',
-      lowHp: 'determined', win: 'comforted', lose: 'sad' },
+      lowHp: 'determined', shielded: 'determined', parried: 'amused', win: 'comforted', lose: 'sad' },
     hudColour: '#e1b241',
   },
 };

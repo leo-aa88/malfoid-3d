@@ -14,7 +14,7 @@ import { Episkey } from '../combat/Episkey';
 import { EpiskeyFx } from '../combat/EpiskeyFx';
 import type { OpponentDef } from './opponents';
 
-/** s her healing face holds (the whole cast) */
+/** s her healing face holds after Episkey */
 const EPISKEY_FACE = 1.6;
 
 /** what an opponent is built against: the scene, Malfoid and her systems, shared effects */
@@ -44,6 +44,8 @@ export class Opponent {
   /** her healing charm (Susan), and its look */
   readonly episkey: Episkey | null = null;
   private readonly episkeyFx: EpiskeyFx | null = null;
+  /** her spells' effect pools by spell id (Malfoid's Protego sends her bolts back in these) */
+  readonly fxBySpell: Readonly<Record<string, SpellFx>>;
   /** her own effect pools (updated by her spell system), for their view scale */
   private readonly ownFx: { setView(c: THREE.PerspectiveCamera, h: number): void }[] = [];
 
@@ -70,12 +72,16 @@ export class Opponent {
       updates.push(fx);
       this.ownFx.push(fx);
     }
+    this.fxBySpell = bySpell;
     this.spells = new SpellSystem(char, char.spellEmitter, () => this.combat.busy, new SpellFxSet(bySpell, updates),
       { targets: [w.malfoidTarget], solids: w.solids, groundY: 0 });
     this.spells.world.solids = w.solids;
     this.ai = new FighterAI(char, this.target, this.combat, this.spells, def.spell, w.malfoid, w.malfoidCombat, () => w.solids);
     this.ai.opponentSpells = w.malfoidSpells;          // she sees Malfoid's casts and bolts
     this.ai.pushSpell = def.push ?? null;
+    // a second ranged spell (Susan's Expelliarmus): its effects are a shared pool
+    if (def.altSpell && !bySpell[def.altSpell.id]) throw new Error(`no effects for ${def.altSpell.id}`);
+    this.ai.altSpell = def.altSpell ?? null;
     if (def.protego) {
       this.protego = new Protego(char);
       this.protegoFx = new ProtegoFx(w.scene, this.protego, char);
@@ -91,6 +97,10 @@ export class Opponent {
     this.target.resolve = def.resolve ?? null;
     if (def.episkey) {
       this.episkey = new Episkey(char, this.target);
+      // her healing face (set before the look chains its flare onto the same callback)
+      this.episkey.onHealed = () => {
+        if (def.faces.heal) char.setExpression(def.faces.heal, EPISKEY_FACE);
+      };
       this.episkeyFx = new EpiskeyFx(w.scene, this.episkey, char);
       this.ai.heal = this.episkey;
     }
@@ -99,7 +109,6 @@ export class Opponent {
       const low = def.faces.lowHp && this.target.hp < this.target.maxHp * 0.5;
       if (s === 'CAST' || s === 'MELEE_ATTACK') char.setExpression(low ? def.faces.lowHp! : def.faces.attack, 0.9);
       else if (s === 'RETREAT') char.setExpression(def.faces.retreat, 1.0);
-      else if (s === 'HEAL' && def.faces.heal) char.setExpression(def.faces.heal, EPISKEY_FACE);
     };
   }
 

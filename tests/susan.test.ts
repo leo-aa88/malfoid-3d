@@ -7,6 +7,7 @@ import { Caster, SpellSystem } from '../src/combat/spells/SpellSystem';
 import type { SpellEmitter } from '../src/combat/spells/SpellEmitter';
 import { IMPEDIMENTA, IMPEDIMENTA_DAMAGE, IMPEDIMENTA_SLOW } from '../src/combat/spells/Impedimenta';
 import { CONFRINGO } from '../src/combat/spells/Confringo';
+import { EXPELLIARMUS } from '../src/combat/spells/Expelliarmus';
 import { DEPULSO, DEPULSO_DAMAGE, DEPULSO_KNOCKBACK, DEPULSO_MAX_RANGE } from '../src/combat/spells/Depulso';
 import { FighterTarget, HUFFLEPUFF_RESOLVE } from '../src/combat/FighterTarget';
 import { EPISKEY, Episkey } from '../src/combat/Episkey';
@@ -134,38 +135,26 @@ test('Hufflepuff Resolve: a stagger is only a flinch, a knockback pushes her les
   assert.deepEqual(g.reactions, ['stagger']);
 });
 
-test('Episkey: heals after the whole cast, never past full; a hit breaks it and keeps the charge', () => {
+test('Episkey: instantaneous (no cast, nothing to break), never past full; a cooldown and charges stop spamming', () => {
   const f = fighter('Susan', 0, 0, 0);
   const t = new FighterTarget(f as unknown as Malfoid, 150);
   const h = new Episkey(f, t, 25, 2);
   assert.ok(!h.ready, 'not hurt: nothing to heal');
   t.hp = 100;
   assert.ok(h.start());
-  assert.equal(f.currentStrike, 'episkey');
-  assert.ok(f.castLock, 'no strikes while casting');
-  const step = () => { h.update(DT); t.update(DT); };
-  for (let x = 0; x < EPISKEY.castTime - 0.1; x += DT) step();
-  assert.equal(t.hp, 100, 'not yet');
-  for (let x = 0; x < 0.2; x += DT) step();
-  assert.equal(t.hp, 125);
+  assert.equal(t.hp, 125, 'healed at once');
   assert.equal(h.charges, 1);
-  assert.ok(!f.castLock && !f.currentStrike);
-  assert.ok(!h.ready, 'waits before the next');
-  for (let x = 0; x < EPISKEY.cooldown + 0.05; x += DT) step();
-  // interrupted: hit halfway
-  assert.ok(h.start());
-  for (let x = 0; x < 0.7; x += DT) step();
-  t.takeHit({ damage: 5, height: 'high', effect: 'flinch', dir: new THREE.Vector3(0, 0, 1) });
-  step();
-  assert.ok(!h.casting, 'broken');
-  for (let x = 0; x < EPISKEY.castTime; x += DT) step();
-  assert.equal(t.hp, 120, 'no heal');
-  assert.equal(h.charges, 1, 'the charge is kept');
-  // the last charge, then none; and never past full
-  for (let x = 0; x < EPISKEY.retry + 0.05; x += DT) step();
+  assert.ok(!f.castLock && !f.currentStrike, 'no cast: she is free to act (no opening)');
+  const step = () => { h.update(DT); t.update(DT); };
+  // the cooldown: no second heal until it has passed (frozen while paused: game time)
+  t.hp = 60;
+  assert.ok(!h.start(), 'cooling down');
+  for (let x = 0; x < EPISKEY.cooldown - 0.1; x += DT) step();
+  assert.ok(!h.start(), 'still cooling down');
+  assert.equal(t.hp, 60);
+  for (let x = 0; x < 0.15; x += DT) step();
   t.hp = 140;
   assert.ok(h.start());
-  for (let x = 0; x < EPISKEY.castTime + 0.05; x += DT) step();
   assert.equal(t.hp, 150, 'capped at full health');
   assert.equal(h.charges, 0);
   t.hp = 50;
@@ -255,46 +244,25 @@ test('a rush is met with Impedimenta; crowded and attacked, Depulso', () => {
   }
 });
 
-test('hurt, she backs off and heals with Episkey; a hit breaks the charm', () => {
+test('hurt, she heals with Episkey where she stands, close or far, and keeps fighting; never twice within the cooldown', () => {
   const random = Math.random;
   Math.random = () => 0.01;
   try {
-    // far enough: she heals where she stands
-    const far = aiSetup(6, { castChance: 0 });
-    far.target.hp = 60;
-    far.ai.setActive(true);
-    until(far, () => far.ai.state === 'HEAL');
-    assert.equal(far.ai.state, 'HEAL');
-    assert.ok(far.heal.casting);
-    until(far, () => !far.heal.casting, 200);
-    assert.equal(far.target.hp, 90, 'healed 30 (Hard)');
-    // close: she makes room first, with Depulso if she can ...
-    const close = aiSetup(2.0, { castChance: 0, defensive: { pushChance: 0 } });
-    close.target.hp = 60;
-    close.ai.setActive(true);
-    until(close, () => close.casts.length > 0);
-    assert.deepEqual(close.casts, ['depulso']);
-    // ... or by running a short way off (her back to Malfoid), not a slow back-step
-    const run = aiSetup(2.0, { castChance: 0, defensive: { pushChance: 0 } });
-    run.spells.canCast = (d: { id: string }) => d.id !== 'depulso';
-    run.target.hp = 60;
-    run.ai.setActive(true);
-    until(run, () => run.ai.state === 'RETREAT');
-    assert.equal(run.ai.state, 'RETREAT');
-    for (let i = 0; i < 20; i++) run.ai.update(DT);
-    assert.equal(run.ai.state, 'RETREAT', 'she keeps running (a decision in between does not cut it short)');
-    assert.ok(run.self.moves.at(-1)!.z < 0, 'away from Malfoid');
-    // a hit while she heals: broken, the AI moves on
-    const hit = aiSetup(6, { castChance: 0 });
-    hit.target.hp = 60;
-    hit.ai.setActive(true);
-    until(hit, () => hit.ai.state === 'HEAL');
-    hit.target.takeHit({ damage: 5, height: 'high', effect: 'flinch', dir: new THREE.Vector3(0, 0, -1) });
-    hit.self.reacting = 'hit';
-    until(hit, () => hit.ai.state !== 'HEAL', 5);
-    assert.ok(!hit.heal.casting, 'the charm is broken');
-    assert.equal(hit.heal.charges, 3, 'charge kept');
-    assert.equal(hit.ai.state, 'STAGGER');
+    for (const d of [6, 1.2]) {
+      const s = aiSetup(d, { castChance: 0 });
+      s.target.hp = 60;
+      s.ai.setActive(true);
+      until(s, () => s.target.hp > 60);
+      assert.equal(s.target.hp, 90, `healed 30 (Hard) at ${d} m`);
+      assert.ok(s.self.moves.every((m) => m.z >= 0), 'no running away to heal');
+      s.target.hp = 50;
+      const states = new Set<string>();
+      until(s, () => false, Math.round((EPISKEY.cooldown - 0.5) / DT), () => states.add(s.ai.state));
+      assert.equal(s.target.hp, 50, 'not again within the cooldown');
+      assert.ok(!states.has('RETREAT') || d < 2, 'she does not back off to heal');
+      until(s, () => s.target.hp > 50, 120);
+      assert.equal(s.target.hp, 80, 'again once the cooldown is over');
+    }
   } finally {
     Math.random = random;
   }
@@ -305,12 +273,13 @@ test("Susan's definition: her spells, Episkey per level, Resolve, the pitch", ()
   assert.equal(s.spell.id, 'impedimenta');
   assert.equal(s.push?.id, 'depulso');
   assert.ok(s.episkey && s.resolve);
-  assert.ok(!s.protego, 'no parry: that is Cho\'s');
+  assert.equal(s.altSpell?.id, 'expelliarmus', 'she alternates Impedimenta with Expelliarmus');
+  assert.ok(s.protego, 'and meets spells with Protego');
   assert.deepEqual(Object.values(s.difficulty).map((l) => l.heal?.amount), [20, 25, 30]);
   assert.ok(s.difficulty.easy.hp < s.difficulty.normal.hp && s.difficulty.normal.hp < s.difficulty.hard.hp);
 });
 
-test('she reads a Confringo wind-up and has her guard up when the bolt arrives (no parry, no dodge)', () => {
+test('she reads a Confringo wind-up and has her guard up when the bolt arrives (no Protego ready, no dodge)', () => {
   const random = Math.random;
   Math.random = () => 0.01;
   try {
@@ -332,6 +301,62 @@ test('she reads a Confringo wind-up and has her guard up when the bolt arrives (
     assert.ok(upAt > 0, 'not straight away: she waits for the bolt');
     assert.ok(s.self.blocking, 'guard up as it arrives');
     assert.equal(s.ai.state, 'BLOCK');
+  } finally {
+    Math.random = random;
+  }
+});
+
+test('with Protego ready she meets a read spell with the shield, up before the bolt arrives', async () => {
+  const { Protego } = await import('../src/combat/Protego');
+  const random = Math.random;
+  Math.random = () => 0.4;                               // shield yes (< 0.5 at Hard), parry no (0.4 > 0.18)
+  try {
+    const s = aiSetup(6, { castChance: 0 });
+    const shield = new Protego(s.self);
+    s.ai.shield = shield;
+    s.ai.setActive(true);
+    s.ai.update(DT);
+    s.opp.facingAngle = Math.PI;
+    s.oppSpells.isCasting = true;
+    s.oppSpells.castingSpell = CONFRINGO;
+    s.oppSpells.castTime = CONFRINGO.release - 0.1;
+    const arrive = 0.1 + 5.5 / CONFRINGO.projectile.speed;
+    let upAt = -1;
+    for (let t = 0; t < arrive + 0.02; t += DT) {
+      s.oppSpells.castTime += DT;
+      if (s.oppSpells.castTime > CONFRINGO.castDuration) s.oppSpells.isCasting = false;
+      s.ai.update(DT);
+      shield.update(DT);
+      if (shield.up && upAt < 0) upAt = t;
+    }
+    assert.ok(upAt >= 0 && shield.up, 'the shield is up as the bolt arrives');
+    assert.ok(shield.age > 0.2, 'raised well ahead (a block, not a parry)');
+    assert.equal(s.ai.state, 'PROTEGO');
+  } finally {
+    Math.random = random;
+  }
+});
+
+test('her ranged spells alternate: Impedimenta, Expelliarmus, Impedimenta...; no Expelliarmus at a disarmed Malfoid', () => {
+  const random = Math.random;
+  Math.random = () => 0.01;
+  try {
+    const s = aiSetup(6, { castChance: 1 });
+    s.ai.altSpell = EXPELLIARMUS;
+    s.ai.setActive(true);
+    until(s, () => s.casts.length >= 4, 600);
+    assert.deepEqual(s.casts.slice(0, 4), ['expelliarmus', 'impedimenta', 'expelliarmus', 'impedimenta']);
+    // only the one that is ready
+    s.spells.canCast = (d: { id: string }) => d.id === 'expelliarmus';
+    s.casts.length = 0;
+    until(s, () => s.casts.length >= 2, 600);
+    assert.deepEqual(s.casts.slice(0, 2), ['expelliarmus', 'expelliarmus']);
+    // Malfoid disarmed: Impedimenta only
+    s.spells.canCast = () => true;
+    s.opp.hasWand = false;
+    s.casts.length = 0;
+    until(s, () => s.casts.length >= 2, 600);
+    assert.deepEqual(s.casts.slice(0, 2), ['impedimenta', 'impedimenta']);
   } finally {
     Math.random = random;
   }

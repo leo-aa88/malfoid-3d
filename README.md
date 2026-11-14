@@ -60,7 +60,7 @@ The campaign, in order (the planned roster; see the status column for what is in
 | Stage | Opponent | Combat challenge | Story purpose | Spell unlocked | Status |
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
-| 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable (Protego not yet taught) |
+| 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
 | 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Confundo | planned |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
@@ -122,17 +122,19 @@ The only Hufflepuff, a defensive duellist: not fast or aggressive, but stubborn 
 to put down. She stands her ground and makes you work for every hit. See `docs/susan/REPORT.md`.
 
 - **Holding her ground:** she waits at middle distance and walks in only when you are far. She
-  guards a lot, holds her guard, and raises it against a spell she sees you cast at her (it
-  stops spells like strikes: chip damage only). No parry and no dodging.
+  guards a lot and holds her guard. Against a spell she sees you cast at her, she raises
+  **Protego** when it is ready (now and then timed to send the spell back), or else her guard
+  (chip damage only). No dodging.
 - **Impedimenta:** a cold blue bolt (4 damage, 6 s) that **slows you to 55 % for 2.5 s**
   (moving, striking and casting). She uses it when you rush at her. Blue rings at your legs
   show the slow.
+- **Expelliarmus:** she alternates it with Impedimenta at range, while you still have your wand.
 - **Depulso:** a violet bolt that throws you well back (9 damage, 7 m range, 8 s) when you crowd
   or attack her.
 - **Punishing a rush:** run straight into her reach and she may strike first.
-- **Episkey:** hurt (below 60 %), she makes room with Depulso or a short run, then heals over
-  1.5 s (a green-gold column). **Any hit that gets through breaks the charm** (she keeps the
-  charge). Chasing her down is the counter.
+- **Episkey:** hurt (below 60 %), she heals at once, where she stands (a green-gold flare). It
+  is instantaneous: no wind-up, nothing to interrupt, no opening. It is limited by a 6 s
+  cooldown and a few charges per duel (see the table).
 - **Hufflepuff Resolve:** a stagger only makes her flinch, a knockdown only knocks her back,
   and she is pushed 40 % less.
 - **More determined, not more aggressive:** below half health her face hardens and she guards
@@ -180,6 +182,7 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
 | O | block (hold) |
 | L | cast Confringo (5 s cooldown; needs the wand) |
 | P | cast Expelliarmus (8 s cooldown; needs the wand; learned from Ginny in the campaign) |
+| H | Protego (hold): a shield before her for up to 0.9 s, then 5 s before it can be raised again. It stops spells reaching its front, and one raised just as a spell arrives (within 0.2 s) sends it back at its caster; it guards strikes like a block. Needs the wand; learned from Cho in the campaign |
 | G | restart the fight (practice) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
@@ -268,7 +271,7 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned);
   `Stupefy.ts`, `Ventus.ts` (+ its gust effect) – Cho's spells; `Impedimenta.ts` (the slow),
   `Depulso.ts` – Susan's.
-- `combat/Episkey.ts` – the healing charm (cast, interruption, charges); `EpiskeyFx.ts` – its look;
+- `combat/Episkey.ts` – the healing charm (instant heal, cooldown, charges); `EpiskeyFx.ts` – its look;
   `SlowFx.ts` – the rings of a slow. `FighterTarget` carries the slow (`timeScale`) and
   Susan's Hufflepuff Resolve.
 - `combat/Protego.ts` – the shield (timing, perfect window, cooldown); `ProtegoFx.ts` – its look.

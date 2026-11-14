@@ -34,7 +34,8 @@
   "episkey": 1.5,
   "cast_quick": 0.45,
   "cast_ventus": 0.7,
-  "strafe": 0.5
+  "strafe": 0.5,
+  "protego": 0.22
  },
  "rest_expression": {
   "vrc.blink": 0.0,

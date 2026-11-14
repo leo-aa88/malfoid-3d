@@ -84,6 +84,11 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #hud .spell-box.expelliarmus.ready .spell-state { color: #ffb0a8; }
 #hud .spell-box.expelliarmus .cd-fill { background: linear-gradient(90deg, #8a0a14, #e5262f, #ffc2bd); }
 #hud .spell-box.expelliarmus.cooling .cd-fill { background: #6e2a2e; }
+/* Protego (learned from Cho): the shield's pale blue */
+#hud .spell-box.protego .spell-name { color: #8fd0ff; }
+#hud .spell-box.protego.ready .spell-state { color: #c8e8ff; }
+#hud .spell-box.protego .cd-fill { background: linear-gradient(90deg, #1d4f8a, #4aa3e8, #d2ecff); }
+#hud .spell-box.protego.cooling .cd-fill { background: #2c4a66; }
 #hud .spell-box.learned { animation: slot-in 0.6s ease-out; }
 @keyframes slot-in { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: none; } }
 /* white with a thick dark outline: readable over the explosion */

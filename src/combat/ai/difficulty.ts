@@ -141,8 +141,9 @@ export const CHO_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
 /*
  * Susan: a defensive duellist who stands her ground, guards a lot (and holds her guard), meets
  * a rush with Impedimenta and a crowding with Depulso, strikes first at someone who rushes into
- * her reach, and backs off to heal with Episkey when hurt (a hit breaks the charm). Slow,
- * deliberate strikes; no parry, no dodging. Her Hufflepuff Resolve (FighterTarget.resolve)
+ * her reach, alternates Impedimenta with Expelliarmus at range, meets a spell she sees coming
+ * with Protego (or her guard), and heals with Episkey when hurt (instantaneous). Slow,
+ * deliberate strikes; no dodging. Her Hufflepuff Resolve (FighterTarget.resolve)
  * makes staggers mere flinches. Levels sharpen her reactions and guard, and her healing.
  */
 const SUSAN_EASY: AIParams = {
@@ -173,10 +174,12 @@ const SUSAN_EASY: AIParams = {
     pushChance: 0.4,
     pushRange: 2.6,
     healBelow: 0.6,
-    healDistance: 4.5,
     healChance: 0.6,
     resolveBlock: 0.1,
     spellBlockChance: 0.35,
+    shieldChance: 0.3,
+    parryChance: 0.05,
+    timingError: 0.12,
   },
 };
 
@@ -193,7 +196,8 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       punishChance: 0.5,
       counterChance: 0.6,
       guardAfterHit: 0.6,
-      defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.6, pushChance: 0.55, healChance: 0.75, spellBlockChance: 0.55 },
+      defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.6, pushChance: 0.55, healChance: 0.75, spellBlockChance: 0.55,
+        shieldChance: 0.4, parryChance: 0.1, timingError: 0.08 },
     },
     heal: { amount: 25, charges: 2 },
   },
@@ -213,7 +217,8 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       smartCombos: true,
       guardAfterHit: 0.8,
       recover: 0.3,
-      defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.75, pushChance: 0.7, healChance: 0.85, spellBlockChance: 0.7 },
+      defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.75, pushChance: 0.7, healChance: 0.85, spellBlockChance: 0.7,
+        shieldChance: 0.5, parryChance: 0.18, timingError: 0.05 },
     },
     heal: { amount: 30, charges: 3 },
   },

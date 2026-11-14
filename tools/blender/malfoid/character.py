@@ -32,6 +32,8 @@ PROFILES = {
         'tie': ((0x1f, 0x5c, 0x40), (0xc6, 0xc6, 0xc9)),   # base, stripe
         'palette': {},                       # mats.PALETTE overrides
         'crest': 'Malfoid_Crest.png',
+        # her Protego (learned from Cho): the held shield pose. Clips only add to her model
+        'extra_clips': ('protego',),
     },
     'ginny': {
         'name': 'Ginny',
@@ -159,7 +161,7 @@ PROFILES = {
         'crest': 'Susan_Crest.png',
         # her clips (combat.EXTRA_CLIPS), built into her model only: her idle and Episkey;
         # Cho's flick (Impedimenta) and sweep (Depulso); the side-step for moving while facing
-        'extra_clips': ('susan_idle', 'episkey', 'cast_quick', 'cast_ventus', 'strafe'),
+        'extra_clips': ('susan_idle', 'episkey', 'cast_quick', 'cast_ventus', 'strafe', 'protego'),
     },
 }
 

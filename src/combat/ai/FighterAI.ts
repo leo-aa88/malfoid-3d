@@ -11,12 +11,12 @@ import type { Episkey } from '../Episkey';
 
 export type AIState =
   | 'IDLE' | 'OBSERVE' | 'APPROACH' | 'RETREAT' | 'BLOCK' | 'MELEE_ATTACK' | 'CAST' | 'DODGE' | 'STAGGER' | 'RECOVER'
-  | 'RETRIEVE' | 'CIRCLE' | 'PROTEGO' | 'HEAL';
+  | 'RETRIEVE' | 'CIRCLE' | 'PROTEGO';
 
 /**
  * A defensive duellist's habits (Susan), on top of the shared ones: she holds her ground,
  * guards a lot, answers a rush with Impedimenta (her main spell) and a crowding with Depulso
- * (her push spell), and backs off to heal with Episkey when hurt. Chances are per
+ * (her push spell), and heals with Episkey when hurt (instantaneous: no opening). Chances are per
  * opportunity, times in s, distances in m.
  */
 export interface DefensiveStyle {
@@ -29,15 +29,21 @@ export interface DefensiveStyle {
   /** crowded within pushRange (being attacked, or very close): Depulso */
   pushChance: number;
   pushRange: number;
-  /** below this fraction of her health she wants to heal: backs off to healDistance, then Episkey */
+  /** below this fraction of her health she heals with Episkey (a chance per decision; the charm's
+   * cooldown and charges keep it from being spammed) */
   healBelow: number;
-  healDistance: number;
   healChance: number;
   /** below half health she guards this much more often (determined, not reckless) */
   resolveBlock: number;
   /** a spell she sees being cast at her: her guard up just before it arrives (it stops a spell
-   * like a strike: chip damage only); no parry, no dodge */
+   * like a strike: chip damage only); no dodge */
   spellBlockChance: number;
+  /** ... or, when it is ready, Protego (instead of the guard, this often): raised well ahead
+   * to stop the spell, or now and then timed into the perfect window to send it back */
+  shieldChance: number;
+  parryChance: number;
+  /** how far off her parry timing may be (s, either way) */
+  timingError: number;
 }
 
 /**
@@ -91,8 +97,6 @@ const CIRCLE_LOOKAHEAD = 0.9;
 
 /** s she heads for her dropped wand before thinking again (a trunk in the way, a fight to answer) */
 const RETRIEVE_TIME = 3.0;
-/** a defensive duellist backs off to heal at most once in this many s (chased, she fights instead) */
-const HEAL_RETREAT_EVERY = 5.0;
 /** s after a rush in which arriving in reach counts as rushing in (she may strike first) */
 const RUSH_MEMORY = 0.8;
 
@@ -176,9 +180,12 @@ export class FighterAI {
   onState: ((s: AIState) => void) | null = null;
   /** the opponent's spells (to dodge her bolts and punish her casts) */
   opponentSpells: SpellSystem | null = null;
-  /** her Protego (evasive style), and her short-range push spell (Ventus) */
+  /** her Protego (evasive and defensive styles), and her short-range push spell (Ventus) */
   shield: Protego | null = null;
   pushSpell: SpellDef | null = null;
+  /** a second ranged spell she alternates with her main one (Susan's Expelliarmus) */
+  altSpell: SpellDef | null = null;
+  private lastAlt = false;                        // her last ranged cast was the second spell
   /** her healing charm (defensive style) */
   heal: Episkey | null = null;
   params: AIParams;
@@ -195,9 +202,7 @@ export class FighterAI {
   /** how fast the opponent is closing in (m/s, smoothed; negative: moving away) */
   closing = 0;
   private rushAt = -99;                           // game time she last saw a rush
-  private healRetreatAt = -99;                    // game time she last backed off to heal
   private guardAt = -1;                           // s until her guard goes up against a spell (-1: none planned)
-  private healRun = false;                        // running off to make room to heal
 
   constructor(
     private readonly self: Malfoid,
@@ -228,9 +233,7 @@ export class FighterAI {
     this.prevDist = -1;
     this.closing = 0;
     this.rushAt = -99;
-    this.healRetreatAt = -99;
     this.guardAt = -1;
-    this.healRun = false;
     if (!on) {
       this.self.stop();
       this.self.setHold('block', false);
@@ -332,10 +335,20 @@ export class FighterAI {
           this.readAt = this.clock;
           this.evade(arrive);
         } else if (P.defensive && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting
-            && !this.heal?.casting) {
-          // a defensive duellist sets her guard to meet the bolt
-          if (Math.random() < P.defensive.spellBlockChance) {
-            const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+            ) {
+          // a defensive duellist meets the bolt: Protego when she has it ready (well ahead to stop
+          // it, now and then timed to send it back), otherwise her guard
+          const df = P.defensive;
+          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const parry = Math.random() < df.parryChance;
+          if (this.shield?.ready && this.state !== 'PROTEGO' && (parry || arrive > PROTEGO.perfectWindow + 0.05)
+              && Math.random() < df.shieldChance) {
+            this.shieldAt = parry ? Math.max(0, arrive - rand(0.03, 0.12) + rand(-df.timingError, df.timingError))
+              : Math.max(0, arrive - rand(0.45, 0.6));
+            me.stop();
+            this.pendingSecond = null;
+            this.go('PROTEGO', this.shieldAt + 0.75);
+          } else if (Math.random() < df.spellBlockChance) {
             this.guardAt = Math.max(0, arrive - rand(0.18, 0.3));
           }
         } else if (aimedAtMe && dist > 1.5 && Math.random() < P.dodgeChance && !this.combat.busy && !this.spells.isCasting
@@ -401,7 +414,7 @@ export class FighterAI {
       this.guardAt -= dt;
       if (this.guardAt <= 0) {
         this.guardAt = -1;
-        if (!me.reacting && !this.combat.busy && !this.spells.isCasting && !this.heal?.casting) {
+        if (!me.reacting && !this.combat.busy && !this.spells.isCasting) {
           me.stop();
           this.pendingSecond = null;
           this.wasBlocking = false;
@@ -441,14 +454,6 @@ export class FighterAI {
     }
 
     switch (this.state) {
-      case 'HEAL':
-        // healing: stand still, eyes on the opponent; over when the charm heals or is broken
-        me.stop();
-        if (!this.heal?.casting) {
-          this.go('OBSERVE');
-          this.think = 0;
-        }
-        return;
       case 'RECOVER':
         me.stop();
         me.lookAt(angle);
@@ -569,19 +574,6 @@ export class FighterAI {
         // an evasive duellist badly crowded turns and sprints away on a diagonal (her back is
         // open while she runs: a fair chance); otherwise she backs off facing the opponent
         const ev = P.evasive;
-        if (this.healRun) {
-          // making room to heal: a short run straight away from the opponent (her back open)
-          const back = this.dirToOpponent().negate();
-          if (this.blocked(back, 1.2)) back.set(-back.z * this.circleSide, 0, back.x * this.circleSide);
-          me.move(back, true);
-          if (this.timer <= 0 || dist >= (P.defensive?.healDistance ?? 4.5) + 0.5) {
-            me.stop();
-            this.healRun = false;
-            this.go('OBSERVE');
-            this.think = 0;
-          }
-          break;
-        }
         if (ev && dist < ev.preferredRange[0] * 0.8) {
           const to = this.dirToOpponent();
           const dir = this.tmp2.set(-to.x + -to.z * this.circleSide * 0.8, 0, -to.z + to.x * this.circleSide * 0.8);
@@ -664,30 +656,12 @@ export class FighterAI {
         this.strike(true);
         return;
       }
-      // hurt: heal; with the opponent close, make room first (Depulso, or a short run away),
-      // once in a while (chased down, she fights instead)
-      const hurt = this.selfTarget.hp < this.selfTarget.maxHp * df.healBelow;
+      // hurt: Episkey, where she stands. It is instantaneous (no opening), so she heals and
+      // carries on deciding; its cooldown and charges keep it from being spammed
       const h = this.heal;
-      if (hurt && h && h.charges > 0 && h.cooldownLeft <= 0 && me.hasWand && !this.combat.busy && !this.spells.isCasting) {
-        if (dist >= df.healDistance || (this.clock - this.healRetreatAt < HEAL_RETREAT_EVERY && dist > 2.5 && !this.opponentCombat.busy)) {
-          if (Math.random() < df.healChance && h.start()) {
-            this.healRun = false;
-            this.go('HEAL');
-            return;
-          }
-        } else if (this.healRun && this.state === 'RETREAT') {
-          return;                                    // still making room
-        } else if (this.clock - this.healRetreatAt >= HEAL_RETREAT_EVERY) {
-          this.healRetreatAt = this.clock;
-          if (this.pushSpell && dist <= df.pushRange + 0.5 && this.spells.canCast(this.pushSpell) && this.facing(angle, AIM.spell)
-              && this.spells.cast(this.pushSpell)) {
-            this.go('CAST');
-            return;
-          }
-          this.healRun = true;
-          this.go('RETREAT', rand(1.1, 1.5));
-          return;
-        }
+      if (h && this.selfTarget.hp < this.selfTarget.maxHp * df.healBelow && h.ready && !this.combat.busy
+          && !this.spells.isCasting && Math.random() < df.healChance) {
+        h.start();
       }
     }
     // under pressure: back off
@@ -728,10 +702,12 @@ export class FighterAI {
     }
     // her spell: only while the opponent still has a wand (an evasive duellist's Stupefy
     // isn't about the wand), from a distance, in clear sight
-    if ((this.opponent.hasWand || ev || df) && dist >= P.castRange[0] && dist <= P.castRange[1] && this.spells.canCast(this.spell)
+    const ranged = this.rangedSpell(dist);
+    if (ranged && (this.opponent.hasWand || ev || df) && dist >= P.castRange[0] && dist <= P.castRange[1]
         && this.lineOfSight() && Math.random() < P.castChance) {
       if (!this.turnedTo(angle, AIM.spell)) return;
-      if (this.spells.cast(this.spell)) {
+      if (this.spells.cast(ranged)) {
+        this.lastAlt = ranged === this.altSpell;
         this.go('CAST');
         return;
       }
@@ -776,9 +752,8 @@ export class FighterAI {
     // a defensive duellist holds her ground: walks in only when the opponent is far, otherwise
     // waits for her to come (now and then a step in)
     if (df) {
-      const hurt = this.selfTarget.hp < this.selfTarget.maxHp * df.healBelow && (this.heal?.charges ?? 0) > 0;
-      if (dist > df.holdRange[1] && !hurt) this.go('APPROACH', 1.2);
-      else if (dist > df.holdRange[0] && !hurt && Math.random() < 0.25) this.go('APPROACH', 0.5);
+      if (dist > df.holdRange[1]) this.go('APPROACH', 1.2);
+      else if (dist > df.holdRange[0] && Math.random() < 0.25) this.go('APPROACH', 0.5);
       else this.go('OBSERVE');
       return;
     }
@@ -817,6 +792,19 @@ export class FighterAI {
       return;
     }
     if (Math.random() < this.params.dodgeChance) this.dodgeClip(this.freeSide());
+  }
+
+  /**
+   * the ranged spell to cast now: with a second spell (Susan's Expelliarmus) she alternates
+   * between the two, taking whichever is ready when only one is; the second (a disarm) only
+   * while the opponent still has her wand. null: neither can be cast
+   */
+  private rangedSpell(dist: number): SpellDef | null {
+    const main = this.spells.canCast(this.spell) ? this.spell : null;
+    const alt = this.altSpell && this.opponent.hasWand && dist <= this.altSpell.aimRange && this.spells.canCast(this.altSpell)
+      ? this.altSpell : null;
+    if (main && alt) return this.lastAlt ? main : alt;
+    return main ?? alt;
   }
 
   /** is she facing within tol (rad) of this angle? */
@@ -894,7 +882,6 @@ export class FighterAI {
 
   private go(s: AIState, time = 0): void {
     if (s !== this.state) {
-      if (s !== 'RETREAT') this.healRun = false;
       this.state = s;
       this.onState?.(s);
     }

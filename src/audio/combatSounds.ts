@@ -19,12 +19,13 @@ const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.
  * an opponent's spell sounds (by spell id): played at the release (the bolt leaves the wand) or
  * from the cast's start (it builds over the wind-up; a cast cancelled before its release cuts it)
  */
-const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume: number }> = {
+const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume: number; rate?: number }> = {
   expelliarmus: { id: 'expelliarmus', at: 'release', volume: 0.85 },
   stupefy: { id: 'stupefy', at: 'release', volume: 0.85 },
   ventus: { id: 'ventus', at: 'cast', volume: 0.8 },
-  // Susan's spells borrow these until they have their own sounds
-  impedimenta: { id: 'expelliarmus', at: 'release', volume: 0.75 },
+  // Susan's spells borrow these until they have their own sounds (never Expelliarmus's: that
+  // sound means a disarm). Impedimenta: Stupefy's crackle pitched down, duller and slower
+  impedimenta: { id: 'stupefy', at: 'release', volume: 0.8, rate: 0.78 },
   depulso: { id: 'ventus', at: 'cast', volume: 0.85 },
 };
 /** Protego's hum while the shield is up (a steady, loud sound: quieter than the one-shot spells) */
@@ -65,6 +66,8 @@ export interface CombatSoundRefs {
   /** every opponent (a hidden one makes no footsteps) */
   opponents: SoundFighter[];
   fighters: FighterTarget[];
+  /** Malfoid's Protego (learned from Cho): it hums while it is up, like Cho's */
+  malfoidShield?: { readonly up: boolean } | null;
 }
 
 export interface CombatSounds {
@@ -126,7 +129,7 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
       }
       const s = SPELL_SOUND[e.spell.id];
       if (!s || (e.type !== 'cast' && e.type !== 'release') || s.at !== e.type) return;
-      const h = sfx.play(s.id, { at: o.char.position.clone().setY(1.3), volume: s.volume });
+      const h = sfx.play(s.id, { at: o.char.position.clone().setY(1.3), volume: s.volume, rate: s.rate });
       building = s.at === 'cast' ? h : null;
     });
   }
@@ -147,9 +150,11 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
 
   // Protego: the hum starts as the shield goes up and fades out as it comes down (a reset or
   // the end of the duel lowers it too)
-  const hums = new Map<SoundFighter, { stop(): void } | null>();
+  const hums = new Map<object, { stop(): void } | null>();
+  const shielded: { char: Malfoid; protego?: { readonly up: boolean } | null }[] =
+    [...r.opponents, { char: r.malfoid, protego: r.malfoidShield }];
   const shields = () => {
-    for (const o of r.opponents) {
+    for (const o of shielded) {
       const up = !!o.protego?.up && o.char.root.visible;
       const hum = hums.get(o) ?? null;
       if (up && !hum) hums.set(o, sfx.play('protego', { at: o.char.position.clone().setY(1.2), volume: SHIELD.volume, rate: SHIELD.rate }) ?? { stop() {} });

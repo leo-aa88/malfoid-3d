@@ -420,6 +420,11 @@ export class Malfoid {
     this.strikeFacing = angle;
   }
 
+  /** free to take up a held pose (setHold would take it): not jumping, striking, reacting, holding another */
+  get canHold(): boolean {
+    return !this.hold && !this.action && !this.strike && !this.reaction && !this.defeated;
+  }
+
   /** crouch / block while the key is held */
   setHold(hold: HoldState, on: boolean): void {
     if (on) {
@@ -588,6 +593,8 @@ export class Malfoid {
       if ((SPELL_CLIPS as readonly string[]).includes(this.strike)) this.wand.draw();
       else this.wand.stow();
     }
+    // Protego is cast with the wand too: out of the sleeve as the shield goes up
+    if (this.hold === 'protego' && this.wand.state === 'hand') this.wand.draw();
     // strafing: the hips turned into the travel direction, the upper body turned back
     const goal = state === 'walk' || state === 'strafe' ? Math.max(-0.8, Math.min(0.8, hipGoal)) : 0;
     this.hipYaw += (goal - this.hipYaw) * (1 - Math.exp(-TWIST_RATE * dt));

@@ -33,6 +33,19 @@ test('beating Ginny teaches Expelliarmus and Cho is next; practice and training 
   assert.ok(ALL_SPELLS.has('confringo') && ALL_SPELLS.has('expelliarmus'));
 });
 
+test('beating Cho teaches Protego; a run saved past Cho before she taught it gets it', () => {
+  const c = new Campaign(new MemoryStore());
+  c.start('normal');
+  c.win();
+  const r = c.win();
+  assert.equal(r.beaten.id, 'cho');
+  assert.equal(r.learned, 'protego');
+  assert.deepEqual([...c.spells], ['confringo', 'expelliarmus', 'protego']);
+  assert.ok(ALL_SPELLS.has('protego'));
+  assert.deepEqual(parseRun('{"level":"easy","lives":3,"stage":2,"learned":["expelliarmus"]}')!.learned, ['expelliarmus', 'protego']);
+  assert.deepEqual(parseRun('{"level":"easy","lives":3,"stage":1,"learned":[]}')!.learned, ['expelliarmus']);
+});
+
 test('a loss costs a life and the same opponent comes again; the third loss is game over', () => {
   const c = new Campaign(new MemoryStore());
   c.start('hard');

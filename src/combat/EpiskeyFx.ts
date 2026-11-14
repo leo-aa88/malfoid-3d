@@ -2,20 +2,18 @@ import * as THREE from 'three';
 import type { Episkey } from './Episkey';
 
 /*
- * What Episkey looks like: while she casts, a column of soft green-gold light rises round her
- * and a glow gathers at her chest; when the charm takes, both flare and fade; a broken cast
- * just fades. Two meshes, additive, no lights; see-through so she stays readable (and a
- * player can see the heal coming in time to break it). All tuning here.
+ * What Episkey looks like: the charm is instantaneous, so the heal is a flare: a column of soft
+ * green-gold light rises round her and a glow blooms at her chest, then both fade. Two meshes,
+ * additive, no lights; see-through so she stays readable. All tuning here.
  */
 const LOOK = {
   colour: new THREE.Color(0.7, 1.0, 0.5),
   radius: 0.48,             // m: the column round her
   height: 1.9,              // m
-  opacity: 0.4,             // the column at the end of the cast
-  glow: 0.5,                // m: the chest glow's size at the end of the cast
+  opacity: 0.45,            // the column at its brightest
+  glow: 0.7,                // m: the chest glow's size at its brightest
   chest: 1.2,               // m: its height
-  flash: 0.6,               // s: the flare when it heals
-  fade: 0.25,               // s: a broken cast fades this fast
+  flash: 0.9,               // s: the flare lasts this long
 };
 
 /** a vertical gradient: bright at the bottom, gone at the top, with faint streaks */
@@ -58,11 +56,10 @@ export class EpiskeyFx {
   private readonly glow: THREE.Sprite;
   private readonly colMat: THREE.MeshBasicMaterial;
   private readonly glowMat: THREE.SpriteMaterial;
-  private shown = 0;            // 0..1 how much of the cast's light is up
   private flash = 0;            // 1 -> 0 after a heal
   private spin = 0;
 
-  constructor(scene: THREE.Scene, private readonly charm: Episkey, private readonly owner: { position: THREE.Vector3 }) {
+  constructor(scene: THREE.Scene, charm: Episkey, private readonly owner: { position: THREE.Vector3 }) {
     this.colMat = new THREE.MeshBasicMaterial({ color: LOOK.colour, map: columnTexture(), transparent: true, opacity: 0,
       depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
     this.column = new THREE.Mesh(new THREE.CylinderGeometry(LOOK.radius, LOOK.radius * 1.15, LOOK.height, 24, 1, true), this.colMat);
@@ -83,27 +80,26 @@ export class EpiskeyFx {
   }
 
   update(dt: number): void {
-    const c = this.charm;
-    if (c.casting) this.shown = c.progress;
-    else this.shown = Math.max(0, this.shown - dt / LOOK.fade);
     this.flash = Math.max(0, this.flash - dt / LOOK.flash);
-    const k = Math.max(this.shown, this.flash);
-    const on = k > 0.005;
+    const f = this.flash;
+    const on = f > 0.005;
     this.column.visible = this.glow.visible = on;
     if (!on) return;
     const p = this.owner.position;
     this.spin += dt * 0.6;
     this.colMat.map!.offset.x = this.spin;
     this.column.position.set(p.x, LOOK.height / 2, p.z);
-    this.column.scale.set(1 + 0.25 * this.flash, 0.6 + 0.4 * this.shown + 0.2 * this.flash, 1 + 0.25 * this.flash);
-    this.colMat.opacity = LOOK.opacity * this.shown + 0.35 * this.flash;
+    // the column rises as it fades (quick in, slow out), the glow blooms and fades
+    const rise = 1 - f;
+    this.column.scale.set(1 + 0.15 * rise, 0.6 + 0.6 * Math.sqrt(rise), 1 + 0.15 * rise);
+    this.column.position.y = LOOK.height / 2 * this.column.scale.y;
+    this.colMat.opacity = LOOK.opacity * Math.min(1, f * 1.6);
     this.glow.position.set(p.x, LOOK.chest, p.z);
-    this.glow.scale.setScalar(LOOK.glow * (0.4 + 0.6 * this.shown) + 0.5 * this.flash);
-    this.glowMat.opacity = 0.8 * this.shown + 0.6 * this.flash;
+    this.glow.scale.setScalar(LOOK.glow * (0.5 + 0.5 * rise));
+    this.glowMat.opacity = 0.7 * f;
   }
 
   reset(): void {
-    this.shown = 0;
     this.flash = 0;
     this.column.visible = this.glow.visible = false;
   }
