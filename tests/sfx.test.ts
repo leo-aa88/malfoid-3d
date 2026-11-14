@@ -47,6 +47,7 @@ function setup() {
   const ginny = new FakeFighter();
   const sys = () => ({ onEvent: null as ((e: unknown) => void) | null });
   const spells = sys();
+  const choSpells = sys();
   const shield = { up: false };
   const hurt = (name: string) => ({ name, fighter: { position: new THREE.Vector3() }, onHurt: null as ((d: number, e: HitEffect) => void) | null });
   const targets = [hurt('Malfoid'), hurt('Ginny')];
@@ -54,7 +55,7 @@ function setup() {
     malfoid: malfoid as unknown as Malfoid,
     combat: sys() as unknown as ComboSystem,
     spells: spells as unknown as SpellSystem,
-    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: sys() as unknown as SpellSystem, protego: shield }],
+    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: choSpells as unknown as SpellSystem, protego: shield }],
     fighters: targets as unknown as FighterTarget[],
   });
   const run = (seconds: number) => {
@@ -64,7 +65,7 @@ function setup() {
       sounds.update(DT);
     }
   };
-  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield };
+  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield, choSpells };
 }
 
 test('footsteps: two per walk cycle, none when standing or hidden', () => {
@@ -155,4 +156,20 @@ test('Protego hums while the shield is up: once as it rises, faded out as it com
   shield.up = true;
   run(0.1);
   assert.equal(sfx.count('protego'), 2, 'the next shield hums again');
+});
+
+test("Cho's spells: Stupefy crackles at the release; Ventus builds from the cast's start and a cancelled cast cuts it", () => {
+  const { sfx, choSpells } = setup();
+  const ev = (type: string, id: string) => choSpells.onEvent!({ type, spell: { id } });
+  ev('cast', 'stupefy');
+  assert.equal(sfx.played.length, 0, 'nothing on the flick');
+  ev('release', 'stupefy');
+  assert.deepEqual(sfx.played.map((p) => p.id), ['stupefy']);
+  ev('cast', 'ventus');
+  assert.deepEqual(sfx.played.map((p) => p.id), ['stupefy', 'ventus'], 'the gust builds over the wind-up');
+  ev('release', 'ventus');
+  assert.equal(sfx.count('ventus'), 1, 'not played again at the release');
+  ev('cast', 'ventus');
+  ev('cancel', 'ventus');
+  assert.deepEqual(sfx.stopped, ['ventus'], 'a cancelled Ventus is cut');
 });

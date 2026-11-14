@@ -8,7 +8,7 @@ import type { Difficulty } from '../combat/ai/difficulty';
  * remembered in this browser.
  */
 
-export type OpponentId = 'ginny' | 'cho' | 'luna' | 'hermione' | 'harry' | 'bellatrix';
+export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna' | 'hermione' | 'harry' | 'bellatrix' | 'voldemort';
 /** Malfoid's spells; Confringo she always has, the rest are learned in the campaign */
 export type SpellId = 'confringo' | 'expelliarmus';
 /** the spells learned from opponents */
@@ -26,10 +26,12 @@ export interface Opponent {
 export const CAMPAIGN: readonly Opponent[] = [
   { id: 'ginny', name: 'Ginny Weasley', reward: 'expelliarmus', playable: true },
   { id: 'cho', name: 'Cho Chang', playable: true },
+  { id: 'susan', name: 'Susan Bones', playable: false },
   { id: 'luna', name: 'Luna Lovegood', playable: false },
   { id: 'hermione', name: 'Hermione Granger', playable: false },
   { id: 'harry', name: 'Harry Potter', playable: false },
   { id: 'bellatrix', name: 'Bellatrix Lestrange', playable: false },
+  { id: 'voldemort', name: 'Lord Voldemort', playable: false },
 ];
 
 /** fights the whole run may be lost before it is game over */

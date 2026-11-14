@@ -232,3 +232,25 @@ test('disarmed: she goes for her wand once it lands (running when far), then fig
   s.ai.update(DT);
   assert.equal(s.ai.state, 'OBSERVE');
 });
+
+test('she never attacks facing away: she turns first (after picking up her wand she faces where it lay)', () => {
+  // in cast range, facing directly away from the opponent (who is at +z)
+  const far = aiSetup(5, true);
+  far.self.facingAngle = Math.PI;
+  far.ai.setActive(true);
+  for (let i = 0; i < 30; i++) far.ai.update(DT);
+  assert.equal(far.casts.length, 0, 'no spell fired while facing away');
+  assert.ok(Math.abs(far.self.looked ?? 99) < 0.01, 'turning towards her');
+  far.self.facingAngle = 0;                                   // (the character turns; the fake is set)
+  for (let i = 0; i < 30; i++) far.ai.update(DT);
+  assert.deepEqual(far.casts, ['expelliarmus'], 'cast once facing her');
+  // in reach, facing away: no strike until she faces her
+  const near = aiSetup(0.6, false);
+  near.self.facingAngle = Math.PI;
+  near.ai.setActive(true);
+  for (let i = 0; i < 30; i++) near.ai.update(DT);
+  assert.equal(near.presses.length, 0, 'no punch or kick facing away');
+  near.self.facingAngle = 0.4;                                // within the melee tolerance (auto-face does the rest)
+  for (let i = 0; i < 30; i++) near.ai.update(DT);
+  assert.ok(near.presses.length >= 1);
+});

@@ -12,10 +12,10 @@ const BASE = import.meta.env.BASE_URL;
 
 type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
   | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
-  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win';
+  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus';
 const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
   'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
-  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win'];
+  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -42,6 +42,12 @@ export const BANKS = {
   confringo: [slice('confringo', 0.10, 2.40)],
   // Expelliarmus bursts at once: played at the release
   expelliarmus: [slice('expelliarmus', 0.0, 1.62)],
+  // Stupefy: a bright crackle (the file's first burst), from the release while the bolt streaks
+  // across (raised 1.8x it was too loud in game: now 40 % of that)
+  stupefy: [slice('stupefy', 0.08, 1.30, 0.72)],
+  // Ventus: a rush of air swelling to a bright gust (loudest ~1.25 s into the file); started
+  // 0.55 s in, from the cast's start, its loud part meets the gust leaving the wand
+  ventus: [slice('ventus', 0.55, 2.45)],
   // Protego's hum (steady for 2 s, longer than the shield ever stays up): played while it is up
   protego: [slice('protego', 0.0, 99)],
   // single clean footsteps (the file's double scuffs and faint ones left out), levelled to one loudness

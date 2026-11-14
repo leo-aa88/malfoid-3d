@@ -41,6 +41,17 @@ export interface EvasiveStyle {
   backStepChance: number;
 }
 
+/**
+ * how close to facing the opponent she must be before she attacks (rad); further off, she turns
+ * first (after picking up her wand she faces where it lay: casting at once sent the spell there).
+ * A spell's own start turns her the rest of the way; melee auto-faces within 60 degrees.
+ */
+const AIM = { spell: 0.5, melee: 0.9 };
+/** a counter-spell waits at most this long (s) for her to turn before it is dropped */
+const COUNTER_TURN = 0.8;
+/** s between re-checks while she turns to attack */
+const TURN_CHECK = 0.06;
+
 /** s over which repeated Confringo casts make her expect the next one */
 const SPAM_WINDOW = 12.0;
 /** however much Confringo she has seen, she shields at most this often and parries at most this often
@@ -142,6 +153,7 @@ export class FighterAI {
   private readonly opponentCasts: number[] = [];  // game times of the opponent's Confringo casts
   private countedCast = false;
   private readAt = -99;                           // game time she last read a cast
+  private counterTurn = 0;                        // s her counter-spell has waited for her to turn
   private dodged: DodgeState | null = null;
 
   constructor(
@@ -317,7 +329,7 @@ export class FighterAI {
       this.shieldAt -= dt;
       if (this.shieldAt <= 0) {
         this.shieldAt = -1;
-        const free = !me.reacting && !me.dodging && !this.combat.busy && !this.spells.isCasting;
+        const free = !me.reacting && !me.dodging && !this.combat.busy && !this.spells.isCasting && me.hasWand;
         if (free && this.shield?.raise()) this.go('PROTEGO', 0.75);
       }
     }
@@ -325,12 +337,19 @@ export class FighterAI {
     if (this.counterAt >= 0) {
       this.counterAt -= dt;
       if (this.counterAt <= 0 && this.state !== 'PROTEGO' && !this.self.dodging) {
-        this.counterAt = -1;
-        if (this.spells.canCast(this.spell) && dist <= this.spell.aimRange && this.lineOfSight()) {
+        if (!this.facing(angle, AIM.spell) && this.counterTurn < COUNTER_TURN) {
+          // not facing the opponent yet: turn, the counter waits a moment
           me.lookAt(angle);
-          if (this.spells.cast(this.spell)) {
-            this.go('CAST');
-            return;
+          this.counterTurn += dt;
+          this.counterAt = TURN_CHECK;
+        } else {
+          this.counterAt = -1;
+          this.counterTurn = 0;
+          if (this.facing(angle, AIM.spell) && this.spells.canCast(this.spell) && dist <= this.spell.aimRange && this.lineOfSight()) {
+            if (this.spells.cast(this.spell)) {
+              this.go('CAST');
+              return;
+            }
           }
         }
       }
@@ -360,7 +379,7 @@ export class FighterAI {
         if (this.opponentCombat.vulnerable && dist <= P.meleeRange + 0.3 && P.counterChance > 0 && !this.combat.busy) {
           me.setHold('block', false);
           this.wasBlocking = false;
-          if (Math.random() < P.counterChance) {
+          if (Math.random() < P.counterChance && this.facing(angle, AIM.melee)) {
             this.strike(true);
             return;
           }
@@ -472,7 +491,14 @@ export class FighterAI {
           if (this.blocked(dir, 1.2)) this.circleSide = this.circleSide > 0 ? -1 : 1;
           me.move(dir, true);
         } else {
-          me.move(this.dirToOpponent().negate(), false, angle);
+          const back = this.dirToOpponent().negate();
+          // backed up against something (a trunk, the stands' barrier): slip away along it instead
+          if (ev && this.blocked(back, 0.7)) {
+            this.circleSide = this.blocked(new THREE.Vector3(-back.z, 0, back.x), 1.0) ? -1 : 1;
+            this.go('CIRCLE', rand(ev.circleSwitch[0], ev.circleSwitch[1]));
+            break;
+          }
+          me.move(back, false, angle);
         }
         if (this.timer <= 0 || dist > P.castRange[1] || (ev && dist > ev.preferredRange[0] + 0.5)) {
           me.stop();
@@ -503,7 +529,7 @@ export class FighterAI {
     if (open && P.evasive && dist <= this.spell.aimRange && Math.random() < P.punishChance
         && this.spells.canCast(this.spell) && this.lineOfSight()) {
       // an evasive duellist punishes from range: Stupefy into the opening
-      me.lookAt(angle);
+      if (!this.turnedTo(angle, AIM.spell)) return;
       if (this.spells.cast(this.spell)) {
         this.go('CAST');
         return;
@@ -511,6 +537,7 @@ export class FighterAI {
     }
     if (open && P.punishChance > 0 && dist <= P.runDistance && Math.random() < P.punishChance && !P.evasive) {
       if (dist <= P.meleeRange + 0.12 && me.canStrike && !this.combat.busy) {
+        if (!this.turnedTo(angle, AIM.melee)) return;
         this.strike(true);
       } else {
         this.go('APPROACH', 1.5);
@@ -527,7 +554,7 @@ export class FighterAI {
     const ev = P.evasive;
     if (ev && this.pushSpell && dist <= ev.pushRange && this.spells.canCast(this.pushSpell)
         && (this.opponentCombat.busy || this.selfTarget.recentHits > 0 || dist < 1.3) && Math.random() < ev.pushChance) {
-      me.lookAt(angle);
+      if (!this.turnedTo(angle, AIM.spell)) return;
       if (this.spells.cast(this.pushSpell)) {
         this.go('CAST');
         return;
@@ -555,7 +582,7 @@ export class FighterAI {
     // isn't about the wand), from a distance, in clear sight
     if ((this.opponent.hasWand || ev) && dist >= P.castRange[0] && dist <= P.castRange[1] && this.spells.canCast(this.spell)
         && this.lineOfSight() && Math.random() < P.castChance) {
-      me.lookAt(angle);
+      if (!this.turnedTo(angle, AIM.spell)) return;
       if (this.spells.cast(this.spell)) {
         this.go('CAST');
         return;
@@ -575,6 +602,7 @@ export class FighterAI {
     // in reach: strike
     if (dist <= P.meleeRange + 0.08) {
       if (this.attackReady <= 0 && me.canStrike && !this.combat.busy) {
+        if (!this.turnedTo(angle, AIM.melee)) return;
         this.strike();
       } else {
         this.go('OBSERVE');
@@ -632,6 +660,21 @@ export class FighterAI {
       return;
     }
     if (Math.random() < this.params.dodgeChance) this.dodgeClip(this.freeSide());
+  }
+
+  /** is she facing within tol (rad) of this angle? */
+  private facing(angle: number, tol: number): boolean {
+    return Math.abs(angDiff(this.self.facingAngle, angle)) < tol;
+  }
+
+  /** facing the opponent closely enough to attack? If not: turn towards her and decide again soon */
+  private turnedTo(angle: number, tol: number): boolean {
+    if (this.facing(angle, tol)) return true;
+    this.self.stop();
+    this.self.lookAt(angle);
+    this.go('OBSERVE');
+    this.think = TURN_CHECK;
+    return false;
   }
 
   /** a dodge clip if her model has one, else nothing (false) */

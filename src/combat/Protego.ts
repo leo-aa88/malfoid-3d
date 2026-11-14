@@ -26,6 +26,8 @@ export type ShieldResult = 'reflect' | 'absorb';
 /** what the shield needs from its fighter */
 export interface Shielded {
   readonly facingAngle: number;
+  /** a wand in her hand: the charm is cast with it (disarmed, no shield) */
+  readonly hasWand: boolean;
   setHold(name: 'protego', on: boolean): void;
 }
 
@@ -45,7 +47,7 @@ export class Protego {
   constructor(private readonly fighter: Shielded) {}
 
   get ready(): boolean {
-    return !this.up && this.cooldownLeft <= 0;
+    return !this.up && this.cooldownLeft <= 0 && this.fighter.hasWand;
   }
 
   /** raise the shield (false: still cooling down, or already up) */
@@ -78,7 +80,8 @@ export class Protego {
   update(dt: number): void {
     if (this.up) {
       this.age += dt;
-      if (this.age >= PROTEGO.maxHold) this.lower();
+      // the shield lasts its moment, and no longer than the wand stays in her hand
+      if (this.age >= PROTEGO.maxHold || !this.fighter.hasWand) this.lower();
     } else {
       this.cooldownLeft = Math.max(0, this.cooldownLeft - dt);
       this.recoverLeft = Math.max(0, this.recoverLeft - dt);

@@ -69,7 +69,8 @@ export const DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
  * little (she is meant to be hard to hit, not hard to wear down).
  */
 const CHO_EASY: AIParams = {
-  detectRange: 14,
+  // she always knows where Malfoid is on the pitch (the stadium is ~90 m long): she follows her
+  detectRange: 120,
   meleeRange: 0.72,
   castRange: [3.0, 12.0],
   reaction: [0.24, 0.45],

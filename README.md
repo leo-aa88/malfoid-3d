@@ -1,8 +1,9 @@
 # malfoid-3d
 
 An anime-style 3D fighting game in the browser: **Malfoid**, a Slytherin student, duels Harry
-Potter's potential romantic interests one by one, with fists, kicks and spells, then Harry
-himself, and finally faces Bellatrix Lestrange. Built with Three.js + TypeScript + Vite.
+Potter's potential romantic interests (and a Hufflepuff who simply wants her stopped) one by
+one, with fists, kicks and spells, then Harry himself, Bellatrix Lestrange, and finally Lord
+Voldemort. Built with Three.js + TypeScript + Vite.
 
 Like Mega Man, every opponent Malfoid beats in the campaign teaches her a spell: beating Ginny
 teaches her **Expelliarmus**. **Ginny Weasley** and **Cho Chang**, the first two opponents, are
@@ -26,11 +27,11 @@ The start screen offers three modes:
 
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
-- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell and
-  no opening lines. **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as
-  coming soon.
+- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell
+  except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines.
+  **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
-  (Ginny, then Cho, ...) with **3 lives** for the whole run:
+  (Ginny, then Cho, then Susan Bones, ...) with **3 lives** for the whole run:
   - a win teaches Malfoid the opponent's spell and moves on to the next opponent;
   - a loss costs a life and the same opponent is fought again;
   - with no lives left it's **game over**: the run starts again from Ginny, at the difficulty
@@ -41,22 +42,34 @@ The start screen offers three modes:
   it; starting a new run while one is in progress takes a second click. Rules and lives are in
   `src/game/campaign.ts`.
 
-Practice and the campaign are fought in the **Forbidden Woods**, an infinite procedural forest
-that streams in chunks around the player, with no walls. See `src/scene/forest/` and
-`docs/forest/REPORT.md`; all values are in `src/scene/forest/config.ts`.
+Each opponent has her arena:
+
+- **Forbidden Woods** (Ginny): an infinite procedural forest that streams in chunks around the
+  player, with no walls. See `src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
+  `src/scene/forest/config.ts`.
+- **Quidditch Pitch** (Cho): a finite, bounded stadium generated in code. An oval grass field
+  with mown stripes and chalk lines, six goal hoops, timber grandstands with house canopies and
+  banners, twelve house towers, and hills, trees and the castle beyond, in daylight. The fighters
+  stay inside a low barrier at the foot of the stands, spells burst on it, and the camera stays
+  on the pitch. See `docs/pitch/REPORT.md`; all values are in `src/scene/pitch/config.ts`.
 
 ## Opponents
 
-The campaign, in order:
+The campaign, in order (the planned roster; see the status column for what is in the game):
 
-| Order | Opponent | Gameplay focus | Story purpose | Malfoid learns | Status |
+| Stage | Opponent | Combat challenge | Story purpose | Spell unlocked | Status |
 |---|---|---|---|---|---|
-| 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | Expelliarmus | playable |
-| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | – | playable |
-| 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | – | planned |
-| 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | – | planned |
-| 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | – | planned |
-| 6 | Bellatrix Lestrange | Crucio, Imperio, multiple opponents | First genuinely terrifying boss | – | planned |
+| 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
+| 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable (Protego not yet taught) |
+| 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | planned ([design](docs/susan/DESIGN.md)) |
+| 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Confundo | planned |
+| 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
+| 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
+| 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
+| 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |
+
+The game follows this order (`src/game/campaign.ts`): after Cho, the campaign shows Susan Bones as
+the next duel (coming soon).
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
@@ -105,9 +118,9 @@ above all repeated Confringos. See `docs/cho/REPORT.md`.
 
 ## Expelliarmus (P)
 
-Malfoid learns Ginny's Disarming Charm by beating her in the campaign (in training and practice
-she always has it; in the campaign, never against Ginny herself). A red bolt: 4 damage, a
-stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
+Malfoid learns Ginny's Disarming Charm by beating her in the campaign. In training she always
+has it, in practice against anyone but Ginny, and never against Ginny herself. A red bolt: 4
+damage, a stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
 from Confringo's, and its own slot in the HUD. A disarmed opponent runs back to her wand and
 picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.ts`.
 
@@ -118,7 +131,7 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
   Nobody can move or attack until **DUEL!** appears. Practice goes straight to the fight.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
   to recover, an opening for either side. In practice, **G** (or the HUD button) restarts it.
-- **The last word:** the winner says her line after the KO. In the campaign the result follows:
+- **The last word (campaign):** the winner says her line after the KO, then the result follows:
   the spell learned and the next opponent, the lives left, or game over.
 - **Lip movement:** the speakers' mouths open and close with the loudness of their lines
   (`audio/duelVoices.ts`).
@@ -245,7 +258,7 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, Protego's hum while
-  Cho's shield is up, footsteps timed to
+  Cho's shield is up, Stupefy's crackle, Ventus's rush of air, footsteps timed to
   the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
   the game just runs without it.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
@@ -253,8 +266,13 @@ Screenshots from the viewer are in `docs/confringo/`.
   grip, and the tip emitter.
 - `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
 - `camera/CameraController.ts` – the follow camera (behind her, side-on in a duel, speaker
-  close-ups); `scene/SceneManager.ts` – lights, shadows, the studio / woods environments;
-  `scene/forest/` – the Forbidden Woods.
+  close-ups); `scene/SceneManager.ts` – lights, shadows, the studio / arena lighting;
+  `scene/arena.ts` – what the duel needs from an arena (spawn, light, collision, spell solids,
+  camera limit); `scene/forest/` – the Forbidden Woods (`ForestArena.ts` adapts it);
+  `scene/pitch/` – the Quidditch Pitch (`config.ts` the tunables, `structures.ts` the towers,
+  grandstands, hoops and barrier, `landscape.ts` the land, castle and sky, `textures.ts` the
+  generated cloth and ground textures with the baked shadows, `PitchArena.ts` collision,
+  camera limit and light).
 
 ## Tests
 

@@ -31,9 +31,8 @@ and pipeline as Malfoid and Ginny. Every screenshot here is from the real Three.
   bow vanished into it). Reshaped, not replaced:
   - half-up: the upper back hair gathered behind the head (the existing gather from Ginny);
   - side locks: front cards that swept across the cheeks are eased back beside them;
-  - **bangs:** the pack has a bare-forehead centre part, so 11 copies of its own strand cards
-    (their topology, UVs and texture) run from under the crown hair to the brows, showing the
-    strand's lighter mid-length and separated tips.
+  - **no bangs:** the pack's own centre-parted hairline, the forehead open. A fringe built from
+    added cards (after the atlas) was tried and removed on request: it read as weird.
 - **The Ravenclaw bow** (`tools/blender/malfoid/ribbon.py`): real geometry at the gather point:
   a wrapped knot, two puffy teardrop loops with a fold, two V-cut tails. Kept clear of the hair
   surface. Knot and loops ride the head bone; the tails carry the hair's own skin weights, so
@@ -48,7 +47,7 @@ and pipeline as Malfoid and Ginny. Every screenshot here is from the real Three.
 |---|---|---|
 | ![front](head_front.png) | ![3/4](head_three_quarter.png) | ![side](head_side.png) |
 | ![back](head_back_bow.png) | ![bow](bow_close.png) | ![earring](earring_close.png) |
-| ![bangs](bangs_close.png) | ![crown](crown.png) | ![crest](crest.png) |
+| ![hairline](hairline_close.png) | ![crown](crown.png) | ![crest](crest.png) |
 
 ### Three characters together
 
@@ -169,9 +168,9 @@ parries.
 
 ## Known limitations
 
-- **Bangs:** thinner and fewer than the reference's full, airy fringe; one strand at the parting
-  shows a stair-stepped alpha edge in close-ups, and the pack's straight-cut card ends show as
-  dark blocks near the left temple. Subtle at gameplay distance.
+- **No fringe:** the reference has airy bangs; Cho has the pack's open centre-parted hairline
+  (a fringe of added cards was removed on request). The pack's straight-cut card ends show as a
+  dark patch near her left temple in close-ups.
 - **Half-up:** as for Ginny, softer than drawn; the reference's braided crown sections are not
   modelled.
 - **Spacing:** against an opponent who keeps chasing her, Cho's average distance was 2.8–3.9 m

@@ -4,7 +4,7 @@ import type { ComboSystem } from '../combat/ComboSystem';
 import type { FighterTarget } from '../combat/FighterTarget';
 import type { MoveId } from '../combat/moves';
 import type { SpellSystem } from '../combat/spells/SpellSystem';
-import type { Sfx } from './Sfx';
+import type { Sfx, SoundId } from './Sfx';
 
 /*
  * Which sound goes with which game event. Chains onto the systems' existing event handlers
@@ -16,14 +16,13 @@ const HEAVY_MOVES = new Set<MoveId>(['kick_low', 'kick_high', 'leg_sweep', 'spin
 /** the same voice, pitched a touch apart for each fighter */
 const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.02 };
 /**
- * the sound an opponent's spell makes as it leaves her wand (by spell id). Stupefy and Ventus
- * have no recordings of their own yet: the Expelliarmus burst, pitched up (a sharper crack)
- * and down (a softer rush of air)
+ * an opponent's spell sounds (by spell id): played at the release (the bolt leaves the wand) or
+ * from the cast's start (it builds over the wind-up; a cast cancelled before its release cuts it)
  */
-const RELEASE_SOUND: Record<string, { id: 'expelliarmus'; rate: number; volume: number }> = {
-  expelliarmus: { id: 'expelliarmus', rate: 1.0, volume: 0.85 },
-  stupefy: { id: 'expelliarmus', rate: 1.3, volume: 0.7 },
-  ventus: { id: 'expelliarmus', rate: 0.55, volume: 0.6 },
+const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume: number }> = {
+  expelliarmus: { id: 'expelliarmus', at: 'release', volume: 0.85 },
+  stupefy: { id: 'stupefy', at: 'release', volume: 0.85 },
+  ventus: { id: 'ventus', at: 'cast', volume: 0.8 },
 };
 /** Protego's hum while the shield is up (a steady, loud sound: quieter than the one-shot spells) */
 const SHIELD = { volume: 0.5, rate: 1.0 };
@@ -115,9 +114,17 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
     }
   });
   for (const o of r.opponents) {
+    let building: { stop(): void } | null = null;            // a sound started with the cast
     chain(() => o.spells.onEvent, (f) => (o.spells.onEvent = f), (e) => {
-      const s = e.type === 'release' ? RELEASE_SOUND[e.spell.id] : null;
-      if (s) sfx.play(s.id, { at: o.char.position.clone().setY(1.3), volume: s.volume, rate: s.rate });
+      if (e.type === 'cancel') {
+        building?.stop();
+        building = null;
+        return;
+      }
+      const s = SPELL_SOUND[e.spell.id];
+      if (!s || (e.type !== 'cast' && e.type !== 'release') || s.at !== e.type) return;
+      const h = sfx.play(s.id, { at: o.char.position.clone().setY(1.3), volume: s.volume });
+      building = s.at === 'cast' ? h : null;
     });
   }
 

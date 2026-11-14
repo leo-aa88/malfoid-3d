@@ -1,7 +1,9 @@
 import './styles/main.css';
 import * as THREE from 'three';
 import { SceneManager, STUDIO_LOOK } from './scene/SceneManager';
-import { FOREST_CONFIG, ForestWorld, forestLook, SPAWN_CENTRE } from './scene/forest';
+import { ForestArena } from './scene/forest/ForestArena';
+import { PitchArena } from './scene/pitch';
+import type { Arena } from './scene/arena';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
 import { CharacterController } from './character/CharacterController';
@@ -177,7 +179,8 @@ async function start(): Promise<void> {
       if (!malfoid.hasWand) malfoid.wand.retrieve();
       spells.reset();
       // side by side across the screen (the camera looks along -z): Malfoid on the left
-      // facing right, her opponent on the right facing left
+      // facing right, her opponent on the right facing left (a bounded arena: at its centre)
+      if (arena?.finite) malfoid.root.position.set(arena.spawn.x - opp.def.startDistance / 2, 0, arena.spawn.z);
       opp.char.root.position.copy(malfoid.position).add(new THREE.Vector3(opp.def.startDistance, 0, 0));
       malfoid.setFacing(Math.PI / 2);
       opp.char.setFacing(-Math.PI / 2);
@@ -214,7 +217,8 @@ async function start(): Promise<void> {
     }
     if (winner === opp.char) opp.char.setExpression(opp.def.faces.win, 4);
     else if (opp.def.faces.lose) opp.char.setExpression(opp.def.faces.lose, 99);
-    voices.win(winner);
+    // the winner's line: the campaign only (practice has no voice lines, like no opening lines)
+    if (mode === 'campaign') voices.win(winner);
   };
   malfoidTarget.onDefeated = () => finish(opp.char);
 
@@ -233,7 +237,10 @@ async function start(): Promise<void> {
   let mySpells: ReadonlySet<SpellId> = ALL_SPELLS;
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
   const refreshSpells = () => {
-    mySpells = mode === 'campaign' ? campaign.spells : ALL_SPELLS;
+    // practice: every spell but the one this opponent teaches (no Expelliarmus against Ginny)
+    const own = CAMPAIGN.find((o) => o.id === opp.def.id)?.reward;
+    mySpells = mode === 'campaign' ? campaign.spells
+      : mode === 'practice' ? new Set([...ALL_SPELLS].filter((s) => s !== own)) : ALL_SPELLS;
     hud.showSpell('confringo', true);
     hud.showSpell('expelliarmus', mySpells.has('expelliarmus'));
     helpExpelliarmus.hidden = !mySpells.has('expelliarmus');
@@ -245,6 +252,9 @@ async function start(): Promise<void> {
   const newRunBtns = [...modeEl.querySelectorAll<HTMLButtonElement>('.campaign .levels button')];
   let armed: HTMLButtonElement | null = null;
   let armTimer = 0;
+  // the campaign's order under its title (from the campaign list: it can't drift from it)
+  modeEl.querySelector('.campaign-order')!.textContent =
+    `${CAMPAIGN_LIVES} lives · ${CAMPAIGN.map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
   const refreshMenu = () => {
     const run = campaign.run;
     const next = campaign.opponent;
@@ -372,7 +382,7 @@ async function start(): Promise<void> {
     for (const o of Object.values(opponents)) o.char.root.visible = isDuel() && o === opp;
     hud.setMode(m);
     refreshSpells();
-    setEnvironment(isDuel());
+    setEnvironment(isDuel() ? arenas[opp.def.arena] : null);
     if (m === 'training') {
       voices.stop();
       closeUpOn = null;
@@ -383,7 +393,7 @@ async function start(): Promise<void> {
       malfoidTarget.reset();
     } else {
       // the duel starts in the spawn clearing of the woods
-      malfoid.root.position.set(SPAWN_CENTRE.x - opp.def.startDistance / 2, 0, SPAWN_CENTRE.z);
+      malfoid.root.position.set(arena!.spawn.x - opp.def.startDistance / 2, 0, arena!.spawn.z);
       setDuel(true);
     }
     input.setPaused(false);
@@ -407,16 +417,19 @@ async function start(): Promise<void> {
   // G / the HUD button: a fresh duel, in practice only (a campaign fight can't be restarted)
   input.onDuel = () => { if (mode === 'practice') setDuel(true); };
   hud.onDuelButton = () => { if (mode === 'practice') setDuel(true); };
-  // the Forbidden Woods: the duel's environment (training keeps the studio)
-  const forest = new ForestWorld(FOREST_CONFIG);
-  sm.scene.add(forest.group);
-  forest.atmosphere.setMoon(new THREE.Vector3(...FOREST_CONFIG.moonOffset));
-  // spells hit trunks: every caster shares one list of solids, refilled each frame
+  // the arenas (each opponent's definition names hers; training keeps the studio): the
+  // Forbidden Woods, the Quidditch Pitch. Built once; only the current one is shown and updated.
+  const arenas: Record<'woods' | 'pitch', Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene) };
+  let arena: Arena | null = null;
+  // spells hit trunks and stands: every caster shares one list of solids, refilled each frame
   spells.world.solids = solids;
-  const setEnvironment = (woods: boolean) => {
-    sm.setEnvironment(woods ? 'woods' : 'studio', woods ? forestLook() : STUDIO_LOOK);
-    forest.setActive(woods);
-    if (!woods) solids.length = 0;
+  const setEnvironment = (next: Arena | null) => {
+    for (const a of Object.values(arenas)) if (a !== next) a.setActive(false);
+    arena = next;
+    sm.setEnvironment(next ? next.kind : 'studio', next ? next.look() : STUDIO_LOOK);
+    next?.setActive(true);
+    cam.limit = next?.cameraLimit ?? null;
+    solids.length = 0;
   };
   const guards: Guard[] = ['none', 'high', 'low'];
   input.onDummyGuard = () => dummy.setGuard(guards[(guards.indexOf(dummy.guard) + 1) % guards.length]);
@@ -493,10 +506,11 @@ async function start(): Promise<void> {
       opp.target.update(dt);
       if (duelMode) {
         keepApart(malfoid.position, foe.position, FIGHTER_GAP, 0.5);
-        forest.resolve(malfoid.position, 0.28);           // trunks are solid; nothing else is
-        forest.resolve(foe.position, 0.28);
-        forest.fillSolids(solids, [malfoid.position, foe.position]);
-        forest.update(dt, malfoid.position, [malfoid.position, foe.position], sm.camera, sm.renderer.domElement.height);
+        const ar = arena!;
+        ar.resolve(malfoid.position, 0.28);               // trunks, the stands' barrier, hoop posts
+        ar.resolve(foe.position, 0.28);
+        ar.fillSolids(solids, [malfoid.position, foe.position]);
+        ar.update(dt, malfoid.position, [malfoid.position, foe.position], sm.camera, sm.renderer.domElement.height);
       }
       else if (!dummy.down) keepApart(malfoid.position, dummy.position, DUMMY_RADIUS + 0.22);
       if (!duelMode) dummy.update(dt, malfoid.position);
@@ -554,7 +568,7 @@ async function start(): Promise<void> {
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
-    setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, forest,
+    setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
     renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 
