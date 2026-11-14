@@ -43,8 +43,8 @@ export const BANKS = {
   // Expelliarmus bursts at once: played at the release
   expelliarmus: [slice('expelliarmus', 0.0, 1.62)],
   // Stupefy: a bright crackle (the file's first burst), from the release while the bolt streaks
-  // across; the file is quiet (sample peak 0.38), raised to sit with the other spells
-  stupefy: [slice('stupefy', 0.08, 1.30, 1.8)],
+  // across (raised 1.8x it was too loud in game: now 40 % of that)
+  stupefy: [slice('stupefy', 0.08, 1.30, 0.72)],
   // Ventus: a rush of air swelling to a bright gust (loudest ~1.25 s into the file); started
   // 0.55 s in, from the cast's start, its loud part meets the gust leaving the wand
   ventus: [slice('ventus', 0.55, 2.45)],
