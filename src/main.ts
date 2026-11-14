@@ -245,7 +245,10 @@ async function start(): Promise<void> {
       malfoid.setFacing(Math.PI / 2);
       opp.char.setFacing(-Math.PI / 2);
       cam.frame(malfoid.position, opp.char.position);
-      opp.char.setExpression(opp.def.faces.start, 5);
+      // her face through the opening lines (held to their end when she has one of her own: Susan's
+      // serious face), else her start face for a few seconds
+      const introFace = intro() ? opp.def.faces.intro : undefined;
+      opp.char.setExpression(introFace ?? opp.def.faces.start, introFace ? 60 : 5);
       malfoid.resetIdleTimer();                       // she starts in her stance, not the bored arms-crossed idle
       malfoid.snapToStance();                         // on their feet at once (no rising out of a knockout)
       opp.char.snapToStance();
@@ -266,6 +269,7 @@ async function start(): Promise<void> {
     if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
     closeUpOn = null;
     roundIntro = ROUND_INTRO;
+    if (opp.def.faces.intro) opp.char.setExpression(opp.def.faces.start, 2.5);   // the opening lines are over
     hud.announce(match.final ? 'FINAL ROUND' : `ROUND ${match.round}`, 'duel');
   };
   const intro = () => mode === 'campaign' && match.round === 1;

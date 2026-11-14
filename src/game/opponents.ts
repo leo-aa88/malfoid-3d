@@ -26,6 +26,8 @@ const SKIP_CLIP_SPEED = (0.7 * (0.2 + 0.38)) / (0.35 * 0.7);
 export interface OpponentFaces {
   /** as the duel starts (held through the opening lines) */
   start: string;
+  /** her face through the whole opening exchange, when it differs (Susan: serious); then her start face */
+  intro?: string;
   /** casting or striking */
   attack: string;
   /** backing off */
@@ -137,7 +139,7 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     // the Herbology greenhouse: Hufflepuff's home ground (an open stone floor between the benches)
     arena: 'greenhouse',
     lines: SUSAN_LINES,
-    faces: { start: 'determined', attack: 'neutral', retreat: 'worried', disarmedFoe: 'determined', heal: 'comforted',
+    faces: { start: 'determined', intro: 'serious', attack: 'neutral', retreat: 'worried', disarmedFoe: 'determined', heal: 'comforted',
       lowHp: 'determined', shielded: 'determined', parried: 'amused', win: 'comforted', lose: 'sad' },
     hudColour: '#e1b241',
   },

@@ -105,6 +105,10 @@ export const SUSAN_FACES: Record<string, Weights> = {
   // quiet resolve: brows lowered, a steady gaze, lips pressed (firm, not angry)
   determined: { ...noSmileSusan, browDownLeft: 0.8, browDownRight: 0.8, eyeSquintLeft: 0.35, eyeSquintRight: 0.35,
     mouthPressLeft: 0.6, mouthPressRight: 0.6, '真面目': 0.7 },
+  // serious: her face through the opening lines (she wants Malfoid stopped): no smile, brows
+  // lowered a little, a level gaze, lips set (not the pressed, squinting resolve of determined)
+  serious: { ...noSmileSusan, browDownLeft: 0.45, browDownRight: 0.45, browInnerUp: 0.15, eyeSquintLeft: 0.12,
+    eyeSquintRight: 0.12, '真面目': 0.6, mouthPressLeft: 0.15, mouthPressRight: 0.15, mouthFrownLeft: 0.12, mouthFrownRight: 0.12 },
   // comforted / sincere: eyes gently closed, a warm smile (she heals with this face)
   comforted: { 'なごみ': 0.95, mouthSmileLeft: 0.45, mouthSmileRight: 0.45, browInnerUp: 0.25, eyeSquintLeft: 0,
     eyeSquintRight: 0, blush: 0.15 },
@@ -112,8 +116,9 @@ export const SUSAN_FACES: Record<string, Weights> = {
     mouthStretchLeft: 0.6, mouthStretchRight: 0.6, jawOpen: 0.12 },
 };
 
-/** Susan's speaking mouth (atlas "Speaking: light, natural"): the "a" viseme, warm corners */
-export const SUSAN_TALK: Weights = { 'あ': 0.4, jawOpen: 0.06, mouthSmileLeft: 0.3, mouthSmileRight: 0.3 };
+/** Susan's speaking mouth (atlas "Speaking: light, natural"): the "a" viseme. No smile of its own:
+ *  the corners come from her face (serious in the opening lines, warm in her win line) */
+export const SUSAN_TALK: Weights = { 'あ': 0.4, jawOpen: 0.06 };
 
 /*
  * Luna's expressions (the same keys and face channels, tuned against her facial atlas in the
