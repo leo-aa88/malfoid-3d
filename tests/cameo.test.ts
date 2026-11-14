@@ -43,9 +43,10 @@ test('his rise into the corner, the hold while the voice speaks, the drop; then 
   const dropping = cameoRise(1.3, c)!;
   assert.ok(dropping > 0 && dropping < 1);
   assert.equal(cameoRise(1.46, c), null, 'gone after rise + hold + drop');
-  // fully in by the time the voice says its line (0.2 s into the slice played)
+  // a quick peek: fully in before the voice's line starts (0.2 s into the sound), gone as it ends
   assert.ok(CAMEO.rise <= 0.2);
-  assert.ok(CAMEO.rise + CAMEO.hold >= 1.0, 'still there as the line ends');
+  assert.ok(Math.abs(CAMEO.rise + CAMEO.hold + CAMEO.drop - 1.0) < 1e-9, 'on screen 1 s');
+  assert.ok(CAMEO.rise + CAMEO.hold >= 0.8, 'up until the line ends');
 });
 
 function fakeFighter() {

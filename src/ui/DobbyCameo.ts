@@ -10,10 +10,11 @@ export const CAMEO = {
   chance: 0.10,
   /** s of game time after an appearance before he can come again */
   cooldown: 60,
-  /** s: rising into the corner, staying (the voice says its line meanwhile), dropping away */
-  rise: 0.18,
-  hold: 0.95,
-  drop: 0.22,
+  /** s: rising into the corner, staying, dropping away (1 s in all: a quick peek; he drops as
+   *  the voice finishes its "Toasty!", 0.2-0.8 s into the sound) */
+  rise: 0.13,
+  hold: 0.71,
+  drop: 0.16,
   /** how tall he shows (fraction of the window's height) */
   height: 0.3,
   /** the "Toasty!" volume (0..1, before the master volume; not placed in the scene, so at full
