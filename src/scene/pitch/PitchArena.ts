@@ -5,7 +5,8 @@ import { PITCH_CONFIG, PitchConfig } from './config';
 import { Kit } from './kit';
 import { buildStadium } from './structures';
 import { clothAtlas, groundExtent, groundTexture } from './textures';
-import { buildCastle, buildClouds, buildSky, buildTerrain } from './landscape';
+import { buildClouds, buildSky, buildTerrain } from './landscape';
+import { buildCastle } from './castle';
 import { buildTrees } from './trees';
 
 /** two-step toon ramp, softer than the characters' (a lot of daylight on wood) */
@@ -21,8 +22,8 @@ function gradient(): THREE.DataTexture {
  * The Hogwarts Quidditch Pitch: a finite arena, built once from code (no model files). The
  * fighters stay inside the oval at the foot of the stands (a low barrier marks it); the hoop
  * posts are solid; spells burst on the barrier and the posts. The camera stays inside the
- * stands. Everything is static: a handful of merged meshes, the stands' shadows baked into the
- * ground texture, nothing rebuilt per frame.
+ * stands. Everything is static: a handful of merged meshes and one sun shadow over the stadium,
+ * nothing rebuilt per frame.
  */
 export class PitchArena implements Arena {
   readonly kind = 'pitch' as const;
@@ -46,7 +47,6 @@ export class PitchArena implements Arena {
     const wood = new Kit();
     const cloth = new Kit(true);
     const built = buildStadium(cfg, wood, cloth);
-    buildCastle(cfg, wood);
     this.posts = built.posts;
     const solidMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: grad });
     const woodMesh = new THREE.Mesh(wood.build()!, solidMat);
@@ -67,7 +67,12 @@ export class PitchArena implements Arena {
     ground.name = 'pitch_ground';
     const terrain = new THREE.Mesh(buildTerrain(cfg), new THREE.MeshLambertMaterial({ vertexColors: true }));
     terrain.name = 'pitch_land';
-    this.group.add(buildSky(cfg), buildClouds(cfg), terrain, ground, woodMesh, clothMesh, buildTrees(cfg, grad));
+    // the castle: its own mesh (same material), out of the stadium's shadow, so no shadow pass
+    const castleKit = new Kit();
+    buildCastle(cfg, castleKit);
+    const castle = new THREE.Mesh(castleKit.build()!, solidMat);
+    castle.name = 'pitch_castle';
+    this.group.add(buildSky(cfg), buildClouds(cfg), terrain, ground, woodMesh, clothMesh, castle, buildTrees(cfg, grad));
     // the fighters' oval (inside the barrier), the camera's (inside the stands' foot)
     this.boundA = cfg.fieldHalfLength + cfg.apron - cfg.boundaryMargin;
     this.boundB = cfg.fieldHalfWidth + cfg.apron - cfg.boundaryMargin;

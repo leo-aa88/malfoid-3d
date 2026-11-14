@@ -270,9 +270,10 @@ Screenshots from the viewer are in `docs/confringo/`.
   `scene/arena.ts` – what the duel needs from an arena (spawn, light, collision, spell solids,
   camera limit); `scene/forest/` – the Forbidden Woods (`ForestArena.ts` adapts it);
   `scene/pitch/` – the Quidditch Pitch (`config.ts` the tunables, `structures.ts` the towers,
-  grandstands, hoops and barrier, `landscape.ts` the land, castle and sky, `textures.ts` the
-  generated cloth and ground textures with the baked shadows, `PitchArena.ts` collision,
-  camera limit and light).
+  grandstands, hoops and barrier, `landscape.ts` the land and sky, `trees.ts` the instanced
+  conifers and broadleaves, `castle.ts` the castle on its crag, `textures.ts` the generated
+  cloth and ground textures, `PitchArena.ts` collision, camera limit, light and the
+  stadium-wide sun shadow).
 
 ## Tests
 
