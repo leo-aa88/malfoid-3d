@@ -50,13 +50,16 @@ function setup() {
   const choSpells = sys();
   const shield = { up: false };
   const malfoidShield = { up: false };
+  const episkey = { onHealed: null as ((amount: number) => void) | null };
+  const healed: number[] = [];
+  episkey.onHealed = (n) => healed.push(n);          // her face and the look chain on first
   const hurt = (name: string) => ({ name, fighter: { position: new THREE.Vector3() }, onHurt: null as ((d: number, e: HitEffect) => void) | null });
   const targets = [hurt('Malfoid'), hurt('Ginny')];
   const sounds = connectCombatSounds(sfx as unknown as Sfx, {
     malfoid: malfoid as unknown as Malfoid,
     combat: sys() as unknown as ComboSystem,
     spells: spells as unknown as SpellSystem,
-    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: choSpells as unknown as SpellSystem, protego: shield }],
+    opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: choSpells as unknown as SpellSystem, protego: shield, episkey }],
     fighters: targets as unknown as FighterTarget[],
     malfoidShield,
   });
@@ -67,7 +70,7 @@ function setup() {
       sounds.update(DT);
     }
   };
-  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield, choSpells, malfoidShield };
+  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield, choSpells, malfoidShield, episkey, healed };
 }
 
 test('footsteps: two per walk cycle, none when standing or hidden', () => {
@@ -186,13 +189,24 @@ test("Malfoid's Protego (learned from Cho) hums like Cho's", () => {
   assert.deepEqual(sfx.stopped, ['protego']);
 });
 
-test("Susan's spells: never Expelliarmus's sound (that means a disarm); Impedimenta is a lower crackle", () => {
+test("Susan's spells: Impedimenta has its own sound, from the cast's start (a cancelled cast cuts it); never Expelliarmus's", () => {
   const { sfx, choSpells } = setup();
   const ev = (type: string, id: string) => choSpells.onEvent!({ type, spell: { id } });
   ev('cast', 'impedimenta');
   ev('release', 'impedimenta');
   ev('cast', 'depulso');
   assert.equal(sfx.count('expelliarmus'), 0);
-  assert.deepEqual(sfx.played.map((p) => p.id), ['stupefy', 'ventus']);
-  assert.ok(sfx.played[0].opts.rate! < 0.9, 'pitched below Stupefy');
+  assert.deepEqual(sfx.played.map((p) => p.id), ['impedimenta', 'ventus']);
+  assert.equal(sfx.played[0].opts.rate, undefined, 'its own sound: not pitched');
+  ev('cast', 'impedimenta');
+  ev('cancel', 'impedimenta');
+  assert.deepEqual(sfx.stopped, ['impedimenta']);
+});
+
+test("Susan's Episkey: its swell plays the moment she heals, and the earlier handlers still run", () => {
+  const { sfx, episkey, healed } = setup();
+  episkey.onHealed!(25);
+  assert.equal(sfx.count('episkey'), 1);
+  assert.deepEqual(healed, [25]);
+  assert.equal(sfx.played.length, 1);
 });

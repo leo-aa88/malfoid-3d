@@ -23,11 +23,13 @@ const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume:
   expelliarmus: { id: 'expelliarmus', at: 'release', volume: 0.85 },
   stupefy: { id: 'stupefy', at: 'release', volume: 0.85 },
   ventus: { id: 'ventus', at: 'cast', volume: 0.8 },
-  // Susan's spells borrow these until they have their own sounds (never Expelliarmus's: that
-  // sound means a disarm). Impedimenta: Stupefy's crackle pitched down, duller and slower
-  impedimenta: { id: 'stupefy', at: 'release', volume: 0.8, rate: 0.78 },
+  // Susan's: Impedimenta swells from the cast's start (its release is 0.2 s in); Depulso borrows
+  // Ventus's gust until it has its own sound
+  impedimenta: { id: 'impedimenta', at: 'cast', volume: 0.8 },
   depulso: { id: 'ventus', at: 'cast', volume: 0.85 },
 };
+/** Episkey's swell as she heals (instant: played the moment it heals) */
+const EPISKEY_SOUND = { volume: 0.8 };
 /** Protego's hum while the shield is up (a steady, loud sound: quieter than the one-shot spells) */
 const SHIELD = { volume: 0.5, rate: 1.0 };
 /** at most one grunt per fighter in this long (s); fast combos don't stack them */
@@ -57,6 +59,8 @@ export interface SoundFighter {
   spells: SpellSystem;
   /** her Protego, if she has one: it hums while it is up */
   protego?: { readonly up: boolean } | null;
+  /** her healing charm, if she has one (Susan): it swells as she heals */
+  episkey?: { onHealed: ((amount: number) => void) | null } | null;
 }
 
 export interface CombatSoundRefs {
@@ -131,6 +135,15 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
       if (!s || (e.type !== 'cast' && e.type !== 'release') || s.at !== e.type) return;
       const h = sfx.play(s.id, { at: o.char.position.clone().setY(1.3), volume: s.volume, rate: s.rate });
       building = s.at === 'cast' ? h : null;
+    });
+  }
+
+  // Episkey (Susan's healing charm): its swell the moment she heals
+  for (const o of r.opponents) {
+    const h = o.episkey;
+    if (!h) continue;
+    chain(() => h.onHealed, (f) => (h.onHealed = f), () => {
+      sfx.play('episkey', { at: o.char.position.clone().setY(1.2), volume: EPISKEY_SOUND.volume });
     });
   }
 

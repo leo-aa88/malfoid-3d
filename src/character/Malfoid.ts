@@ -353,6 +353,11 @@ export class Malfoid {
     }
   }
 
+  /** straight into her stance, no blend from the pose before (a duel or round starting) */
+  snapToStance(): void {
+    this.animation.snap(this.opts.idleClip);
+  }
+
   /** where her spells leave from: the tip of her wand */
   get spellEmitter(): SpellEmitter {
     return this.wand.tip;

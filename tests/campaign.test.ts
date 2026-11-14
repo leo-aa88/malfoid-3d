@@ -1,7 +1,7 @@
-// Logic tests for the campaign run: lives, the order, the spells learned: `npm test`
+// Logic tests for the campaign run: the order, the spells learned, game over: `npm test`
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ALL_SPELLS, CAMPAIGN_LIVES, Campaign, parseRun, type RunStore } from '../src/game/campaign';
+import { ALL_SPELLS, Campaign, parseRun, type RunStore } from '../src/game/campaign';
 
 class MemoryStore implements RunStore {
   data = new Map<string, string>();
@@ -10,13 +10,12 @@ class MemoryStore implements RunStore {
   removeItem(k: string) { this.data.delete(k); }
 }
 
-test('a new run: Ginny first, 3 lives, only Confringo', () => {
+test('a new run: Ginny first, only Confringo', () => {
   const c = new Campaign(new MemoryStore());
   assert.equal(c.run, null);
   assert.equal(c.opponent, null);
   c.start('normal');
-  assert.equal(CAMPAIGN_LIVES, 3);
-  assert.deepEqual(c.run, { level: 'normal', lives: 3, stage: 0, learned: [] });
+  assert.deepEqual(c.run, { level: 'normal', stage: 0, learned: [] });
   assert.equal(c.opponent?.id, 'ginny');
   assert.deepEqual([...c.spells], ['confringo']);
 });
@@ -46,17 +45,16 @@ test('beating Cho teaches Protego; a run saved past Cho before she taught it get
   assert.deepEqual(parseRun('{"level":"easy","lives":3,"stage":1,"learned":[]}')!.learned, ['expelliarmus']);
 });
 
-test('a loss costs a life and the same opponent comes again; the third loss is game over', () => {
+test('a lost match is game over: the run ends at once and starts again from Ginny', () => {
   const c = new Campaign(new MemoryStore());
   c.start('hard');
   c.win();                                         // Ginny beaten: Expelliarmus learned
-  assert.deepEqual(c.lose(), { lives: 2, gameOver: false, opponent: c.opponent });
-  assert.equal(c.opponent?.id, 'cho', 'the same opponent again');
-  assert.equal(c.lose().lives, 1);
-  const last = c.lose();
-  assert.equal(last.gameOver, true);
-  assert.equal(last.opponent.id, 'cho');
+  c.win();                                         // Cho beaten: Protego learned
+  const r = c.lose();                              // lost to Susan
+  assert.deepEqual(r, { opponent: r.opponent });
+  assert.equal(r.opponent.id, 'susan');
   assert.equal(c.run, null, 'the run is over');
+  assert.equal(c.opponent, null);
   c.start('hard');
   assert.equal(c.opponent?.id, 'ginny', 'start again from Ginny');
   assert.ok(!c.spells.has('expelliarmus'), 'spells learned in the lost run are forgotten');
@@ -66,11 +64,9 @@ test('the run is remembered; a game over forgets it', () => {
   const store = new MemoryStore();
   const a = new Campaign(store);
   a.start('normal');
-  a.lose();
   a.win();
   const b = new Campaign(store);
-  assert.deepEqual(b.run, { level: 'normal', lives: 2, stage: 1, learned: ['expelliarmus'] });
-  b.lose();
+  assert.deepEqual(b.run, { level: 'normal', stage: 1, learned: ['expelliarmus'] });
   b.lose();
   assert.equal(new Campaign(store).run, null);
 });
@@ -79,10 +75,12 @@ test('a stored run is read safely', () => {
   assert.equal(parseRun(null), null);
   assert.equal(parseRun('garbage'), null);
   assert.equal(parseRun('{"level":"brutal","lives":3,"stage":0,"learned":[]}'), null);
-  assert.equal(parseRun('{"level":"easy","lives":0,"stage":0,"learned":[]}'), null);
-  assert.equal(parseRun('{"level":"easy","lives":3,"stage":99,"learned":[]}'), null);
-  assert.deepEqual(parseRun('{"level":"easy","lives":2,"stage":1,"learned":["expelliarmus","avada",3,"expelliarmus"]}'),
-    { level: 'easy', lives: 2, stage: 1, learned: ['expelliarmus'] });
+  assert.equal(parseRun('{"level":"easy","stage":99,"learned":[]}'), null);
+  assert.deepEqual(parseRun('{"level":"easy","stage":1,"learned":["expelliarmus","avada",3,"expelliarmus"]}'),
+    { level: 'easy', stage: 1, learned: ['expelliarmus'] });
+  // a run saved while the campaign had lives carries on (the lives are dropped)
+  assert.deepEqual(parseRun('{"level":"normal","lives":2,"stage":2,"learned":["expelliarmus","protego"]}'),
+    { level: 'normal', stage: 2, learned: ['expelliarmus', 'protego'] });
   // blocked storage: still playable, just not remembered
   const blocked: RunStore = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
   const c = new Campaign(blocked);

@@ -31,16 +31,19 @@ The start screen offers three modes:
   except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines.
   **G** restarts the fight. Ginny, Cho or Susan; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
-  (Ginny, then Cho, then Susan Bones, ...) with **3 lives** for the whole run:
+  (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
+  win two rounds takes it (win–win, win–lose–win and lose–win–win are victories; lose–lose,
+  lose–win–lose and win–lose–lose are defeats). Only the match counts:
   - a win teaches Malfoid the opponent's spell and moves on to the next opponent;
-  - a loss costs a life and the same opponent is fought again;
-  - with no lives left it's **game over**: the run starts again from Ginny, at the difficulty
-    chosen again, and the spells learned are forgotten.
+  - a loss is **game over**: there are no lives, so the run starts again from Ginny, at the
+    difficulty chosen again, and the spells learned are forgotten.
 
-  A campaign fight can't be restarted with G. The run (difficulty, lives, the next opponent,
-  the spells learned) is remembered in the browser, so the start screen offers to continue
-  it; starting a new run while one is in progress takes a second click. Rules and lives are in
-  `src/game/campaign.ts`.
+  Between rounds the screen dips to dark and both fighters start over in the same arena: full
+  health, wands back, every cooldown and healing charge reset. The HUD shows each side's round
+  wins (● ○) by her name. A campaign fight can't be restarted with G. The run (difficulty, the
+  next opponent, the spells learned) is remembered in the browser, so the start screen offers
+  to continue it; starting a new run while one is in progress takes a second click. The rules
+  are in `src/game/campaign.ts` and `src/game/match.ts`.
 
 Each opponent has her arena:
 
@@ -140,9 +143,9 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
 - **Depulso:** a violet bolt that throws you well back (9 damage, 7 m range, 8 s) when you crowd
   or attack her.
 - **Punishing a rush:** run straight into her reach and she may strike first.
-- **Episkey:** hurt (below 60 %), she heals at once, where she stands (a green-gold flare). It
+- **Episkey:** hurt (below 60 %), she heals at once, where she stands (a green-gold flare and a bright swell of sound). It
   is instantaneous: no wind-up, nothing to interrupt, no opening. It is limited by a 6 s
-  cooldown and a few charges per duel (see the table).
+  cooldown and a few charges per round (see the table).
 - **Hufflepuff Resolve:** a stagger only makes her flinch, a knockdown only knocks her back,
   and she is pushed 40 % less.
 - **More determined, not more aggressive:** below half health her face hardens and she guards
@@ -167,11 +170,16 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
 
 - **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
   speaks first, against Cho, Cho does.
-  Nobody can move or attack until **DUEL!** appears. Practice goes straight to the fight.
+  Then **ROUND 1** shows; nobody can move or attack until **DUEL!** appears. Practice goes
+  straight to the fight.
+- **Rounds (campaign):** a round lost or won short of the match is announced (**GINNY WINS
+  ROUND 1**); after 3 s the next round's title (**ROUND 2**, or **FINAL ROUND** at one round
+  each) holds for 1.3 s with both fighters still, then **DUEL!**. No voice lines between rounds.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
   to recover, an opening for either side. In practice, **G** (or the HUD button) restarts it.
-- **The last word (campaign):** the winner says her line after the KO, then the result follows:
-  the spell learned and the next opponent, the lives left, or game over.
+- **The last word (campaign):** the match's winner says her line after the deciding KO, then the
+  result follows with the score in rounds: the spell learned and the next opponent, or game
+  over.
 - **Lip movement:** the speakers' mouths open and close with the loudness of their lines
   (`audio/duelVoices.ts`).
 - **Leaving:** **Change mode** in the HUD returns to the start screen.
@@ -286,8 +294,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   A shield's owner takes over a reflected spell (`SpellSystem.adopt`).
 - `game/opponents.ts` – the opponents as definitions (model, faces, spells, AI per difficulty,
   voice lines); `game/Opponent.ts` builds one in the game. The duel code names no opponent.
-- `game/campaign.ts` – the campaign: the opponents in order, lives, the spells each one
-  teaches, the saved run.
+- `game/campaign.ts` – the campaign: the opponents in order, game over, the spells each one
+  teaches, the saved run. `game/match.ts` – a campaign duel as a best-of-three match.
 - `character/faces.ts` – Ginny's and Cho's expressions and speaking mouths. Besides shape keys a
   face may set `blush` (a cheek tint in the face shader) and `tears` (the base mesh's tear cards).
 - `combat/spells/` – `SpellSystem.ts` (casting, cooldowns, aim assist, projectiles, damage),
@@ -295,7 +303,7 @@ Screenshots from the viewer are in `docs/confringo/`.
   `SpellEmitter.ts` (where spells leave from: the wand tip),
   `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion; one pool
   per look, shared by every caster of that spell), `SpellFxSet.ts` (a caster's spells to their pools).
-- `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, a cooldown slot per spell, lives.
+- `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, a cooldown slot per spell, round wins.
 - `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
   pause screen; remembered in the browser, with a short sample at the new level.
 - `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement
@@ -303,7 +311,7 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, Protego's hum while
-  Cho's shield is up, Stupefy's crackle, Ventus's rush of air, footsteps timed to
+  Cho's shield is up, Stupefy's crackle, Ventus's rush of air, Impedimenta's swell, Episkey's chime, footsteps timed to
   the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
   the game just runs without it.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.
@@ -331,7 +339,7 @@ npm test
 
 Runs the logic tests in `tests/` with Node's test runner on an esbuild bundle: spells, Ginny's
 AI and combat, the forest (generation, collision, geometry), sound triggers, the voice lines and
-the campaign (lives, order, spells learned).
+the campaign (order, spells learned, game over, best-of-three matches).
 No browser or WebGL needed.
 
 ## Rebuilding the models

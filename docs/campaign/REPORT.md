@@ -1,5 +1,8 @@
 # Modes, the campaign and Expelliarmus
 
+> **Since changed:** the campaign no longer has lives. Each duel is a best-of-three match, and
+> losing a match is game over (see the README's Campaign section).
+
 Three modes replace Training / Duel, and Malfoid learns her first spell from an opponent.
 
 | Mode | Where | Opponent | Spells | Opening lines | Restart (G) |

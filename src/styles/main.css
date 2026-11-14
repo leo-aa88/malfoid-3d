@@ -173,8 +173,9 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
   body:has(#mode:not([hidden])) #help { display: none; }
 }
 
-/* --- campaign: lives, the result of a fight (a new spell, a lost life, game over) ---- */
-#hud .duel-box .lives { color: #ff6b6b; letter-spacing: 0.12em; }
+/* --- campaign: the result of a match (a new spell, a win, game over) ---------------- */
+/* the match's round wins (best of three), by each fighter's name */
+#hud .duel-box .rounds { margin-left: 0.5em; color: #ffd27a; letter-spacing: 0.1em; font-size: 0.9em; }
 #result { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(15, 18, 24, 0.6); }
 #result[hidden] { display: none; }
 #result .box { padding: 24px 34px 22px; background: rgba(20, 24, 30, 0.92); border-radius: 12px; text-align: center;
@@ -183,11 +184,9 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #result .title { margin: 8px 0 6px; font: 900 40px/1 system-ui, sans-serif; letter-spacing: 0.06em; color: #ffe37a;
   text-transform: uppercase; -webkit-text-stroke: 1.5px #3a2a00; text-shadow: 0 3px 0 #3a2a00, 0 0 22px rgba(255, 200, 60, 0.5); }
 #result.spell .title { color: #ff8a80; -webkit-text-stroke-color: #3a0c10; text-shadow: 0 3px 0 #3a0c10, 0 0 22px rgba(255, 60, 50, 0.65); }
-#result.lost .tag, #result.over .tag { color: #ff8a80; }
+#result.over .tag { color: #ff8a80; }
 #result.over .title { color: #ff5a4f; -webkit-text-stroke-color: #3a0c10; text-shadow: 0 3px 0 #3a0c10, 0 0 22px rgba(255, 40, 30, 0.6); }
 #result .how { font-size: 15px; }
-#result .how .hearts { color: #ff6b6b; letter-spacing: 0.15em; font-size: 20px; }
-#result .how .hearts .gone { color: rgba(255, 255, 255, 0.2); }
 #result .next { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.12); opacity: 0.85; }
 #result .next:empty { display: none; }
 #result .next span { margin-left: 6px; font-size: 12px; opacity: 0.7; }
@@ -197,3 +196,7 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #result .actions button.main { background: #2a6b4c; }
 #result .actions button:hover { filter: brightness(1.15); }
 @keyframes result-in { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: none; } }
+
+/* the dip to dark between a campaign match's rounds (the fighters are reset behind it) */
+#round-fade { position: fixed; inset: 0; background: #05060a; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+#round-fade.on { opacity: 1; }

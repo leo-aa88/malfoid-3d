@@ -23,7 +23,8 @@ import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
-import { ALL_SPELLS, CAMPAIGN, CAMPAIGN_LIVES, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
+import { ALL_SPELLS, CAMPAIGN, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
+import { MATCH, Match } from './game/match';
 import { OPPONENTS, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
 import { SlowFx } from './combat/SlowFx';
@@ -95,7 +96,7 @@ async function start(): Promise<void> {
   malfoidTarget.shield = protego;
   const solids: THREE.Box3[] = [];
   // training: the dummy in the studio; practice (any opponent, every spell, straight into the
-  // fight) and the campaign (opponents in order, lives, spells learned): a duel in the woods
+  // fight) and the campaign (opponents in order, spells learned): a duel in the woods
   type Mode = 'training' | 'practice' | 'campaign';
   let mode: Mode = 'training';
   const isDuel = () => mode !== 'training';
@@ -133,7 +134,7 @@ async function start(): Promise<void> {
     else hud.flashStatusText('PROTEGO', 'miss');
   };
 
-  // the campaign run: lives, the next opponent, the spells learned (remembered in this browser)
+  // the campaign run: the next opponent, the spells learned (remembered in this browser)
   let store: Storage | null = null;
   try {
     store = window.localStorage;
@@ -191,14 +192,30 @@ async function start(): Promise<void> {
   const gatherWands = () => {
     for (const c of [malfoid, ...Object.values(opponents).map((o) => o.char)]) if (!c.hasWand) c.wand.retrieve();
   };
-  voices.onIntroDone = () => startFight();
+  voices.onIntroDone = () => announceRound();
   let duel = false;
   let duelOver = 0;
+  // the campaign: each duel is a match, best of three rounds (practice: one fight). A round won
+  // short of the match: ROUND_BREAK s on the knockout, the screen dips to dark over the last
+  // ROUND_FADE s while both fighters are reset (same arena, same opponent), then the round's
+  // title holds ROUND_INTRO s with nobody moving, then DUEL!
+  const match = new Match();
+  const ROUND_BREAK = 3.0;
+  const ROUND_FADE = 0.35;
+  const ROUND_INTRO = 1.3;
+  let roundBreak = false;
+  let roundIntro = 0;                                 // s left of the round's title (fighters held)
+  const fadeEl = document.createElement('div');
+  fadeEl.id = 'round-fade';
+  sm.renderer.domElement.after(fadeEl);            // over the scene, under the HUD and the menus
   let closeUpOn: Malfoid | null = null;            // the voice-line close-up being held
   const faceAt = new THREE.Vector3();
   const setDuel = (on: boolean) => {
     duel = on;
     duelOver = 0;
+    roundBreak = false;
+    roundIntro = 0;
+    fadeEl.classList.remove('on');                    // a new round fades back in
     if (on) {
       // a fresh start: full health, wands back, facing each other a few steps apart
       malfoidTarget.reset();
@@ -215,16 +232,28 @@ async function start(): Promise<void> {
       cam.frame(malfoid.position, opp.char.position);
       opp.char.setExpression(opp.def.faces.start, 5);
       malfoid.resetIdleTimer();                       // she starts in her stance, not the bored arms-crossed idle
-      // campaign: the opening lines first, the fight (both fighters) starts once they are
-      // said; practice: straight into the fight
-      if (mode === 'campaign') voices.startIntro();
+      malfoid.snapToStance();                         // on their feet at once (no rising out of a knockout)
+      opp.char.snapToStance();
+      // the campaign's first round: the opening lines first, the fight (both fighters) starts
+      // once they are said; later rounds and practice: straight into the fight
+      if (intro()) voices.startIntro();
       else voices.stop();
       closeUpOn = null;
     }
     opp.ai.setActive(false);
     hud.setDuel(on);
     if (on && mode !== 'campaign') startFight();
+    else if (on && !intro()) announceRound();
   };
+  /** a campaign round's title (ROUND 1, ROUND 2, FINAL ROUND); the fight starts after it */
+  const announceRound = () => {
+    if (!duel || duelOver || opp.ai.active) return;
+    if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
+    closeUpOn = null;
+    roundIntro = ROUND_INTRO;
+    hud.announce(match.final ? 'FINAL ROUND' : `ROUND ${match.round}`, 'duel');
+  };
+  const intro = () => mode === 'campaign' && match.round === 1;
   const startFight = () => {
     if (!duel || duelOver || opp.ai.active) return;
     opp.ai.setActive(true);
@@ -236,15 +265,22 @@ async function start(): Promise<void> {
     if (!duel || duelOver) return;
     duelOver = 1;
     opp.ai.setActive(false);
-    hud.announce(`${winner.name.toUpperCase()} WINS`, 'win');
-    if (mode === 'campaign') {
-      // a win teaches her the opponent's spell and the next one is up; a loss costs a life
-      pendingResult = winner === malfoid ? { won: true, r: campaign.win() } : { won: false, r: campaign.lose() };
-      hud.setLives(campaign.run?.lives ?? 0, CAMPAIGN_LIVES);
-      refreshMenu();
-    }
     if (winner === opp.char) opp.char.setExpression(opp.def.faces.win, 4);
     else if (opp.def.faces.lose) opp.char.setExpression(opp.def.faces.lose, 99);
+    if (mode === 'campaign') {
+      const round = match.record(winner === malfoid);
+      hud.setRounds([match.malfoidWins, match.opponentWins], MATCH.toWin);
+      if (!round.decided) {                           // the match goes on: the next round soon
+        hud.announce(`${winner.name.toUpperCase()} WINS ROUND ${round.round}`, 'win');
+        roundBreak = true;
+        return;
+      }
+      // the match: a win teaches her the opponent's spell and the next one is up; a loss is
+      // game over (the run starts again from the first opponent)
+      pendingResult = round.malfoidWon ? { won: true, r: campaign.win() } : { won: false, r: campaign.lose() };
+      refreshMenu();
+    }
+    hud.announce(`${winner.name.toUpperCase()} WINS`, 'win');
     // the winner's line: the campaign only (practice has no voice lines, like no opening lines)
     if (mode === 'campaign') voices.win(winner);
   };
@@ -289,7 +325,7 @@ async function start(): Promise<void> {
     helpProtego.hidden = !mySpells.has('protego');
     if (!mySpells.has('protego')) protego.reset();
   };
-  // the start menu's campaign box: continue the run (who is next, lives, difficulty) or start
+  // the start menu's campaign box: continue the run (who is next, difficulty) or start
   // a new one (two clicks while a run is in progress: a stray click gives up nothing)
   const continueBtn = modeEl.querySelector<HTMLButtonElement>('.campaign .continue')!;
   const newRunEl = modeEl.querySelector<HTMLElement>('.campaign .new-run')!;
@@ -298,13 +334,13 @@ async function start(): Promise<void> {
   let armTimer = 0;
   // the campaign's order under its title (from the campaign list: it can't drift from it)
   modeEl.querySelector('.campaign-order')!.textContent =
-    `${CAMPAIGN_LIVES} lives · ${CAMPAIGN.map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
+    `Best of ${MATCH.bestOf} · one defeat ends the run · ${CAMPAIGN.map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
   const refreshMenu = () => {
     const run = campaign.run;
     const next = campaign.opponent;
     continueBtn.hidden = !run;
     if (run) {
-      const status = `${'♥'.repeat(run.lives)} · ${run.level[0].toUpperCase()}${run.level.slice(1)}`;
+      const status = `${run.level[0].toUpperCase()}${run.level.slice(1)}`;
       continueBtn.disabled = !next?.playable;
       continueBtn.innerHTML = next?.playable ? `Continue: ${next.name}<small>${status}</small>`
         : `Next: ${next?.name ?? 'the end'} · coming soon<small>${status}</small>`;
@@ -346,11 +382,10 @@ async function start(): Promise<void> {
       for (const o of modeEl.querySelectorAll('.practice .opponents button')) o.classList.toggle('on', o === b);
     });
   }
-  // the end of a campaign fight: a new spell / a win, a lost life, or game over
+  // the end of a campaign match: a new spell / a win, or game over
   const resultEl = document.getElementById('result')!;
   const showResult = (res: FightResult) => {
     pendingResult = null;
-    const hearts = (n: number) => `<span class="hearts">${'♥'.repeat(n)}<span class="gone">${'♥'.repeat(CAMPAIGN_LIVES - n)}</span></span>`;
     let cls: string, tag: string, title: string, how = '', next = '';
     let actions: [label: string, act: string][];
     if (res.won) {
@@ -364,19 +399,14 @@ async function start(): Promise<void> {
       next = nx ? `Next duel: <b>${nx.name}</b>${nx.playable ? '' : '<span>coming soon</span>'}` : 'The campaign is complete';
       actions = nx?.playable ? [['Next duel', 'continue'], ['Back to menu', 'menu']]
         : learned ? [['Practise it in Training', 'training'], ['Back to menu', 'menu']] : [['Back to menu', 'menu']];
-    } else if (!res.r.gameOver) {
-      const n = res.r.lives;
-      [cls, tag, title] = ['lost', 'Defeated', 'Try again'];
-      how = `${hearts(n)}<br>${n} ${n === 1 ? 'life' : 'lives'} left`;
-      next = `Next duel: <b>${res.r.opponent.name}</b> again`;
-      actions = [['Fight again', 'continue'], ['Back to menu', 'menu']];
     } else {
-      [cls, tag, title] = ['over', 'Out of lives', 'Game over'];
-      how = `The campaign starts again from <b>${CAMPAIGN[0].name}</b>`;
+      [cls, tag, title] = ['over', `Defeated by ${res.r.opponent.name.split(' ')[0]}`, 'Game over'];
+      how = `The campaign starts again from <b>${CAMPAIGN[0].name}</b>, every spell learned in it forgotten`;
       actions = [['New campaign', 'restart'], ['Back to menu', 'menu']];
     }
     resultEl.className = cls;
-    resultEl.querySelector('.tag')!.textContent = tag;
+    // the match's score (rounds, Malfoid's first)
+    resultEl.querySelector('.tag')!.textContent = `${tag} · ${match.malfoidWins}–${match.opponentWins}`;
     resultEl.querySelector('.title')!.textContent = title;
     resultEl.querySelector('.how')!.innerHTML = how;
     resultEl.querySelector('.next')!.innerHTML = next;
@@ -412,11 +442,12 @@ async function start(): Promise<void> {
       }
       who = next.id as OpponentId;
       l = campaign.run!.level;
-      hud.setLives(campaign.run!.lives, CAMPAIGN_LIVES);
     }
     if (m === 'practice') who = who ?? practiceOpponent;
     if (who) setOpponent(who);
     mode = m;
+    match.reset();                                    // a campaign duel starts at round 1
+    hud.setRounds(m === 'campaign' ? [0, 0] : null, MATCH.toWin);
     gatherWands();                                    // nothing left lying from an earlier fight
     if (l || who) setLevel(l ?? level);
     menuOpen = false;
@@ -529,8 +560,10 @@ async function start(): Promise<void> {
   sm.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (!input.paused) {
-      // during the opening lines nobody moves: Malfoid's controls are locked, the AI is off
-      input.locked = duel && voices.introRunning;
+      // during the opening lines and a round's title nobody moves: Malfoid's controls are
+      // locked, the AI is off
+      if (roundIntro > 0 && (roundIntro -= dt) <= 0) startFight();
+      input.locked = duel && (voices.introRunning || roundIntro > 0);
       if (input.locked) malfoid.resetIdleTimer();     // listening, not bored: no arms-crossed idle
       input.update();
       playerBot?.update(dt);                // automated playtests drive Malfoid (debug only)
@@ -570,8 +603,11 @@ async function start(): Promise<void> {
       hud.update(dt);
       if (duelOver) {
         duelOver += dt;
+        // a round of a campaign match: dip to dark, then the next round
+        if (roundBreak && duelOver > ROUND_BREAK - ROUND_FADE) fadeEl.classList.add('on');
+        if (roundBreak && duelOver > ROUND_BREAK && duel) setDuel(true);
         // after the winner's line: the campaign's result screen, or (practice) a rematch
-        if (duelOver > 4 && duel && !(pendingResult && voices.speaking)) {
+        else if (!roundBreak && duelOver > 4 && duel && !(pendingResult && voices.speaking)) {
           setDuel(false);
           if (pendingResult) showResult(pendingResult);
           else hud.announce('G: FIGHT AGAIN', 'duel');
@@ -625,7 +661,7 @@ async function start(): Promise<void> {
     susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
     protego, protegoFx,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
-    setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
+    setDuel, enterMode, openMenu, match, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
     renderer: sm.renderer, scene: sm.scene, input, solids });
 }
 

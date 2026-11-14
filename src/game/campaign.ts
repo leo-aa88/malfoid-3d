@@ -1,11 +1,10 @@
 import type { Difficulty } from '../combat/ai/difficulty';
 
 /*
- * The campaign: Malfoid's opponents in order, fought at one difficulty chosen at the start,
- * with a few lives for the whole run. Beating an opponent teaches Malfoid her spell (Mega Man
- * style); losing costs a life and the same opponent is fought again; with no lives left it is
- * game over and the run starts again from the first opponent, spells forgotten. The run is
- * remembered in this browser.
+ * The campaign: Malfoid's opponents in order, fought at one difficulty chosen at the start.
+ * Each duel is a best-of-three match (game/match.ts). Beating an opponent teaches Malfoid her
+ * spell (Mega Man style) and the next one is up; losing a match is game over: the run starts
+ * again from the first opponent, spells forgotten. The run is remembered in this browser.
  */
 
 export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna' | 'hermione' | 'harry' | 'bellatrix' | 'voldemort';
@@ -34,9 +33,6 @@ export const CAMPAIGN: readonly Opponent[] = [
   { id: 'voldemort', name: 'Lord Voldemort', playable: false },
 ];
 
-/** fights the whole run may be lost before it is game over */
-export const CAMPAIGN_LIVES = 3;
-
 /** every spell (training and practice) */
 export const ALL_SPELLS: ReadonlySet<SpellId> = new Set<SpellId>(['confringo', 'expelliarmus', 'protego']);
 
@@ -48,14 +44,14 @@ export const SPELL_INFO: Record<LearnedSpell, { name: string; key: string; how: 
 
 export interface Run {
   level: Difficulty;
-  lives: number;
   /** index into CAMPAIGN of the opponent to beat next */
   stage: number;
   learned: LearnedSpell[];
 }
 
 export type WinResult = { learned: LearnedSpell | null; beaten: Opponent; next: Opponent | null };
-export type LossResult = { lives: number; gameOver: boolean; opponent: Opponent };
+/** a lost match ends the run (game over): who beat her */
+export type LossResult = { opponent: Opponent };
 
 const STORAGE_KEY = 'malfoid.campaign';
 const LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
@@ -76,16 +72,16 @@ export function parseRun(stored: string | null): Run | null {
     return null;
   }
   if (!d || typeof d !== 'object') return null;
-  const { level, lives, stage, learned } = d;
+  // (a run saved while the campaign had lives may still carry them: ignored)
+  const { level, stage, learned } = d;
   if (!LEVELS.includes(level as Difficulty)) return null;
-  if (!Number.isInteger(lives) || lives! < 1 || lives! > CAMPAIGN_LIVES) return null;
   if (!Number.isInteger(stage) || stage! < 0 || stage! > CAMPAIGN.length) return null;
   const rewards = new Set<unknown>(CAMPAIGN.map((o) => o.reward).filter(Boolean));
   const spells = Array.isArray(learned) ? learned.filter((s) => rewards.has(s)) : [];
   // every opponent already beaten has taught her spell (a run saved before that opponent had a
   // reward to teach, Cho's Protego, gets it now)
   for (const o of CAMPAIGN.slice(0, stage!)) if (o.reward) spells.push(o.reward);
-  return { level: level as Difficulty, lives: lives!, stage: stage!, learned: [...new Set(spells)] };
+  return { level: level as Difficulty, stage: stage!, learned: [...new Set(spells)] };
 }
 
 export class Campaign {
@@ -106,9 +102,9 @@ export class Campaign {
     return this.current;
   }
 
-  /** a new run at this difficulty: the first opponent, all lives, nothing learned */
+  /** a new run at this difficulty: the first opponent, nothing learned */
   start(level: Difficulty): void {
-    this.current = { level, lives: CAMPAIGN_LIVES, stage: 0, learned: [] };
+    this.current = { level, stage: 0, learned: [] };
     this.save();
   }
 
@@ -133,17 +129,11 @@ export class Campaign {
     return { learned, beaten, next: CAMPAIGN[run.stage] ?? null };
   }
 
-  /** Malfoid lost: a life gone; with none left the run is over */
+  /** Malfoid lost the match: game over, the run is forgotten */
   lose(): LossResult {
-    const run = this.current!;
-    const opponent = CAMPAIGN[run.stage];
-    run.lives--;
-    if (run.lives > 0) {
-      this.save();
-      return { lives: run.lives, gameOver: false, opponent };
-    }
+    const opponent = CAMPAIGN[this.current!.stage];
     this.clear();
-    return { lives: 0, gameOver: true, opponent };
+    return { opponent };
   }
 
   /** forget the run */
