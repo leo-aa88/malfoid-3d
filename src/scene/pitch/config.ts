@@ -64,7 +64,7 @@ export const PITCH_CONFIG = {
   /** radius of the surrounding land (m) */
   landRadius: 640,
   hillHeight: 38,
-  trees: 420,
+  trees: 600,
   /** the castle: direction from the pitch (deg, 0 = -z, 90 = +x), distance and size (m) */
   castleBearing: -28,
   castleDistance: 280,

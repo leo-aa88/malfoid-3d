@@ -67,34 +67,6 @@ export function buildTerrain(cfg: PitchConfig): THREE.BufferGeometry {
   return g;
 }
 
-/** clumps of trees on the hills (conifers and broadleaf), clear of the stadium and the castle */
-export function buildTrees(cfg: PitchConfig, kit: Kit): void {
-  const rand = rng(cfg.seed * 31 + 5);
-  const { halfX, halfZ } = groundExtent(cfg);
-  const castle = castleSite(cfg);
-  let placed = 0;
-  for (let tries = 0; placed < cfg.trees && tries < cfg.trees * 30; tries++) {
-    const r = 75 + Math.pow(rand(), 0.8) * 360;
-    const a = rand() * Math.PI * 2;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (Math.abs(x) < halfX + 8 && Math.abs(z) < halfZ + 8) continue;
-    if (Math.hypot(x - castle.x, z - castle.z) < 110 * cfg.castleScale) continue;
-    if (fbm(x, z, 70, cfg.seed + 41, 2) < 0.5) continue;          // in clumps, open meadow between
-    const y = landHeight(cfg, x, z);
-    const s = 0.8 + rand() * 0.7;
-    if (rand() < 0.6) {
-      kit.pole(new THREE.Vector3(x, y - 0.5, z), new THREE.Vector3(x, y + 2.2 * s, z), 0.35 * s, 0.25 * s, '#4f3b28', 5);
-      const m = new THREE.Matrix4().setPosition(x, y + 2 * s + 4.2 * s, z).multiply(new THREE.Matrix4().makeScale(2.6 * s, 8.4 * s, 2.6 * s));
-      kit.add(new THREE.ConeGeometry(1, 1, 7, 1), m, jitter('#2f4e2c', rand, 0.15));
-    } else {
-      kit.pole(new THREE.Vector3(x, y - 0.5, z), new THREE.Vector3(x, y + 3.0 * s, z), 0.4 * s, 0.3 * s, '#55402b', 5);
-      const m = new THREE.Matrix4().setPosition(x, y + 5.2 * s, z).multiply(new THREE.Matrix4().makeScale(3.6 * s, 3.2 * s, 3.6 * s));
-      kit.add(new THREE.IcosahedronGeometry(1, 1), m, jitter('#45663a', rand, 0.15));
-    }
-    placed++;
-  }
-}
-
 /** the castle: keep, great hall, round towers with slate cones, curtain walls (seen from afar) */
 export function buildCastle(cfg: PitchConfig, kit: Kit): void {
   const rand = rng(cfg.seed * 101 + 3);

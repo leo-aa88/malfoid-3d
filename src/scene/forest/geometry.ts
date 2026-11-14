@@ -102,7 +102,7 @@ export function taperedTube(path: THREE.Vector3[], r0: number, r1: number, radia
 }
 
 /** a low-poly lump (rock, leaf clump): an icosahedron with jittered vertices */
-function lump(radius: number, detail: number, rand: () => number, jitter: number): THREE.BufferGeometry {
+export function lump(radius: number, detail: number, rand: () => number, jitter: number): THREE.BufferGeometry {
   const g = new THREE.IcosahedronGeometry(radius, detail);
   const pos = g.getAttribute('position');
   // move shared corners together (the icosahedron is non-indexed): key by rounded position
@@ -120,7 +120,7 @@ function lump(radius: number, detail: number, rand: () => number, jitter: number
   return g;
 }
 
-function pathFrom(start: THREE.Vector3, dir: THREE.Vector3, length: number, bend: THREE.Vector3, steps: number,
+export function pathFrom(start: THREE.Vector3, dir: THREE.Vector3, length: number, bend: THREE.Vector3, steps: number,
   rand: () => number, wander: number): THREE.Vector3[] {
   const pts = [start.clone()];
   const d = dir.clone().normalize();

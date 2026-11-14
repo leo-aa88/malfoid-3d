@@ -5,7 +5,8 @@ import { PITCH_CONFIG, PitchConfig } from './config';
 import { Kit } from './kit';
 import { buildStadium } from './structures';
 import { clothAtlas, groundExtent, groundTexture } from './textures';
-import { buildCastle, buildClouds, buildSky, buildTerrain, buildTrees } from './landscape';
+import { buildCastle, buildClouds, buildSky, buildTerrain } from './landscape';
+import { buildTrees } from './trees';
 
 /** two-step toon ramp, softer than the characters' (a lot of daylight on wood) */
 function gradient(): THREE.DataTexture {
@@ -45,7 +46,6 @@ export class PitchArena implements Arena {
     const wood = new Kit();
     const cloth = new Kit(true);
     const built = buildStadium(cfg, wood, cloth);
-    buildTrees(cfg, wood);
     buildCastle(cfg, wood);
     this.posts = built.posts;
     const solidMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: grad });
@@ -65,7 +65,7 @@ export class PitchArena implements Arena {
     ground.name = 'pitch_ground';
     const terrain = new THREE.Mesh(buildTerrain(cfg), new THREE.MeshLambertMaterial({ vertexColors: true }));
     terrain.name = 'pitch_land';
-    this.group.add(buildSky(cfg), buildClouds(cfg), terrain, ground, woodMesh, clothMesh);
+    this.group.add(buildSky(cfg), buildClouds(cfg), terrain, ground, woodMesh, clothMesh, buildTrees(cfg, grad));
     // the fighters' oval (inside the barrier), the camera's (inside the stands' foot)
     this.boundA = cfg.fieldHalfLength + cfg.apron - cfg.boundaryMargin;
     this.boundB = cfg.fieldHalfWidth + cfg.apron - cfg.boundaryMargin;
