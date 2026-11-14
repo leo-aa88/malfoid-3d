@@ -24,7 +24,7 @@ import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
-import { ALL_SPELLS, CAMPAIGN, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
+import { ALL_SPELLS, CAMPAIGN, Campaign, spellsBefore, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
 import { MATCH, Match } from './game/match';
 import { OPPONENTS, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
@@ -322,10 +322,10 @@ async function start(): Promise<void> {
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
   const helpProtego = document.getElementById('help-protego')!;
   const refreshSpells = () => {
-    // practice: every spell but the one this opponent teaches (no Expelliarmus against Ginny)
-    const own = CAMPAIGN.find((o) => o.id === opp.def.id)?.reward;
+    // practice: the spells she has when she reaches this opponent in the campaign (against
+    // Ginny only Confringo; nothing learned from her or anyone after her)
     mySpells = mode === 'campaign' ? campaign.spells
-      : mode === 'practice' ? new Set([...ALL_SPELLS].filter((s) => s !== own)) : ALL_SPELLS;
+      : mode === 'practice' ? spellsBefore(opp.def.id) : ALL_SPELLS;
     hud.showSpell('confringo', true);
     hud.showSpell('expelliarmus', mySpells.has('expelliarmus'));
     helpExpelliarmus.hidden = !mySpells.has('expelliarmus');

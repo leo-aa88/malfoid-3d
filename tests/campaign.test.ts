@@ -1,7 +1,7 @@
 // Logic tests for the campaign run: the order, the spells learned, game over: `npm test`
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ALL_SPELLS, Campaign, parseRun, type RunStore } from '../src/game/campaign';
+import { ALL_SPELLS, Campaign, parseRun, spellsBefore, type RunStore } from '../src/game/campaign';
 
 class MemoryStore implements RunStore {
   data = new Map<string, string>();
@@ -101,4 +101,20 @@ test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Vold
   const s = c.win();                                   // Susan beaten
   assert.equal(s.next?.name, 'Luna Lovegood');
   assert.equal(s.next?.playable, false, 'not in the game yet');
+});
+
+test("practice: the spells she has on reaching each opponent in the campaign (no Protego against Ginny)", () => {
+  assert.deepEqual([...spellsBefore('ginny')], ['confringo']);
+  assert.deepEqual([...spellsBefore('cho')], ['confringo', 'expelliarmus']);
+  assert.deepEqual([...spellsBefore('susan')], ['confringo', 'expelliarmus', 'protego']);
+  // the same as a campaign run arriving there
+  const c = new Campaign(new MemoryStore());
+  c.start('easy');
+  for (const id of ['ginny', 'cho', 'susan']) {
+    assert.equal(c.opponent?.id, id);
+    assert.deepEqual([...c.spells].sort(), [...spellsBefore(id)].sort());
+    c.win();
+  }
+  // not in the campaign (a mirror match): every spell
+  assert.deepEqual([...spellsBefore('malfoid')].sort(), [...ALL_SPELLS].sort());
 });

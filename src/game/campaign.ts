@@ -36,6 +36,18 @@ export const CAMPAIGN: readonly Opponent[] = [
 /** every spell (training and practice) */
 export const ALL_SPELLS: ReadonlySet<SpellId> = new Set<SpellId>(['confringo', 'expelliarmus', 'protego']);
 
+/**
+ * Malfoid's spells when she reaches this opponent in the campaign: Confringo and what every
+ * opponent before her teaches (practice uses this: against Ginny only Confringo, against Cho
+ * Expelliarmus too, against Susan Protego as well). An opponent not in the campaign: all.
+ */
+export function spellsBefore(id: string): Set<SpellId> {
+  const at = CAMPAIGN.findIndex((o) => o.id === id);
+  if (at < 0) return new Set(ALL_SPELLS);
+  const learned = CAMPAIGN.slice(0, at).map((o) => o.reward).filter((r): r is LearnedSpell => !!r);
+  return new Set<SpellId>(['confringo', ...learned]);
+}
+
 /** what the game says about a learned spell (key: the key that casts it) */
 export const SPELL_INFO: Record<LearnedSpell, { name: string; key: string; how: string }> = {
   expelliarmus: { name: 'Expelliarmus', key: 'P', how: 'disarm your opponent' },

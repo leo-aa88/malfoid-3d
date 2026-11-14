@@ -27,8 +27,9 @@ The start screen offers three modes:
 
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
-- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell
-  except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines.
+- **Practice:** pick an opponent and a difficulty and fight straight away, with the spells
+  Malfoid has when she reaches that opponent in the campaign (Ginny: Confringo only; Cho: and
+  Expelliarmus; Susan: and Protego), and no voice lines.
   **G** restarts the fight. Ginny, Cho or Susan; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
