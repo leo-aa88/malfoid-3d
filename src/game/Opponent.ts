@@ -4,7 +4,9 @@ import { ComboSystem } from '../combat/ComboSystem';
 import { FighterTarget } from '../combat/FighterTarget';
 import { FighterAI } from '../combat/ai/FighterAI';
 import type { Difficulty } from '../combat/ai/difficulty';
-import { SpellSystem, SpellFx } from '../combat/spells/SpellSystem';
+import { SpellSystem, SpellFx, SpellDef } from '../combat/spells/SpellSystem';
+import { OPPUGNO_SPELL, OppugnoFlock, OppugnoFx } from '../combat/spells/Oppugno';
+import { ILLUSIO_LOOK, ILLUSIO_SPELL, Illusions, OPPUGNO_LOOK } from '../combat/Illusio';
 import { ConfringoFx } from '../combat/spells/ConfringoFx';
 import { SpellFxSet } from '../combat/spells/SpellFxSet';
 import { VentusFx } from '../combat/spells/Ventus';
@@ -46,6 +48,14 @@ export class Opponent {
   private readonly episkeyFx: EpiskeyFx | null = null;
   /** her spells' effect pools by spell id (Malfoid's Protego sends her bolts back in these) */
   readonly fxBySpell: Readonly<Record<string, SpellFx>>;
+  /** her main spell (her own copy: a level may tune it, Confundo's confusion) */
+  readonly spell: SpellDef;
+  /** Luna's birds (Oppugno) and copies of herself (Illusio), and how they look */
+  readonly flock: OppugnoFlock | null = null;
+  private readonly flockFx: OppugnoFx | null = null;
+  readonly illusions: Illusions | null = null;
+  private birds = 5;
+  private copies = 2;
   /** her own effect pools (updated by her spell system), for their view scale */
   private readonly ownFx: { setView(c: THREE.PerspectiveCamera, h: number): void }[] = [];
 
@@ -59,12 +69,17 @@ export class Opponent {
     // she reflects keeps flying in its caster's pool (that caster's system advances it).
     const bySpell: Record<string, SpellFx> = { ...w.pools };
     const updates: SpellFx[] = [];
-    if (!w.pools[def.spell.id]) {
-      const fx = new ConfringoFx(w.scene, def.look, def.spell.id + '_fx');
-      bySpell[def.spell.id] = fx;
+    this.spell = def.spell.confuse ? { ...def.spell, confuse: { ...def.spell.confuse } } : def.spell;
+    const own = (id: string, look: typeof def.look) => {
+      const fx = new ConfringoFx(w.scene, look, id + '_fx');
+      bySpell[id] = fx;
       updates.push(fx);
       this.ownFx.push(fx);
-    }
+    };
+    if (!w.pools[def.spell.id]) own(def.spell.id, def.look);
+    // summons have no bolt, only the charge at her wand: gold for the birds, silver for the copies
+    if (def.oppugno) own(OPPUGNO_SPELL.id, OPPUGNO_LOOK);
+    if (def.illusio) own(ILLUSIO_SPELL.id, ILLUSIO_LOOK);
     if (def.push) {
       // a bolt with its own look (Depulso), or Ventus's gust
       const fx = def.pushLook ? new ConfringoFx(w.scene, def.pushLook, def.push.id + '_fx') : new VentusFx(w.scene);
@@ -76,7 +91,7 @@ export class Opponent {
     this.spells = new SpellSystem(char, char.spellEmitter, () => this.combat.busy, new SpellFxSet(bySpell, updates),
       { targets: [w.malfoidTarget], solids: w.solids, groundY: 0 });
     this.spells.world.solids = w.solids;
-    this.ai = new FighterAI(char, this.target, this.combat, this.spells, def.spell, w.malfoid, w.malfoidCombat, () => w.solids);
+    this.ai = new FighterAI(char, this.target, this.combat, this.spells, this.spell, w.malfoid, w.malfoidCombat, () => w.solids);
     this.ai.opponentSpells = w.malfoidSpells;          // she sees Malfoid's casts and bolts
     this.ai.pushSpell = def.push ?? null;
     // a second ranged spell (Susan's Expelliarmus): its effects are a shared pool
@@ -104,11 +119,34 @@ export class Opponent {
       this.episkeyFx = new EpiskeyFx(w.scene, this.episkey, char);
       this.ai.heal = this.episkey;
     }
+    // Luna's summons: at the release of Oppugno a flock flies from her wand at Malfoid; at the
+    // release of Illusio her copies appear (and she is shuffled among them)
+    if (def.oppugno) {
+      this.flock = new OppugnoFlock();
+      this.flockFx = new OppugnoFx(w.scene, this.flock);
+      this.flock.onEvent = (e) => this.spells.onEvent?.(e);      // the HUD, Protego's feedback, sounds
+      this.ai.oppugno = OPPUGNO_SPELL;
+    }
+    if (def.illusio) {
+      const twins = [0, 1, 2].map(() => char.makeTwin());
+      this.illusions = new Illusions(w.scene, twins, char, this.target, w.malfoid);
+      this.ai.illusio = ILLUSIO_SPELL;
+      this.ai.illusions = this.illusions;
+    }
+    this.spells.onSummon = (s, origin) => {
+      if (s.summon === 'oppugno' && this.flock) {
+        const f = char.facingAngle;
+        this.flock.launch(origin, new THREE.Vector3(Math.sin(f), 0, Math.cos(f)), w.malfoidTarget, this.target, this.birds);
+      } else if (s.summon === 'illusio' && this.illusions) {
+        this.illusions.cast(this.copies);
+      }
+    };
     this.ai.onState = (s) => {
       // below half health some opponents grow more determined (Susan): that face when attacking
       const low = def.faces.lowHp && this.target.hp < this.target.maxHp * 0.5;
       if (s === 'CAST' || s === 'MELEE_ATTACK') char.setExpression(low ? def.faces.lowHp! : def.faces.attack, 0.9);
       else if (s === 'RETREAT') char.setExpression(def.faces.retreat, 1.0);
+      else if (s === 'DISTRACTED' && def.faces.distracted) char.setExpression(def.faces.distracted, 2.5);
     };
   }
 
@@ -121,6 +159,12 @@ export class Opponent {
       this.episkey.amount = l.heal.amount;
       this.episkey.maxCharges = l.heal.charges;
     }
+    if (l.luna) {
+      if (this.spell.confuse) this.spell.confuse.duration = l.luna.confuse;
+      this.birds = l.luna.birds;
+      this.copies = l.luna.copies;
+      if (this.illusions) this.illusions.cfg.life = l.luna.illusionLife;
+    }
   }
 
   /** a fresh duel: full health, wand back, nothing cooling down or in flight */
@@ -131,17 +175,24 @@ export class Opponent {
     this.protego?.reset();
     this.episkey?.reset();
     this.episkeyFx?.reset();
+    this.flockFx?.reset();
+    this.illusions?.reset();
   }
 
-  /** after the characters moved: her shield, the shield's look */
-  update(dt: number): void {
+  /** after the characters moved: her shield, the shield's look, her birds and copies */
+  update(dt: number, solids: readonly THREE.Box3[] = []): void {
     this.protego?.update(dt);
     this.protegoFx?.update(dt);
     this.episkey?.update(dt);
     this.episkeyFx?.update(dt);
+    this.flock?.update(dt, solids);
+    this.flockFx?.update(dt);
+    this.illusions?.update(dt);
   }
 
   setView(camera: THREE.PerspectiveCamera, viewportHeightPx: number): void {
     for (const fx of this.ownFx) fx.setView(camera, viewportHeightPx);
+    this.flockFx?.setView(camera, viewportHeightPx);
+    this.illusions?.setView(camera, viewportHeightPx);
   }
 }

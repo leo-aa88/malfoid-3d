@@ -26,7 +26,8 @@ export const CAMPAIGN: readonly Opponent[] = [
   { id: 'ginny', name: 'Ginny Weasley', reward: 'expelliarmus', playable: true },
   { id: 'cho', name: 'Cho Chang', reward: 'protego', playable: true },
   { id: 'susan', name: 'Susan Bones', playable: true },
-  { id: 'luna', name: 'Luna Lovegood', playable: false },
+  // (her reward, Illusio, comes with Malfoid's own copies; Susan's Episkey with Malfoid's healing)
+  { id: 'luna', name: 'Luna Lovegood', playable: true },
   { id: 'hermione', name: 'Hermione Granger', playable: false },
   { id: 'harry', name: 'Harry Potter', playable: false },
   { id: 'bellatrix', name: 'Bellatrix Lestrange', playable: false },

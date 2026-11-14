@@ -1,6 +1,7 @@
 import type { CharacterOptions } from '../character/Malfoid';
-import { CHO_FACES, CHO_TALK, GINNY_FACES, GINNY_TALK, SUSAN_FACES, SUSAN_TALK } from '../character/faces';
-import { CHO_DIFFICULTY, DIFFICULTY, Difficulty, DifficultyLevel, SUSAN_DIFFICULTY } from '../combat/ai/difficulty';
+import { CHO_FACES, CHO_TALK, GINNY_FACES, GINNY_TALK, LUNA_FACES, LUNA_TALK, SUSAN_FACES, SUSAN_TALK } from '../character/faces';
+import { CHO_DIFFICULTY, DIFFICULTY, Difficulty, DifficultyLevel, LUNA_DIFFICULTY, SUSAN_DIFFICULTY } from '../combat/ai/difficulty';
+import { CONFUNDO, CONFUNDO_LOOK } from '../combat/spells/Confundo';
 import type { SpellDef } from '../combat/spells/SpellSystem';
 import type { SpellLook } from '../combat/spells/ConfringoFx';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from '../combat/spells/Expelliarmus';
@@ -9,14 +10,17 @@ import { VENTUS } from '../combat/spells/Ventus';
 import { IMPEDIMENTA, IMPEDIMENTA_LOOK } from '../combat/spells/Impedimenta';
 import { DEPULSO, DEPULSO_LOOK } from '../combat/spells/Depulso';
 import { HUFFLEPUFF_RESOLVE, Resolve } from '../combat/FighterTarget';
-import { CHO_LINES, DuelLines, GINNY_LINES, SUSAN_LINES } from '../audio/duelVoices';
+import { CHO_LINES, DuelLines, GINNY_LINES, LUNA_LINES, SUSAN_LINES } from '../audio/duelVoices';
 
 /*
  * The opponents Malfoid can duel, and everything that differs between them: model, faces,
  * spells, AI tuning per difficulty, voice lines, how far apart a duel starts. The duel code
  * reads these; nothing in it names an opponent.
  */
-export type OpponentId = 'ginny' | 'cho' | 'susan';
+export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna';
+
+/** Luna's skip (combat.SKIP_SPEED): the speed her skip clip was authored for, m/s */
+const SKIP_CLIP_SPEED = (0.7 * (0.2 + 0.38)) / (0.35 * 0.7);
 
 /** which of her faces the duel shows when */
 export interface OpponentFaces {
@@ -35,6 +39,8 @@ export interface OpponentFaces {
   heal?: string;
   /** below half health: her attack face becomes this (Susan grows more determined) */
   lowHp?: string;
+  /** distracted mid-duel (Luna) */
+  distracted?: string;
   /** she won / lost */
   win: string;
   lose?: string;
@@ -63,10 +69,13 @@ export interface OpponentDef {
   episkey?: boolean;
   /** her resistance to staggers and knockdowns (Hufflepuff Resolve) */
   resolve?: Resolve;
+  /** Luna's summons: Oppugno's birds, Illusio's copies of herself (counts per level: difficulty[level].luna) */
+  oppugno?: boolean;
+  illusio?: boolean;
   /** m between the fighters when a duel starts */
   startDistance: number;
   /** where she is fought */
-  arena: 'woods' | 'pitch' | 'greenhouse';
+  arena: 'woods' | 'pitch' | 'greenhouse' | 'ravenclaw';
   lines: DuelLines;
   faces: OpponentFaces;
   /** her health bar in the HUD */
@@ -131,5 +140,27 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     faces: { start: 'determined', attack: 'neutral', retreat: 'worried', disarmedFoe: 'determined', heal: 'comforted',
       lowHp: 'determined', shielded: 'determined', parried: 'amused', win: 'comforted', lose: 'sad' },
     hudColour: '#e1b241',
+  },
+  luna: {
+    id: 'luna',
+    name: 'Luna',
+    model: 'luna',
+    // she skips in place of running; copies of her model for Illusio
+    character: { name: 'Luna', idleClip: 'luna_idle', expressions: LUNA_FACES, talk: LUNA_TALK,
+      run: { clip: 'luna_skip', speed: 2.1, clipSpeed: SKIP_CLIP_SPEED }, twins: true },
+    difficulty: LUNA_DIFFICULTY,
+    // Confundo is her main spell, alternated with Expelliarmus; Oppugno and Illusio are summons
+    spell: CONFUNDO,
+    look: CONFUNDO_LOOK,
+    altSpell: EXPELLIARMUS,
+    oppugno: true,
+    illusio: true,
+    startDistance: 5.0,
+    // the Ravenclaw common room: her house's tower, under the painted stars
+    arena: 'ravenclaw',
+    lines: LUNA_LINES,
+    faces: { start: 'dreamy', attack: 'pleased', retreat: 'surprised', disarmedFoe: 'amused', distracted: 'dreamy',
+      lowHp: 'determined', win: 'cheerful', lose: 'sad' },
+    hudColour: '#9a8fc9',
   },
 };

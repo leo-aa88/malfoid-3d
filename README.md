@@ -29,8 +29,8 @@ The start screen offers three modes:
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with the spells
   Malfoid has when she reaches that opponent in the campaign (Ginny: Confringo only; Cho: and
-  Expelliarmus; Susan: and Protego), and no voice lines.
-  **G** restarts the fight. Ginny, Cho or Susan; a Malfoid mirror match is listed as coming soon.
+  Expelliarmus; Susan and Luna: and Protego), and no voice lines.
+  **G** restarts the fight. Ginny, Cho, Susan or Luna; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
   win two rounds takes it (win–win, win–lose–win and lose–win–win are victories; lose–lose,
@@ -64,6 +64,16 @@ Each opponent has her arena:
     or planters, spells burst on the plants, and the camera never stands behind the plants.
   - **Outside:** the Hogwarts grounds and castle, seen through the glass.
   - See `docs/greenhouse/REPORT.md`; all values are in `src/scene/greenhouse/config.ts`.
+- **Ravenclaw Common Room** (Luna): a finite, round tower room generated in code, at night.
+  - **The room:** arched windows onto a starry sky and the mountains, blue silks and eagle
+    banners between them, a dome painted with stars and ribbed in bronze, and candles floating
+    under it.
+  - **Round the wall:** bookcases, tables with chairs, blue armchairs, and Rowena Ravenclaw's
+    white marble statue in a niche, facing the duel camera.
+  - **The fight:** on the round midnight-blue carpet, with its bronze stars. The fighters stay
+    on the carpet, spells burst on the furniture and the walls, and the camera stays inside the
+    furniture.
+  - All values are in `src/scene/ravenclaw/config.ts`.
 
 ## Opponents
 
@@ -74,14 +84,14 @@ The campaign, in order (the planned roster; see the status column for what is in
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
 | 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
-| 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Confundo | planned |
+| 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable (Illusio not yet taught; [report](docs/luna/REPORT.md)) |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
 | 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |
 
-The game follows this order (`src/game/campaign.ts`): after Susan, the campaign shows Luna
-Lovegood as the next duel (coming soon).
+The game follows this order (`src/game/campaign.ts`): after Luna, the campaign shows Hermione
+Granger as the next duel (coming soon).
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
@@ -159,6 +169,42 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
 | Easy | 120 | 2 x 20 HP | slow reactions, guards half the time, seldom answers a rush |
 | Normal | 150 | 2 x 25 HP | quicker; guards and counters more; meets most rushes and spells |
 | Hard | 190 | 3 x 30 HP | sharp reactions, a stubborn guard, real combos, heals more often |
+
+### Luna Lovegood
+
+A Ravenclaw and the most unpredictable duellist: an illusion-and-disruption fighter rather than a
+damage dealer. Randomness shapes her decisions, never her attacks' tells: every spell has its
+own wind-up and wand glow, so it can be read and answered. See `docs/luna/REPORT.md`.
+
+- **Confundo:** a lilac bolt (3 damage, 8 s). A hit **reverses your directions** (W and S, A
+  and D, running included) for 2-3 s; attacks, guard and spells still work. Stars circle your
+  head and CONFUNDED! shows. A block stops it. She fires it into a rush or an attack.
+- **Expelliarmus:** she alternates it with Confundo at range, and fires it into your own cast
+  while you still have your wand.
+- **Oppugno:** she raises her wand high (a gold glow) and a small flock of yellow birds chases
+  you, each landing a small hit (3, a flinch), one after another. They turn at a limited rate
+  and, close in, commit to a dive: step aside as they dive and most shoot past. Your guard takes
+  each as chip damage, walls stop them, Protego pops them, and a perfectly timed Protego sends
+  one back at her.
+- **Illusio:** she draws a circle overhead (a silver glow) and 2-3 copies of her appear. They
+  skip about, circle and mimic her casts, but deal no damage. As they appear, she is shuffled
+  among them. Any hit pops a copy (ILLUSION!), walking into one pops it, and hitting her makes
+  them all vanish. The tells: **copies cast no shadow**, they mimic her casts a beat late with
+  no bolt and no glow, and only she ever acts on her own. The duel camera frames the whole group,
+  so it doesn't give her away.
+- **Distracted:** when nothing presses her, she sometimes lowers her wand and gazes up at
+  something only she can see, reaching for it. She sees nothing coming until it ends or you hit
+  her: a fair opening.
+- **Erratic:** she skips about the room (her gait in place of a run), circles, stops and stares,
+  thinks at irregular intervals, and chains short bursts of spells followed by inexplicable
+  pauses. Light on guard, quick to sidestep. No Protego and no healing.
+- She fights in the Ravenclaw Common Room. She has no voice lines yet.
+
+| Level | Luna's HP | Confusion | Birds | Copies | How she fights |
+|---|---|---|---|---|---|
+| Easy | 120 | 2.0 s | 4 | 2 (8 s) | slow reactions, often distracted, rare bursts |
+| Normal | 150 | 2.5 s | 5 | 2 (9 s) | quicker; more opportunism and bursts, distracted now and then |
+| Hard | 180 | 3.0 s | 6 | 3 (10 s) | sharp reactions, frequent bursts, rarely distracted, real combos |
 
 ## Expelliarmus (P)
 
@@ -289,14 +335,21 @@ Screenshots from the viewer are in `docs/confringo/`.
   (health, blocking, reactions, disarm, defeat).
 - `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
   cast, retrieve her wand; with an evasive style also circle, shield, dodge, counter, push;
-  with a defensive style hold ground, guard against spells, meet a rush, heal);
+  with a defensive style hold ground, guard against spells, meet a rush, heal; with a chaotic
+  style roam, skip, get distracted, burst and pause, summon birds and copies);
   `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning of each opponent.
 - `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned);
   `Stupefy.ts`, `Ventus.ts` (+ its gust effect) – Cho's spells; `Impedimenta.ts` (the slow),
-  `Depulso.ts` – Susan's.
+  `Depulso.ts` – Susan's; `Confundo.ts` (the confusion) and `Oppugno.ts` (the birds: the flock's
+  homing and hits, and their look) – Luna's. A summoning spell (`SpellDef.summon`) has no bolt:
+  `SpellSystem.onSummon` hands its release to the caster.
 - `combat/Episkey.ts` – the healing charm (instant heal, cooldown, charges); `EpiskeyFx.ts` – its look;
-  `SlowFx.ts` – the rings of a slow. `FighterTarget` carries the slow (`timeScale`) and
-  Susan's Hufflepuff Resolve.
+  `SlowFx.ts` – the rings of a slow; `ConfusionFx.ts` – the stars of a confusion.
+  `FighterTarget` carries the slow (`timeScale`), the confusion (`confused`; the controller
+  reverses the directions) and Susan's Hufflepuff Resolve.
+- `combat/Illusio.ts` – Luna's copies: their targets (any hit pops one), the shuffle as they
+  appear, their wandering and mimicked casts. Copies are `Malfoid.makeTwin()`s of her model
+  (shared geometry and textures).
 - `combat/Protego.ts` – the shield (timing, perfect window, cooldown); `ProtegoFx.ts` – its look.
   A shield's owner takes over a reflected spell (`SpellSystem.adopt`).
 - `game/opponents.ts` – the opponents as definitions (model, faces, spells, AI per difficulty,
@@ -337,7 +390,10 @@ Screenshots from the viewer are in `docs/confringo/`.
   stadium-wide sun shadow); `scene/greenhouse/` – the Herbology Greenhouse (`config.ts` the
   tunables, `structure.ts` the plinth, iron frame, glass and floor, `plants.ts` the benches,
   pots, plants, planters, baskets and ivy, `GreenhouseArena.ts` collision, camera limit, light,
-  the grounds outside and the drifting motes).
+  the grounds outside and the drifting motes); `scene/ravenclaw/` – the Ravenclaw Common Room
+  (`config.ts` the tunables, `textures.ts` the carpet, floorboards, painted dome and the night
+  outside, `RavenclawArena.ts` the walls and windows, silks, bookcases, furniture, the statue,
+  floating candles, collision, camera limit and light).
 
 ## Tests
 

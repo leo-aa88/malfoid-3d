@@ -114,3 +114,48 @@ export const SUSAN_FACES: Record<string, Weights> = {
 
 /** Susan's speaking mouth (atlas "Speaking: light, natural"): the "a" viseme, warm corners */
 export const SUSAN_TALK: Weights = { 'あ': 0.4, jawOpen: 0.06, mouthSmileLeft: 0.3, mouthSmileRight: 0.3 };
+
+/*
+ * Luna's expressions (the same keys and face channels, tuned against her facial atlas in the
+ * viewer). Her resting face is dreamy and serene: lids lowered a touch, outer brows lifted, a
+ * faint soft smile. Expressive but gentle: even her determination stays calm.
+ */
+const noSmileLuna = { mouthSmileLeft: 0, mouthSmileRight: 0 };
+
+export const LUNA_FACES: Record<string, Weights> = {
+  neutral: {},
+  // atlas "Dreamy (absent-minded)": heavy lids, the gaze drifting up, a soft smile
+  dreamy: { 'vrc.blink_Straight': 0.38, eyeLookUpLeft: 0.45, eyeLookUpRight: 0.45, browOuterUpLeft: 0.35,
+    browOuterUpRight: 0.35, mouthSmileLeft: 0.3, mouthSmileRight: 0.3 },
+  // "Curious (inquisitive, tilted)": one brow up, eyes open, lips a little parted
+  curious: { ...noSmileLuna, browOuterUpLeft: 0.75, browInnerUp: 0.35, eyeWideLeft: 0.25, eyeWideRight: 0.15,
+    'vrc.blink_Straight': 0, 'お': 0.18, jawOpen: 0.03 },
+  // "Thoughtful (looking up)": the eyes up and aside, the mouth pressed and pulled to one side
+  thoughtful: { ...noSmileLuna, eyeLookUpLeft: 0.6, eyeLookUpRight: 0.6, eyeLookOutLeft: 0.3, eyeLookInRight: 0.3,
+    browInnerUp: 0.3, mouthPressLeft: 0.3, mouthPressRight: 0.3, mouthRight: 0.25 },
+  // "Pleased (soft, happy)": a gentle closed smile, a touch of colour
+  pleased: { 'にこり': 0.6, mouthSmileLeft: 0.45, mouthSmileRight: 0.45, 'vrc.blink_Straight': 0.2, blush: 0.15 },
+  // "Amused (gentle laugh)": eyes eased shut in arcs, an open smile
+  amused: { 'なごみ': 0.85, 'ワ': 0.35, mouthSmileLeft: 0.55, mouthSmileRight: 0.55, 'vrc.blink_Straight': 0, blush: 0.2 },
+  // "Excited (bright, open)": wide bright eyes, a big open smile
+  excited: { Excited: 0.7, 'ワ': 0.5, jawOpen: 0.12, eyeWideLeft: 0.2, eyeWideRight: 0.2, 'vrc.blink_Straight': 0,
+    browOuterUpLeft: 0.45, browOuterUpRight: 0.45 },
+  cheerful: { Smile2: 1.0, 'ワ': 0.45, jawOpen: 0.1, 'vrc.blink_Straight': 0, blush: 0.2 },
+  // "Surprised (eyes widened, open)"
+  surprised: { ...noSmileLuna, 'びっくり': 0.8, jawOpen: 0.25, mouthFunnel: 0.4, browInnerUp: 0.6, browOuterUpLeft: 0.7,
+    browOuterUpRight: 0.7, eyeWideLeft: 0.3, eyeWideRight: 0.3, 'vrc.blink_Straight': 0 },
+  // "Confused (brow furrowed, curious)": one brow down, the inner brows up, the mouth aside
+  confused: { ...noSmileLuna, Confused: 0.7, browDownLeft: 0.5, browInnerUp: 0.4, mouthLeft: 0.25, 'vrc.blink_Straight': 0.1 },
+  // "Serene (eyes closed, peaceful)"
+  serene: { 'なごみ': 0.9, mouthSmileLeft: 0.3, mouthSmileRight: 0.3, 'vrc.blink_Straight': 0, blush: 0.08 },
+  sad: { ...noSmileLuna, Sad: 0.4, '困る': 0.5, browInnerUp: 0.8, eyeLookDownLeft: 0.5, eyeLookDownRight: 0.5,
+    mouthFrownLeft: 0.35, mouthFrownRight: 0.35, 'vrc.blink_Straight': 0.3 },
+  // character atlas "Determined": calm resolve, brows lowered, a steady gaze, lips pressed softly
+  determined: { ...noSmileLuna, browDownLeft: 0.55, browDownRight: 0.55, eyeSquintLeft: 0.3, eyeSquintRight: 0.3,
+    mouthPressLeft: 0.45, mouthPressRight: 0.45, '真面目': 0.5, browOuterUpLeft: 0, browOuterUpRight: 0 },
+  pain: { ...noSmileLuna, eyeBlinkLeft: 0.65, eyeBlinkRight: 0.65, browDownLeft: 0.7, browDownRight: 0.7, browInnerUp: 0.7,
+    mouthStretchLeft: 0.6, mouthStretchRight: 0.6, jawOpen: 0.12 },
+};
+
+/** Luna's speaking mouth (atlas "Speaking: light, open"): the "a" viseme, soft corners */
+export const LUNA_TALK: Weights = { 'あ': 0.42, jawOpen: 0.07, mouthSmileLeft: 0.25, mouthSmileRight: 0.25 };

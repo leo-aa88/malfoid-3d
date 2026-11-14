@@ -33,6 +33,11 @@ export interface SpellDef {
   disarms?: boolean;
   /** a direct hit that gets through slows the target (Impedimenta): this fraction of her speed, for this long (s) */
   slow?: { factor: number; duration: number };
+  /** a direct hit that gets through confuses the target (Confundo): her directions reversed for this long (s) */
+  confuse?: { duration: number };
+  /** no bolt: at the release the caster summons something instead (Oppugno's birds, Illusio's
+   *  copies), handed to SpellSystem.onSummon */
+  summon?: 'oppugno' | 'illusio';
 }
 
 /** the caster as the spell system sees it (Malfoid) */
@@ -109,6 +114,8 @@ export class SpellSystem implements Reflector {
   readonly world: { targets: CombatTarget[]; solids: THREE.Box3[]; groundY: number };
   onEvent: ((e: SpellEvent) => void) | null = null;
   onSound: ((s: SpellSound, at: THREE.Vector3) => void) | null = null;
+  /** a summoning spell released: from the wand tip, along `dir` (aimed like a bolt), at `target` */
+  onSummon: ((def: SpellDef, origin: THREE.Vector3, dir: THREE.Vector3, target: CombatTarget | null) => void) | null = null;
 
   private casting: Casting | null = null;
   private readonly flying: Flying[] = [];
@@ -272,11 +279,15 @@ export class SpellSystem implements Reflector {
       const f = this.caster.facingAngle;                        // straight ahead
       dir.set(Math.sin(f), 0, Math.cos(f));
     }
-    const p = new Projectile(def.projectile, origin, dir.normalize());
-    this.flying.push({ def, projectile: p });
     this.cooldowns.set(def.id, def.cooldown);
     this.fx.castEnd(def, true, this.emitter);
-    this.fx.projectileStart(def, p);
+    if (def.summon) {
+      this.onSummon?.(def, origin, dir.normalize(), target);
+    } else {
+      const p = new Projectile(def.projectile, origin, dir.normalize());
+      this.flying.push({ def, projectile: p });
+      this.fx.projectileStart(def, p);
+    }
     this.onSound?.('launch', origin);
     this.emit({ type: 'release', spell: def });
   }
@@ -349,6 +360,7 @@ export class SpellSystem implements Reflector {
       });
       const disarmed = def.disarms && report.result === 'hit' && t.disarm ? t.disarm(dir) : false;
       if (def.slow && report.result === 'hit' && !report.ko) t.slow?.(def.slow.factor, def.slow.duration);
+      if (def.confuse && report.result === 'hit' && !report.ko) t.confuse?.(def.confuse.duration);
       this.emit({ type: 'hit', spell: def, target: t, direct: true, report, at: at.clone(), disarmed });
     }
     // splash: everyone else inside the blast and not shielded by a wall, once each

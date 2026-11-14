@@ -58,6 +58,8 @@ export class FighterTarget implements CombatTarget {
   /** slowed (Impedimenta): her own time runs at slowFactor for slowLeft more seconds */
   slowLeft = 0;
   slowFactor = 1;
+  /** confused (Confundo): her directions are reversed for confusedLeft more seconds */
+  confusedLeft = 0;
 
   constructor(readonly fighter: Malfoid, public maxHp = 100) {
     this.hp = maxHp;
@@ -135,6 +137,16 @@ export class FighterTarget implements CombatTarget {
     this.slowLeft = Math.max(this.slowLeft, duration);
   }
 
+  /** confused: her directions reversed for `duration` s (a new one never shortens the current one) */
+  confuse(duration: number): void {
+    if (this.fighter.defeated) return;
+    this.confusedLeft = Math.max(this.confusedLeft, duration);
+  }
+
+  get confused(): boolean {
+    return this.confusedLeft > 0;
+  }
+
   /** how fast her own time runs now (1: normal; < 1 while slowed) */
   get timeScale(): number {
     return this.slowLeft > 0 ? this.slowFactor : 1;
@@ -147,6 +159,7 @@ export class FighterTarget implements CombatTarget {
       this.slowLeft = Math.max(0, this.slowLeft - dt);
       if (this.slowLeft === 0) this.slowFactor = 1;
     }
+    if (this.confusedLeft > 0) this.confusedLeft = Math.max(0, this.confusedLeft - dt);
   }
 
   /** back to full health and on her feet */
@@ -156,6 +169,7 @@ export class FighterTarget implements CombatTarget {
     this.recentHits = 0;
     this.slowLeft = 0;
     this.slowFactor = 1;
+    this.confusedLeft = 0;
     this.fighter.setDefeated(false);
   }
 

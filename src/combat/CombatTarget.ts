@@ -53,6 +53,8 @@ export interface CombatTarget {
   readonly blockRecoil?: number;
   /** slow it down (fighters only): its own time runs at `factor` for `duration` s */
   slow?(factor: number, duration: number): void;
+  /** confuse it (fighters only): her directions are reversed for `duration` s */
+  confuse?(duration: number): void;
   /** knock its wand away (fighters only); true if it had one */
   disarm?(dir: THREE.Vector3): boolean;
   /** a spell reaches it: a shield may stop it ('absorb') or send it back ('reflect') */

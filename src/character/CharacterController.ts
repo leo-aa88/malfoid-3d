@@ -37,6 +37,9 @@ export class CharacterController {
   paused = false;
   /** the fighter can't act (the duel's opening lines): keys are tracked but move / attack nothing; G still restarts */
   locked = false;
+  /** confused (Confundo): her directions are reversed (forward is back, left is right; attacks,
+   *  guard and spells are not) */
+  confused: (() => boolean) | null = null;
   onPauseChange: ((paused: boolean) => void) | null = null;
   /** training dummy: cycle its guard / bring it in front of her */
   onDummyGuard: (() => void) | null = null;
@@ -105,8 +108,9 @@ export class CharacterController {
     }
     this.character.setHold('crouch', k.has('ControlLeft'));
     this.character.setHold('block', k.has('KeyO'));
-    const f = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0);
-    const r = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+    const flip = this.confused?.() ? -1 : 1;
+    const f = flip * ((k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0));
+    const r = flip * ((k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0));
     if (f === 0 && r === 0) {
       this.character.stop();
       this.heldKeys = '';

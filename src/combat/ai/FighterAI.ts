@@ -11,7 +11,7 @@ import type { Episkey } from '../Episkey';
 
 export type AIState =
   | 'IDLE' | 'OBSERVE' | 'APPROACH' | 'RETREAT' | 'BLOCK' | 'MELEE_ATTACK' | 'CAST' | 'DODGE' | 'STAGGER' | 'RECOVER'
-  | 'RETRIEVE' | 'CIRCLE' | 'PROTEGO';
+  | 'RETRIEVE' | 'CIRCLE' | 'PROTEGO' | 'DISTRACTED' | 'SKIP';
 
 /**
  * A defensive duellist's habits (Susan), on top of the shared ones: she holds her ground,
@@ -76,6 +76,45 @@ export interface EvasiveStyle {
 }
 
 /**
+ * A chaotic duellist's habits (Luna), on top of the shared ones: the most unpredictable fighter.
+ * Randomness shapes her decisions (when, which spell, where she wanders), never her attacks'
+ * tells: every spell still has its clip and its wand glow, so it can be read and answered.
+ * Chances are per decision, times in s, distances in m.
+ */
+export interface ChaoticStyle {
+  /** she roams this far from the opponent: skipping about, circling, standing and staring */
+  roamRange: [number, number];
+  /** her think time is her reaction time scaled by a random factor in this range (irregular) */
+  whim: [number, number];
+  /** roaming: skips to a new spot on the ring (else circles, or stands a moment) */
+  skipChance: number;
+  /** when nothing presses her: distracted for distractTime s (wand lowered, gazing at
+   * nothing: she doesn't see, guard or answer anything until it ends or she is hit) */
+  distractChance: number;
+  distractTime: [number, number];
+  /** a burst of aggression: burstCount actions with only burstGap s between them ... */
+  burstChance: number;
+  burstCount: [number, number];
+  burstGap: [number, number];
+  /** ... then an inexplicable pause */
+  pauseAfterBurst: [number, number];
+  /** Oppugno when ready, at mid range */
+  oppugnoChance: number;
+  oppugnoRange: [number, number];
+  /** Illusio when ready and no copies are out; doubled when she is hurt or crowded */
+  illusioChance: number;
+  /** Confundo into a rush or an attack (on top of her usual casting) */
+  confundoRush: number;
+  /** Expelliarmus into the opponent's own cast (while the opponent still has her wand) */
+  disarmPunish: number;
+  /** an attack she sees coming in reach: a quick sidestep (dodge clips) */
+  dodgeClipChance: number;
+  /** crowded within escapeRange: she gets away (a step back, or skips off across the room) */
+  escapeRange: number;
+  escapeChance: number;
+}
+
+/**
  * how close to facing the opponent she must be before she attacks (rad); further off, she turns
  * first (after picking up her wand she faces where it lay: casting at once sent the spell there).
  * A spell's own start turns her the rest of the way; melee auto-faces within 60 degrees.
@@ -126,6 +165,8 @@ export interface AIParams {
   evasive?: EvasiveStyle;
   /** a defensive duellist's extra habits (Susan) */
   defensive?: DefensiveStyle;
+  /** a chaotic duellist's extra habits (Luna) */
+  chaotic?: ChaoticStyle;
 }
 
 export const GINNY_AI: AIParams = {
@@ -188,6 +229,16 @@ export class FighterAI {
   private lastAlt = false;                        // her last ranged cast was the second spell
   /** her healing charm (defensive style) */
   heal: Episkey | null = null;
+  /** a chaotic duellist's summoning spells (Luna's Oppugno and Illusio), and whether her copies are out */
+  oppugno: SpellDef | null = null;
+  illusio: SpellDef | null = null;
+  illusions: { readonly active: boolean } | null = null;
+  /** keeps a point she heads for inside the arena (its own boundary; null: anywhere) */
+  keepIn: ((p: THREE.Vector3) => void) | null = null;
+  private burstLeft = 0;                          // quick actions left in a burst (chaotic)
+  /** a spell she chose but first had to turn for (chaotic): she sees it through, not rerolls it */
+  private intent: SpellDef | null = null;
+  private readonly roamGoal = new THREE.Vector3();
   params: AIParams;
   private clock = 0;                              // game time (s)
   private circleSide: 1 | -1 = 1;
@@ -234,6 +285,9 @@ export class FighterAI {
     this.closing = 0;
     this.rushAt = -99;
     this.guardAt = -1;
+    this.burstLeft = 0;
+    this.intent = null;
+    this.self.standClip = null;
     if (!on) {
       this.self.stop();
       this.self.setHold('block', false);
@@ -282,6 +336,8 @@ export class FighterAI {
     // a hit reaction overrides everything; then a short recovery
     if (me.reacting && me.reacting !== 'pickup') {
       this.shieldAt = -1;                            // a hit breaks her concentration
+      me.standClip = null;                           // (and snaps her out of a daydream)
+      this.burstLeft = 0;
       this.shield?.lower();
       if (this.state !== 'STAGGER') {
         me.stop();
@@ -307,8 +363,10 @@ export class FighterAI {
       if (this.selfTarget.recentHits >= P.retreatAfterHits) this.think = P.recover;
     }
 
+    // distracted: she sees nothing coming (a fair opening) until it ends or she is hit
+    const dazed = this.state === 'DISTRACTED';
     // she notices the opponent's attacks after her reaction time
-    if (this.opponentCombat.busy) {
+    if (this.opponentCombat.busy && !dazed) {
       if (this.sawAttack < 0) this.sawAttack = rand(P.reaction[0], P.reaction[1]);
       else if (!this.noticed && (this.sawAttack -= dt) <= 0) this.noticed = true;
     } else {
@@ -319,7 +377,7 @@ export class FighterAI {
     // she reads the opponent's wand wind-up and steps aside as the bolt is released (the bolt
     // is aimed where she stands at the release)
     const os = this.opponentSpells;
-    if (os && os.isCasting) {
+    if (os && os.isCasting && !dazed) {
       const rel = os.castingSpell?.release ?? 0.42;
       if (!this.readCast && os.castTime >= rel - 0.16 && os.castTime < rel) {
         this.readCast = true;
@@ -369,7 +427,7 @@ export class FighterAI {
     }
 
     // a bolt already flying at her: she sees it after her reaction time and may sidestep it
-    if (P.dodgeChance > 0 && this.opponentSpells && this.state !== 'DODGE' && !this.combat.busy && !this.spells.isCasting) {
+    if (P.dodgeChance > 0 && this.opponentSpells && this.state !== 'DODGE' && !this.combat.busy && !this.spells.isCasting && !dazed) {
       for (const b of this.opponentSpells.projectiles) {
         if (this.seenBolts.has(b.id)) continue;
         const toMe = this.tmp2.set(me.position.x - b.position.x, 0, me.position.z - b.position.z);
@@ -517,11 +575,32 @@ export class FighterAI {
           this.go('RECOVER', P.recover + 0.35);
         }
         return;
+      case 'DISTRACTED':
+        // gazing at nothing in particular: no moves, no reading, no guard
+        me.stop();
+        me.standClip = 'distracted';
+        if (this.timer <= 0) {
+          me.standClip = null;
+          this.go('OBSERVE');
+          this.think = rand(0.15, 0.35);               // she comes round with a start
+        }
+        return;
+      case 'SKIP': {
+        // skipping off to somewhere on her ring (she turns to where she goes)
+        const to = this.tmp2.set(this.roamGoal.x - me.position.x, 0, this.roamGoal.z - me.position.z);
+        if (to.length() < 0.35 || this.timer <= 0 || this.blocked(to, 0.8)) {
+          me.stop();
+          this.go('OBSERVE');
+        } else {
+          me.move(to, true);
+        }
+        break;
+      }
       case 'CIRCLE': {
         // round the opponent, keeping her preferred distance; a trunk ahead turns her back
-        const ev = P.evasive!;
+        const range = P.evasive?.preferredRange ?? P.chaotic!.roamRange;
         const to = this.dirToOpponent();
-        const mid = (ev.preferredRange[0] + ev.preferredRange[1]) / 2;
+        const mid = (range[0] + range[1]) / 2;
         const radial = Math.max(-0.7, Math.min(0.7, (dist - mid) * 0.5));
         const dir = this.tmp2.set(-to.z * this.circleSide + to.x * radial, 0, to.x * this.circleSide + to.z * radial);
         if (this.blocked(dir)) {
@@ -601,8 +680,16 @@ export class FighterAI {
     }
 
     if (this.think > 0) return;
-    this.think = rand(P.reaction[0], P.reaction[1]);
+    const ch = P.chaotic;
+    // a chaotic duellist thinks at irregular intervals; in a burst, quickly
+    this.think = ch && this.burstLeft > 0 ? rand(ch.burstGap[0], ch.burstGap[1])
+      : rand(P.reaction[0], P.reaction[1]) * (ch ? rand(ch.whim[0], ch.whim[1]) : 1);
+    const bursting = this.burstLeft > 0;
     this.decide(dist, angle);
+    if (ch && bursting && --this.burstLeft === 0) {
+      // the burst spent: an inexplicable pause
+      this.think = rand(ch.pauseAfterBurst[0], ch.pauseAfterBurst[1]);
+    }
   }
 
   private decide(dist: number, angle: number): void {
@@ -700,9 +787,14 @@ export class FighterAI {
       this.go('RETRIEVE', RETRIEVE_TIME);
       return;
     }
+    const ch = P.chaotic;
+    if (ch) {
+      const caught = this.chaotic(ch, dist, angle);
+      if (caught) return;
+    }
     // her spell: only while the opponent still has a wand (an evasive duellist's Stupefy
     // isn't about the wand), from a distance, in clear sight
-    const ranged = this.rangedSpell(dist);
+    const ranged = ch ? null : this.rangedSpell(dist);              // (a chaotic duellist chose hers above)
     if (ranged && (this.opponent.hasWand || ev || df) && dist >= P.castRange[0] && dist <= P.castRange[1]
         && this.lineOfSight() && Math.random() < P.castChance) {
       if (!this.turnedTo(angle, AIM.spell)) return;
@@ -731,6 +823,11 @@ export class FighterAI {
       } else {
         this.go('OBSERVE');
       }
+      return;
+    }
+    // a chaotic duellist roams: skipping about her ring, circling, standing and staring
+    if (ch) {
+      this.roam(ch, dist, angle);
       return;
     }
     // an evasive duellist keeps her distance: back off when crowded, close in when far,
@@ -765,6 +862,143 @@ export class FighterAI {
       this.go('APPROACH', 3.0);
       return;
     }
+    this.go('OBSERVE');
+  }
+
+  /**
+   * a chaotic duellist's own choices, before the usual ones (true: she has acted). Distracted
+   * now and then, bursts of aggression, her summons, and her opportunism.
+   */
+  private chaotic(ch: ChaoticStyle, dist: number, angle: number): boolean {
+    const me = this.self;
+    // a spell she already chose (and turned for): cast it now if she still can
+    const intent = this.intent;
+    this.intent = null;
+    if (intent && this.spells.canCast(intent) && dist <= intent.aimRange && this.lineOfSight()) {
+      if (!this.turnedTo(angle, AIM.spell)) {
+        this.intent = intent;
+        return true;
+      }
+      if (this.spells.cast(intent)) {
+        this.lastAlt = intent === this.altSpell;
+        this.go('CAST');
+        return true;
+      }
+    }
+    const pressed = this.opponentCombat.busy || !!this.opponentSpells?.isCasting || this.selfTarget.recentHits > 0
+      || dist < 2.2 || this.closing > 1.2;
+    // distracted: only when nothing presses her (and never in a burst)
+    if (this.burstLeft === 0 && !pressed && me.hasWand && Math.random() < ch.distractChance) {
+      me.stop();
+      me.standClip = 'distracted';
+      this.pendingSecond = null;
+      this.go('DISTRACTED', rand(ch.distractTime[0], ch.distractTime[1]));
+      return true;
+    }
+    // a burst of aggression begins
+    if (this.burstLeft === 0 && Math.random() < ch.burstChance) {
+      this.burstLeft = Math.round(rand(ch.burstCount[0], ch.burstCount[1]));
+    }
+    const hurt = this.selfTarget.hp < this.selfTarget.maxHp * 0.6;
+    // Illusio: when ready and none of her copies are out (more likely hurt or crowded)
+    if (this.illusio && !this.illusions?.active && this.spells.canCast(this.illusio)
+        && Math.random() < ch.illusioChance * (hurt || dist < 2.4 ? 2 : 1)) {
+      me.stop();
+      if (this.spells.cast(this.illusio)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // crowded: she gets away, a step back or a skip off across the room (a caster, not a brawler)
+    if (dist < ch.escapeRange && !this.combat.busy && Math.random() < ch.escapeChance) {
+      if (Math.random() < 0.4 && this.dodgeClip('dodge_back')) return true;
+      const from = Math.atan2(me.position.x - this.opponent.position.x, me.position.z - this.opponent.position.z);
+      const a = from + rand(-0.8, 0.8);
+      const rr = rand(ch.roamRange[1] * 0.7, ch.roamRange[1]);
+      this.roamGoal.set(this.opponent.position.x + Math.sin(a) * rr, 0, this.opponent.position.z + Math.cos(a) * rr);
+      this.keepIn?.(this.roamGoal);
+      this.go('SKIP', 1.8);
+      return true;
+    }
+    // Expelliarmus into the opponent's cast (early in it: there is time to beat the release)
+    const os = this.opponentSpells;
+    const alt = this.altSpell;
+    if (alt && os?.isCasting && os.castTime < 0.25 && this.opponent.hasWand && dist <= alt.aimRange
+        && this.spells.canCast(alt) && this.lineOfSight() && Math.random() < ch.disarmPunish) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(alt);
+      if (this.spells.cast(alt)) {
+        this.lastAlt = true;
+        this.go('CAST');
+        return true;
+      }
+    }
+    // Confundo into a rush or an attack
+    if ((this.closing > 1.5 || this.opponentCombat.busy) && dist >= 1.0 && dist <= this.spell.aimRange
+        && this.spells.canCast(this.spell) && this.lineOfSight() && Math.random() < ch.confundoRush) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(this.spell);
+      if (this.spells.cast(this.spell)) {
+        this.lastAlt = false;
+        this.go('CAST');
+        return true;
+      }
+    }
+    // Oppugno at mid range
+    const op = this.oppugno;
+    if (op && dist >= ch.oppugnoRange[0] && dist <= ch.oppugnoRange[1] && this.spells.canCast(op) && this.lineOfSight()
+        && Math.random() < ch.oppugnoChance * (this.burstLeft > 0 ? 1.5 : 1)) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(op);
+      if (this.spells.cast(op)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // her usual ranged spell, Confundo or Expelliarmus (chosen once: turning for it doesn't reroll it)
+    const ranged = this.rangedSpell(dist);
+    if (ranged && dist >= this.params.castRange[0] && dist <= this.params.castRange[1] && this.lineOfSight()
+        && Math.random() < this.params.castChance) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(ranged);
+      if (this.spells.cast(ranged)) {
+        this.lastAlt = ranged === this.altSpell;
+        this.go('CAST');
+        return true;
+      }
+    }
+    // an attack she sees coming in reach: a quick sidestep
+    if (this.noticed && dist < 1.6 && Math.random() < ch.dodgeClipChance) {
+      this.noticed = false;
+      if (this.dodgeClip(Math.random() < 0.4 ? 'dodge_back' : this.freeSide())) return true;
+    }
+    return false;
+  }
+
+  /** she chose this spell but has to turn first: she'll cast it once she faces the opponent */
+  private mean(spell: SpellDef): boolean {
+    this.intent = spell;
+    return true;
+  }
+
+  /** a chaotic duellist on the move: skip somewhere on her ring, circle, or stand and stare */
+  private roam(ch: ChaoticStyle, dist: number, angle: number): void {
+    const [near, far] = ch.roamRange;
+    if (dist < near * 0.7 && Math.random() < 0.5 && this.dodgeClip('dodge_back')) return;
+    const r = Math.random();
+    if (dist > far + 1.0 || (dist < near && r < 0.7) || r < ch.skipChance) {
+      // a spot on the ring, somewhere off to one side of where she is
+      const from = Math.atan2(this.self.position.x - this.opponent.position.x, this.self.position.z - this.opponent.position.z);
+      const a = from + rand(-1.4, 1.4);
+      const rr = rand(near, far);
+      this.roamGoal.set(this.opponent.position.x + Math.sin(a) * rr, 0, this.opponent.position.z + Math.cos(a) * rr);
+      this.keepIn?.(this.roamGoal);                   // (a round room: never a spot beyond the floor)
+      this.go('SKIP', 2.2);
+      return;
+    }
+    if (r < 0.75) {
+      if (Math.random() < 0.4) this.circleSide = this.circleSide > 0 ? -1 : 1;
+      this.go('CIRCLE', rand(0.6, 1.8));
+      return;
+    }
+    this.self.stop();
+    this.self.lookAt(angle);
     this.go('OBSERVE');
   }
 
