@@ -39,7 +39,8 @@
   "strafe": 0.5,
   "dodge_left": 0.42,
   "dodge_right": 0.42,
-  "dodge_back": 0.48
+  "dodge_back": 0.48,
+  "protego": 0.22
  },
  "rest_expression": {
   "vrc.blink": 0.0,

@@ -45,6 +45,8 @@ export interface CombatTarget {
   readonly name: string;
   /** can it be hit right now (e.g. not while knocked down) */
   readonly targetable: boolean;
+  /** an illusion (Luna's copies): a spell striking it only pops it, its blast harms no one */
+  readonly illusion?: boolean;
   getBounds(out: HitBounds): HitBounds;
   /** where ranged attacks aim: the torso */
   getAimPoint(out: THREE.Vector3): THREE.Vector3;

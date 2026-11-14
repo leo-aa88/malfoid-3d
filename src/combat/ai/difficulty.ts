@@ -273,6 +273,9 @@ const LUNA_EASY: AIParams = {
     dodgeClipChance: 0.2,
     escapeRange: 2.0,
     escapeChance: 0.35,
+    shieldChance: 0.25,
+    parryChance: 0.05,
+    timingError: 0.12,
   },
 };
 
@@ -291,7 +294,7 @@ export const LUNA_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       guardAfterHit: 0.3,
       chaotic: { ...LUNA_EASY.chaotic!, distractChance: 0.11, distractTime: [1.5, 2.2], burstChance: 0.18, burstCount: [2, 3],
         burstGap: [0.25, 0.45], pauseAfterBurst: [1.0, 1.8], oppugnoChance: 0.35, illusioChance: 0.2, confundoRush: 0.4,
-        disarmPunish: 0.35, dodgeClipChance: 0.3, escapeChance: 0.5 },
+        disarmPunish: 0.35, dodgeClipChance: 0.3, escapeChance: 0.5, shieldChance: 0.35, parryChance: 0.1, timingError: 0.08 },
     },
     luna: { confuse: 2.5, birds: 5, copies: 2, illusionLife: 9 },
   },
@@ -313,7 +316,7 @@ export const LUNA_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       recover: 0.3,
       chaotic: { ...LUNA_EASY.chaotic!, distractChance: 0.07, distractTime: [1.2, 1.8], burstChance: 0.25, burstCount: [2, 4],
         burstGap: [0.2, 0.35], pauseAfterBurst: [0.8, 1.4], oppugnoChance: 0.45, illusioChance: 0.28, confundoRush: 0.55,
-        disarmPunish: 0.5, dodgeClipChance: 0.4, escapeChance: 0.6 },
+        disarmPunish: 0.5, dodgeClipChance: 0.4, escapeChance: 0.6, shieldChance: 0.45, parryChance: 0.15, timingError: 0.05 },
     },
     luna: { confuse: 3.0, birds: 6, copies: 3, illusionLife: 10 },
   },

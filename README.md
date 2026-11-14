@@ -70,9 +70,9 @@ Each opponent has her arena:
     under it.
   - **Round the wall:** bookcases, tables with chairs, blue armchairs, and Rowena Ravenclaw's
     white marble statue in a niche, facing the duel camera.
-  - **The fight:** on the round midnight-blue carpet, with its bronze stars. The fighters stay
-    on the carpet, spells burst on the furniture and the walls, and the camera stays inside the
-    furniture.
+  - **The fight:** across the whole room, mostly on the round midnight-blue carpet with its
+    bronze stars. The fighters walk round the tables, armchairs and statue up to the bookcases at
+    the wall, and spells burst on the furniture and the walls.
   - All values are in `src/scene/ravenclaw/config.ts`.
 
 ## Opponents
@@ -188,8 +188,8 @@ own wind-up and wand glow, so it can be read and answered. See `docs/luna/REPORT
   one back at her.
 - **Illusio:** she draws a circle overhead (a silver glow) and 2-3 copies of her appear. They
   skip about, circle and mimic her casts, but deal no damage. As they appear, she is shuffled
-  among them. Any hit pops a copy (ILLUSION!), walking into one pops it, and hitting her makes
-  them all vanish. The tells: **copies cast no shadow**, they mimic her casts a beat late with
+  among them. Any hit pops a copy (ILLUSION!), and only the copy: a spell bursting on one harms no
+  one else, Luna included. Walking into one pops it, and hitting her makes them all vanish. The tells: **copies cast no shadow**, they mimic her casts a beat late with
   no bolt and no glow, and only she ever acts on her own. The duel camera frames the whole group,
   so it doesn't give her away.
 - **Distracted:** when nothing presses her, she sometimes lowers her wand and gazes up at
@@ -197,7 +197,9 @@ own wind-up and wand glow, so it can be read and answered. See `docs/luna/REPORT
   her: a fair opening.
 - **Erratic:** she skips about the room (her gait in place of a run), circles, stops and stares,
   thinks at irregular intervals, and chains short bursts of spells followed by inexplicable
-  pauses. Light on guard, quick to sidestep. No Protego and no healing.
+  pauses. Light on guard, quick to sidestep. No healing.
+- **Protego:** she meets a spell she sees cast at her with the shield when it's ready (now and
+  then timed to send it back).
 - She fights in the Ravenclaw Common Room. She has no voice lines yet.
 
 | Level | Luna's HP | Confusion | Birds | Copies | How she fights |
@@ -212,7 +214,8 @@ Malfoid learns Ginny's Disarming Charm by beating her in the campaign. In traini
 has it, in practice against anyone but Ginny, and never against Ginny herself. A red bolt: 4
 damage, a stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
 from Confringo's, and its own slot in the HUD. A disarmed opponent runs back to her wand and
-picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.ts`.
+picks it up before casting again. A knocked-away wand always comes to rest where a fighter can
+reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spells/Expelliarmus.ts`.
 
 ## How a duel runs
 

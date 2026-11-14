@@ -153,6 +153,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     spell: CONFUNDO,
     look: CONFUNDO_LOOK,
     altSpell: EXPELLIARMUS,
+    // she meets a spell she sees coming with Protego (added on request)
+    protego: true,
     oppugno: true,
     illusio: true,
     startDistance: 5.0,
@@ -160,7 +162,7 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     arena: 'ravenclaw',
     lines: LUNA_LINES,
     faces: { start: 'dreamy', attack: 'pleased', retreat: 'surprised', disarmedFoe: 'amused', distracted: 'dreamy',
-      lowHp: 'determined', win: 'cheerful', lose: 'sad' },
+      shielded: 'curious', parried: 'amused', lowHp: 'determined', win: 'cheerful', lose: 'sad' },
     hudColour: '#9a8fc9',
   },
 };

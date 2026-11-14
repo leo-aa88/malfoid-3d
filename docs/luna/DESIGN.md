@@ -24,7 +24,10 @@ randomness affects her **decisions**, not whether her attacks can be anticipated
 - Occasional bursts of aggression followed by inexplicable pauses.
 - Strategic use of illusions to confuse targeting.
 - Opportunistic Confundo and Expelliarmus.
-- No Protego, healing, Reducto, Flipendo, Expecto Patronum or Conspiracy Frenzy.
+- No healing, Reducto, Flipendo, Expecto Patronum or Conspiracy Frenzy.
+- **Protego** (added on request, after the first build): she meets a spell she sees coming with
+  the shield, now and then timed to reflect it.
+- **Hitting a copy harms only the copy** (on request): a spell bursting on one never harms Luna.
 
 ## Campaign reward
 

@@ -217,9 +217,9 @@ PROFILES = {
         'crest': 'Luna_Crest.png',
         # her clips (combat.EXTRA_CLIPS), built into her model only: her dreamy idle, her skip (in
         # place of the run), distracted, Illusio and Oppugno; Cho's flick (Confundo), the
-        # side-step and quick dodges for her erratic movement
+        # side-step and quick dodges for her erratic movement, and the Protego pose
         'extra_clips': ('luna_idle', 'luna_skip', 'distracted', 'cast_illusio', 'cast_oppugno', 'cast_quick',
-                        'strafe', 'dodge_left', 'dodge_right', 'dodge_back'),
+                        'strafe', 'dodge_left', 'dodge_right', 'dodge_back', 'protego'),
     },
 }
 

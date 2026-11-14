@@ -8,6 +8,8 @@ import { CONFUNDO, CONFUNDO_DAMAGE, CONFUNDO_TIME } from '../src/combat/spells/C
 import { OPPUGNO, OPPUGNO_SPELL, OppugnoFlock } from '../src/combat/spells/Oppugno';
 import { ILLUSIO_SPELL, IllusionTarget } from '../src/combat/Illusio';
 import { EXPELLIARMUS } from '../src/combat/spells/Expelliarmus';
+import { CONFRINGO } from '../src/combat/spells/Confringo';
+import { Protego } from '../src/combat/Protego';
 import { FighterTarget } from '../src/combat/FighterTarget';
 import { FighterAI } from '../src/combat/ai/FighterAI';
 import { LUNA_DIFFICULTY } from '../src/combat/ai/difficulty';
@@ -103,12 +105,13 @@ test('Luna\'s levels: the confusion lengthens, more birds and copies, less distr
   assert.ok(e.hp < n.hp && n.hp < h.hp);
 });
 
-test('Luna\'s definition: Confundo first, Expelliarmus second, her summons; no Protego or healing', () => {
+test('Luna\'s definition: Confundo first, Expelliarmus second, her summons, Protego; no healing', () => {
   const d = OPPONENTS.luna;
   assert.equal(d.spell.id, 'confundo');
   assert.equal(d.altSpell?.id, 'expelliarmus');
   assert.ok(d.oppugno && d.illusio);
-  assert.ok(!d.protego && !d.episkey && !d.push);
+  assert.ok(d.protego, 'Protego (added on request)');
+  assert.ok(!d.episkey && !d.push);
   assert.equal(d.character.run?.clip, 'luna_skip');
   assert.ok(d.character.twins);
   // in practice against her, Malfoid has what she'd have reaching her in the campaign
@@ -383,6 +386,50 @@ test('crowded, she gets away (skips off across the room), and never heads for a 
     until(s, () => s.self.moves.length > 0, 10);
     const m = s.self.moves[0] ?? away;
     assert.ok(m && m.z < 0, 'away from Malfoid (she is at +z)');
+  } finally {
+    Math.random = random;
+  }
+});
+
+test('a spell that strikes one of her copies only pops it: its blast never harms Luna beside it', () => {
+  // Malfoid (at z = 6, facing -z) casts Confringo at a copy at the origin; Luna stands 0.8 m from it
+  const mC = new Caster_(new THREE.Vector3(0, 0, 6), Math.PI);
+  const copy = { position: new THREE.Vector3(0, 0, 0) } as unknown as Malfoid;
+  const copyT = new IllusionTarget(copy);
+  copyT.active = true;
+  let pops = 0;
+  copyT.onPop = () => { pops++; copyT.active = false; };
+  const luna = fighter('Luna', 0.8, 0, 0);
+  const lunaT = new FighterTarget(luna as unknown as Malfoid, 150);
+  const mS = new SpellSystem(mC, emitter(mC), () => false, undefined, { targets: [lunaT, copyT], solids: [], groundY: 0 });
+  assert.ok(mS.cast(CONFRINGO));
+  run(mS, CONFRINGO.release + 6 / CONFRINGO.projectile.speed + 0.2);
+  assert.equal(pops, 1, 'the copy popped');
+  assert.equal(lunaT.hp, 150, 'no splash on Luna');
+  // the same blast on Luna herself still hurts (Confringo is unchanged)
+  const l2 = fighter('Luna', 0, 0, 0);
+  const l2T = new FighterTarget(l2 as unknown as Malfoid, 150);
+  const m2C = new Caster_(new THREE.Vector3(0, 0, 6), Math.PI);
+  const m2S = new SpellSystem(m2C, emitter(m2C), () => false, undefined, { targets: [l2T], solids: [], groundY: 0 });
+  m2S.cast(CONFRINGO);
+  run(m2S, CONFRINGO.release + 6 / CONFRINGO.projectile.speed + 0.2);
+  assert.ok(l2T.hp < 150);
+});
+
+test('she meets a spell she sees cast at her with Protego (when it is ready)', () => {
+  const random = Math.random;
+  Math.random = () => 0.01;
+  try {
+    const s = aiSetup(6, { castChance: 0 }, { distractChance: 0, illusioChance: 0, oppugnoChance: 0, burstChance: 0, escapeChance: 0 });
+    const shield = new Protego(s.self as unknown as Malfoid);
+    s.ai.shield = shield;
+    s.ai.setActive(true);
+    until(s, () => false, 5);
+    s.oppSpells.isCasting = true;
+    s.oppSpells.castTime = 0.3;
+    s.oppSpells.castingSpell = { id: 'confringo', release: 0.42, projectile: { speed: 20 } };
+    until(s, () => s.ai.state === 'PROTEGO', 30, () => { s.oppSpells.castTime += DT; });
+    assert.equal(s.ai.state, 'PROTEGO');
   } finally {
     Math.random = random;
   }

@@ -112,6 +112,12 @@ export interface ChaoticStyle {
   /** crowded within escapeRange: she gets away (a step back, or skips off across the room) */
   escapeRange: number;
   escapeChance: number;
+  /** a spell she sees cast at her, when her Protego is ready: the shield (well ahead to stop it,
+   * or now and then timed into the perfect window to send it back) */
+  shieldChance: number;
+  parryChance: number;
+  /** how far off her parry timing may be (s, either way) */
+  timingError: number;
 }
 
 /**
@@ -408,6 +414,20 @@ export class FighterAI {
             this.go('PROTEGO', this.shieldAt + 0.75);
           } else if (Math.random() < df.spellBlockChance) {
             this.guardAt = Math.max(0, arrive - rand(0.18, 0.3));
+          }
+        } else if (P.chaotic && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting
+            && this.shield?.ready && this.state !== 'PROTEGO' && Math.random() < P.chaotic.shieldChance) {
+          // a chaotic duellist with Protego (Luna): the shield, well ahead or (now and then) timed
+          const ch = P.chaotic;
+          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const parry = Math.random() < ch.parryChance;
+          if (parry || arrive > PROTEGO.perfectWindow + 0.05) {
+            this.shieldAt = parry ? Math.max(0, arrive - rand(0.03, 0.12) + rand(-ch.timingError, ch.timingError))
+              : Math.max(0, arrive - rand(0.45, 0.6));
+            me.stop();
+            me.standClip = null;
+            this.pendingSecond = null;
+            this.go('PROTEGO', this.shieldAt + 0.75);
           }
         } else if (aimedAtMe && dist > 1.5 && Math.random() < P.dodgeChance && !this.combat.busy && !this.spells.isCasting
             && this.state !== 'DODGE') {

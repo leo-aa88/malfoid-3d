@@ -58,10 +58,12 @@ export const RAVENCLAW_CONFIG = {
   marble: '#eceae4',
 
   // --- the duel
-  /** fighters keep inside this circle (m) */
-  floorRadius: 8.4,
-  /** the camera keeps inside this circle (m): in front of the furniture */
-  cameraRadius: 9.4,
+  /** fighters may walk the whole room: inside this circle (m: in front of the bookcases at the
+   *  wall), round the tables, armchairs and the statue (a dropped wand is always in reach; the
+   *  carpet's edge as the limit kept one out of reach) */
+  walkRadius: 12.1,
+  /** the camera keeps inside this circle (m) */
+  cameraRadius: 11.4,
 
   // --- floating candles under the dome
   candles: 28,

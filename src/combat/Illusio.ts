@@ -95,6 +95,8 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 /** one copy as a target: anything that hits it pops it */
 export class IllusionTarget implements CombatTarget {
   readonly name = 'Illusion';
+  /** a spell striking a copy pops it and nothing else: its blast harms no one (not her) */
+  readonly illusion = true;
   active = false;
   /** popped by a hit (the set makes the puff) */
   onPop: (() => void) | null = null;

@@ -588,6 +588,7 @@ async function start(): Promise<void> {
   // them all (framing her alone would give her away)
   const focus = new THREE.Vector3();
   const keepIn = (p: THREE.Vector3) => arena?.resolve(p, 0.8);
+  const wandAt = new THREE.Vector3();
   const duelFocus = (): THREE.Vector3 => {
     focus.copy(opp.char.position);
     let n = 1;
@@ -639,6 +640,14 @@ async function start(): Promise<void> {
         ar.resolve(malfoid.position, 0.28);               // trunks, the stands' barrier, hoop posts
         ar.resolve(foe.position, 0.28);
         ar.fillSolids(solids, [malfoid.position, foe.position]);
+        // a wand knocked away always lies where a fighter can reach it (not on a bench or a table)
+        for (const c of [malfoid, foe]) {
+          if (c.wand.state !== 'dropped') continue;
+          const w = c.wand.getWorldPosition(wandAt);
+          const x = w.x, z = w.z;
+          ar.resolve(w, 0.35);
+          if (Math.abs(w.x - x) + Math.abs(w.z - z) > 1e-4) c.wand.moveDropped(w.x, w.z);
+        }
         ar.update(dt, malfoid.position, [malfoid.position, foe.position], sm.camera, sm.renderer.domElement.height);
       }
       else if (!dummy.down) keepApart(malfoid.position, dummy.position, DUMMY_RADIUS + 0.22);

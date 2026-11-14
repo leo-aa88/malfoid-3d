@@ -47,6 +47,8 @@ export class RavenclawArena implements Arena {
   readonly group = new THREE.Group();
   readonly cameraLimit: CameraLimit;
   private readonly solids: THREE.Box3[] = [];
+  /** furniture the fighters walk round (circles on the floor: x, z, radius, m) */
+  private readonly blockers: { x: number; z: number; r: number }[] = [];
   private readonly candles: THREE.InstancedMesh;
   private readonly flames: THREE.Points;
   private readonly candleBase: { x: number; y: number; z: number; k: number }[] = [];
@@ -208,6 +210,7 @@ export class RavenclawArena implements Arena {
       solid.add(new THREE.SphereGeometry(0.09, 10, 8), new THREE.Matrix4().makeTranslation(0, 2.08, 0.22), mb);
       solid.resetFrame();
       this.solids.push(new THREE.Box3(V(base.x - 0.8, 0, base.z - 0.8), V(base.x + 0.8, 3.4, base.z + 0.8)));
+      this.blockers.push({ x: base.x, z: base.z, r: 0.85 });
     }
 
     // --- tables and chairs, armchairs: round the room between the carpet and the wall
@@ -244,6 +247,7 @@ export class RavenclawArena implements Arena {
       }
       solid.resetFrame();
       this.solids.push(new THREE.Box3(V(x - 1.3, 0, z - 1.3), V(x + 1.3, 1.1, z + 1.3)));
+      this.blockers.push({ x, z, r: 1.3 });                         // the table and its chairs
     }, 0.6);
     place(cfg.armchairs, cfg.furnitureRing[1] - 0.2, (x, z, yaw) => {
       solid.setFrame(V(x, 0, z), yaw + Math.PI);
@@ -253,6 +257,7 @@ export class RavenclawArena implements Arena {
       solid.box(0, 0.52, 0.05, 0.62, 0.1, 0.6, '#3a5aa0');
       solid.resetFrame();
       this.solids.push(new THREE.Box3(V(x - 0.7, 0, z - 0.7), V(x + 0.7, 1.15, z + 0.7)));
+      this.blockers.push({ x, z, r: 0.7 });
     }, 1.5);
 
     // --- the dome: painted stars inside, bronze ribs from the cornice to the crown
@@ -369,9 +374,18 @@ export class RavenclawArena implements Arena {
     this.group.visible = on;
   }
 
-  /** keep a fighter on the carpet */
+  /** keep a fighter in the room: in front of the bookcases, out of the tables, armchairs and statue */
   resolve(pos: THREE.Vector3, r: number): void {
-    const max = this.cfg.floorRadius - r;
+    for (const b of this.blockers) {
+      const dx = pos.x - b.x, dz = pos.z - b.z;
+      const d = Math.hypot(dx, dz), min = b.r + r;
+      if (d < min) {
+        const k = d > 1e-6 ? min / d : 0;
+        pos.x = b.x + (d > 1e-6 ? dx * k : min);
+        pos.z = b.z + dz * k;
+      }
+    }
+    const max = this.cfg.walkRadius - r;
     const d = Math.hypot(pos.x, pos.z);
     if (d > max) {
       pos.x *= max / d;

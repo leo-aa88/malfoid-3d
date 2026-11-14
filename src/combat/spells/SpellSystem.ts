@@ -362,6 +362,8 @@ export class SpellSystem implements Reflector {
       if (def.slow && report.result === 'hit' && !report.ko) t.slow?.(def.slow.factor, def.slow.duration);
       if (def.confuse && report.result === 'hit' && !report.ko) t.confuse?.(def.confuse.duration);
       this.emit({ type: 'hit', spell: def, target: t, direct: true, report, at: at.clone(), disarmed });
+      // a copy (Illusio): it only pops; the blast goes nowhere else (never into the caster)
+      if (t.illusion) return;
     }
     // splash: everyone else inside the blast and not shielded by a wall, once each
     for (const t of this.world.targets) {
