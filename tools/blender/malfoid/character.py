@@ -176,9 +176,7 @@ PROFILES = {
         'lashes': 'brown',                   # long and natural (atlas: "long, natural")
         'hide_nose_mark': True,
         'scalp': (214, 190, 140),            # pale golden root tone
-        # light freckles across the bridge of the nose and the cheeks (atlases): fainter and
-        # fewer than Ginny's
-        'freckles': {'colour': (0xd6, 0x98, 0x7c), 'count': 90, 'seed': 13, 'size': (3.5, 6.0), 'alpha': (0.20, 0.38)},
+        'freckles': None,                    # no freckles (on request)
         'face_keys': (),                     # the base face as authored: soft and oval (atlas)
         # dreamy and serene: the lids lowered a touch, the outer brows lifted a little (a far-away
         # look), a faint soft smile

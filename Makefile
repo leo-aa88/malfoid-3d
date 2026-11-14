@@ -109,7 +109,7 @@ $(SUSAN_GLB) $(SUSAN_BLEND) &: $(SUSAN_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-as
 		--stage 5 --save $(SUSAN_BLEND) --glb $(SUSAN_GLB)
 
 # Luna: MF_CHAR=luna (Ravenclaw uniform and crest, pale golden half-up hair with a dusty blue
-# ribbon, radish earrings, light freckles)
+# ribbon, radish earrings)
 $(LUNA_TEX) &: tools/textures/make_textures.py tools/textures/make_crest_ravenclaw.py tools/blender/malfoid/character.py | check-assets
 	MF_CHAR=luna $(PYTHON) tools/textures/make_textures.py
 	$(PYTHON) tools/textures/make_crest_ravenclaw.py build/textures/Luna_Crest.png

@@ -28,7 +28,7 @@ not a Blender render. Her character and facial atlases stay local (`/Luna/` in `
   - The two loose braids aren't modelled: the half-up gather stands in for where they meet.
 - **Eyes:** lavender-blue, from the pack's blue-grey iris nudged towards violet. A first pass
   was too saturated once toon-shaded.
-- **Face:** light freckles, pale brows, the base face as authored. Her resting face is dreamy:
+- **Face:** no freckles (on request; the atlases draw light ones), pale brows, the base face as authored. Her resting face is dreamy:
   lids lowered a touch, outer brows raised, a faint smile.
 - **Radish earrings:** a new style in `earrings.py`: a gold hook, three leaves, and a pink-red
   root tapering to a white tip, about 2.5 cm. A first pass at 1.3 cm read as a dark dot, the toon
