@@ -234,7 +234,10 @@ async function start(): Promise<void> {
   let mySpells: ReadonlySet<SpellId> = ALL_SPELLS;
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
   const refreshSpells = () => {
-    mySpells = mode === 'campaign' ? campaign.spells : ALL_SPELLS;
+    // practice: every spell but the one this opponent teaches (no Expelliarmus against Ginny)
+    const own = CAMPAIGN.find((o) => o.id === opp.def.id)?.reward;
+    mySpells = mode === 'campaign' ? campaign.spells
+      : mode === 'practice' ? new Set([...ALL_SPELLS].filter((s) => s !== own)) : ALL_SPELLS;
     hud.showSpell('confringo', true);
     hud.showSpell('expelliarmus', mySpells.has('expelliarmus'));
     helpExpelliarmus.hidden = !mySpells.has('expelliarmus');

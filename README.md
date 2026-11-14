@@ -26,8 +26,8 @@ The start screen offers three modes:
 
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
-- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell and
-  no opening lines. **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as
+- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell
+  except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines. **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as
   coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, ...) with **3 lives** for the whole run:
@@ -105,8 +105,8 @@ above all repeated Confringos. See `docs/cho/REPORT.md`.
 
 ## Expelliarmus (P)
 
-Malfoid learns Ginny's Disarming Charm by beating her in the campaign (in training and practice
-she always has it; in the campaign, never against Ginny herself). A red bolt: 4 damage, a
+Malfoid learns Ginny's Disarming Charm by beating her in the campaign. In training she always
+has it, in practice against anyone but Ginny, and never against Ginny herself. A red bolt: 4 damage, a
 stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
 from Confringo's, and its own slot in the HUD. A disarmed opponent runs back to her wand and
 picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.ts`.
