@@ -49,6 +49,8 @@ export interface OpponentDef {
   protego?: boolean;
   /** m between the fighters when a duel starts */
   startDistance: number;
+  /** where she is fought */
+  arena: 'woods' | 'pitch';
   lines: DuelLines;
   faces: OpponentFaces;
   /** her health bar in the HUD */
@@ -65,6 +67,7 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     spell: EXPELLIARMUS,
     look: EXPELLIARMUS_LOOK,
     startDistance: 3.6,
+    arena: 'woods',
     lines: GINNY_LINES,
     faces: { start: 'confident', attack: 'determined', retreat: 'frustrated', disarmedFoe: 'teasing', win: 'happy' },
     hudColour: '#c7492a',
@@ -81,6 +84,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     protego: true,
     // she fights from range: the duel starts inside her preferred distance
     startDistance: 5.0,
+    // the Ravenclaw seeker on the Quidditch Pitch: room for her to circle and dodge
+    arena: 'pitch',
     // she opens the exchange, Malfoid answers (campaign; practice goes straight to the fight)
     lines: CHO_LINES,
     faces: { start: 'determined', attack: 'determined', retreat: 'worried', disarmedFoe: 'amused', shielded: 'determined',

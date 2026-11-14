@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { CameraLimit } from '../scene/arena';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 /** what the camera follows each frame */
@@ -90,6 +91,9 @@ export class CameraController {
     return out.set(mid.x - rx * halfW * HUD_SHIFT, mid.y, mid.z - rz * halfW * HUD_SHIFT);
   }
 
+  /** an arena's limit on where the camera may stand (the pitch's stands); null: anywhere */
+  limit: CameraLimit | null = null;
+
   /** cut straight to the side-on view of two fighters (a duel starts) */
   frame(a: THREE.Vector3, b: THREE.Vector3): void {
     const dx = b.x - a.x;
@@ -97,10 +101,15 @@ export class CameraController {
     const sep = Math.hypot(dx, dz);
     const line = Math.atan2(dx, dz);
     const dist = THREE.MathUtils.clamp(sep * 1.15 + 2.6, 3.6, 16);
-    const yaw = line - Math.PI / 2;          // a on the left, b on the right
+    let yaw = line - Math.PI / 2;            // a on the left, b on the right
+    // ...unless that side is in an arena's stands: watch from the open side
+    const mx = a.x + dx / 2, mz = a.z + dz / 2;
+    if (this.limit && !this.limit.inside(mx + Math.sin(yaw) * dist * 0.9, mz + Math.cos(yaw) * dist * 0.9)
+        && this.limit.inside(mx - Math.sin(yaw) * dist * 0.9, mz - Math.cos(yaw) * dist * 0.9)) yaw += Math.PI;
     this.duelTarget(new THREE.Vector3(a.x + dx / 2, a.y + this.initialTargetHeight, a.z + dz / 2), yaw, dist, this.controls.target);
     const h = this.initialOffset.y / this.initialOffset.length();
     this.camera.position.set(Math.sin(yaw) * dist, h * dist, Math.cos(yaw) * dist).add(this.controls.target);
+    this.limit?.clamp(this.camera.position, this.controls.target);
     this.lastAnchor.copy(a);
     this.sinceUser = 99;
     this.controls.update();
@@ -155,6 +164,13 @@ export class CameraController {
       wantYaw = Math.abs(angDiff(a, yaw)) < Math.abs(angDiff(b, yaw)) ? a : b;
       rate = DUEL_RATE;
       const wantDist = THREE.MathUtils.clamp(sep * 1.15 + 2.6, 3.6, 16);
+      // near the edge of an arena: watch from the side that has room (not from inside the stands)
+      if (this.limit) {
+        const mx = (anchor.x + f.other.x) / 2, mz = (anchor.z + f.other.z) / 2;
+        const room = (w: number) => this.limit!.inside(mx + Math.sin(w) * wantDist * 0.9, mz + Math.cos(w) * wantDist * 0.9);
+        const other = wantYaw === a ? b : a;
+        if (!room(wantYaw) && room(other)) wantYaw = other;
+      }
       this.duelTarget(this.want.set(anchor.x + dx / 2, anchor.y + this.initialTargetHeight, anchor.z + dz / 2), wantYaw, wantDist, this.want);
       const k = 1 - Math.exp(-3.0 * dt);
       t.lerp(this.want, k);
@@ -181,6 +197,7 @@ export class CameraController {
       this.offset.z = Math.cos(yaw) * h;
     }
     this.camera.position.copy(t).add(this.offset);
+    this.limit?.clamp(this.camera.position, t);
   }
 
   /** horizontal direction from the target to the camera (rad): makes WASD camera-relative */

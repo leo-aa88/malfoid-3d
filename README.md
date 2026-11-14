@@ -42,9 +42,16 @@ The start screen offers three modes:
   it; starting a new run while one is in progress takes a second click. Rules and lives are in
   `src/game/campaign.ts`.
 
-Practice and the campaign are fought in the **Forbidden Woods**, an infinite procedural forest
-that streams in chunks around the player, with no walls. See `src/scene/forest/` and
-`docs/forest/REPORT.md`; all values are in `src/scene/forest/config.ts`.
+Each opponent has her arena:
+
+- **Forbidden Woods** (Ginny): an infinite procedural forest that streams in chunks around the
+  player, with no walls. See `src/scene/forest/` and `docs/forest/REPORT.md`; all values are in
+  `src/scene/forest/config.ts`.
+- **Quidditch Pitch** (Cho): a finite, bounded stadium generated in code. An oval grass field
+  with mown stripes and chalk lines, six goal hoops, timber grandstands with house canopies and
+  banners, twelve house towers, and hills, trees and the castle beyond, in daylight. The fighters
+  stay inside a low barrier at the foot of the stands, spells burst on it, and the camera stays
+  on the pitch. See `docs/pitch/REPORT.md`; all values are in `src/scene/pitch/config.ts`.
 
 ## Opponents
 
@@ -259,8 +266,13 @@ Screenshots from the viewer are in `docs/confringo/`.
   grip, and the tip emitter.
 - `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
 - `camera/CameraController.ts` – the follow camera (behind her, side-on in a duel, speaker
-  close-ups); `scene/SceneManager.ts` – lights, shadows, the studio / woods environments;
-  `scene/forest/` – the Forbidden Woods.
+  close-ups); `scene/SceneManager.ts` – lights, shadows, the studio / arena lighting;
+  `scene/arena.ts` – what the duel needs from an arena (spawn, light, collision, spell solids,
+  camera limit); `scene/forest/` – the Forbidden Woods (`ForestArena.ts` adapts it);
+  `scene/pitch/` – the Quidditch Pitch (`config.ts` the tunables, `structures.ts` the towers,
+  grandstands, hoops and barrier, `landscape.ts` the land, castle and sky, `textures.ts` the
+  generated cloth and ground textures with the baked shadows, `PitchArena.ts` collision,
+  camera limit and light).
 
 ## Tests
 

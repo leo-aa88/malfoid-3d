@@ -491,7 +491,14 @@ export class FighterAI {
           if (this.blocked(dir, 1.2)) this.circleSide = this.circleSide > 0 ? -1 : 1;
           me.move(dir, true);
         } else {
-          me.move(this.dirToOpponent().negate(), false, angle);
+          const back = this.dirToOpponent().negate();
+          // backed up against something (a trunk, the stands' barrier): slip away along it instead
+          if (ev && this.blocked(back, 0.7)) {
+            this.circleSide = this.blocked(new THREE.Vector3(-back.z, 0, back.x), 1.0) ? -1 : 1;
+            this.go('CIRCLE', rand(ev.circleSwitch[0], ev.circleSwitch[1]));
+            break;
+          }
+          me.move(back, false, angle);
         }
         if (this.timer <= 0 || dist > P.castRange[1] || (ev && dist > ev.preferredRange[0] + 0.5)) {
           me.stop();
