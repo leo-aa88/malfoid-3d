@@ -249,6 +249,9 @@ async function start(): Promise<void> {
   const newRunBtns = [...modeEl.querySelectorAll<HTMLButtonElement>('.campaign .levels button')];
   let armed: HTMLButtonElement | null = null;
   let armTimer = 0;
+  // the campaign's order under its title (from the campaign list: it can't drift from it)
+  modeEl.querySelector('.campaign-order')!.textContent =
+    `${CAMPAIGN_LIVES} lives · ${CAMPAIGN.map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
   const refreshMenu = () => {
     const run = campaign.run;
     const next = campaign.opponent;

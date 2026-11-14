@@ -77,3 +77,14 @@ test('a stored run is read safely', () => {
   assert.equal(c.win().learned, 'expelliarmus');
   c.clear();
 });
+
+test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Voldemort; Susan comes after Cho', async () => {
+  const { CAMPAIGN } = await import('../src/game/campaign');
+  assert.deepEqual(CAMPAIGN.map((o) => o.id), ['ginny', 'cho', 'susan', 'luna', 'hermione', 'harry', 'bellatrix', 'voldemort']);
+  const c = new Campaign(new MemoryStore());
+  c.start('easy');
+  c.win();
+  const r = c.win();                                   // Cho beaten
+  assert.equal(r.next?.name, 'Susan Bones');
+  assert.equal(r.next?.playable, false, 'not in the game yet');
+});

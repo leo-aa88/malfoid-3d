@@ -64,4 +64,4 @@ it becomes particularly valuable in the later Bellatrix and Voldemort battles.
 ## What the game has today
 
 - **Spell rewards:** Ginny teaches Expelliarmus. Cho teaches nothing yet, because Malfoid's Protego is not built.
-- **Campaign order:** the order in the code (`src/game/campaign.ts`) is still the earlier six-opponent one, without Susan and Voldemort. Updating it is a code change for a later PR.
+- **Campaign order:** the game follows the order above (`src/game/campaign.ts`). After Cho, the campaign shows Susan Bones as the next duel, marked coming soon.

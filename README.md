@@ -28,10 +28,10 @@ The start screen offers three modes:
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with every spell
-  except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines. **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as
-  coming soon.
+  except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines.
+  **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
-  (Ginny, then Cho, ...) with **3 lives** for the whole run:
+  (Ginny, then Cho, then Susan Bones, ...) with **3 lives** for the whole run:
   - a win teaches Malfoid the opponent's spell and moves on to the next opponent;
   - a loss costs a life and the same opponent is fought again;
   - with no lives left it's **game over**: the run starts again from Ginny, at the difficulty
@@ -61,8 +61,8 @@ The campaign, in order (the planned roster; see the status column for what is in
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
 | 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |
 
-The campaign in the game still follows the earlier six-opponent order (`src/game/campaign.ts`),
-without Susan or Voldemort.
+The game follows this order (`src/game/campaign.ts`): after Cho, the campaign shows Susan Bones as
+the next duel (coming soon).
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
@@ -112,8 +112,8 @@ above all repeated Confringos. See `docs/cho/REPORT.md`.
 ## Expelliarmus (P)
 
 Malfoid learns Ginny's Disarming Charm by beating her in the campaign. In training she always
-has it, in practice against anyone but Ginny, and never against Ginny herself. A red bolt: 4 damage, a
-stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
+has it, in practice against anyone but Ginny, and never against Ginny herself. A red bolt: 4
+damage, a stagger, and the target's wand knocked out of her hand. It has its own 8 s cooldown, separate
 from Confringo's, and its own slot in the HUD. A disarmed opponent runs back to her wand and
 picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.ts`.
 
