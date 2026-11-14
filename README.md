@@ -113,7 +113,8 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
 
 ## How a duel runs
 
-- **Opening lines (campaign):** Malfoid speaks, then her opponent replies, each in a close-up.
+- **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
+  speaks first, against Cho, Cho does.
   Nobody can move or attack until **DUEL!** appears. Practice goes straight to the fight.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
   to recover, an opening for either side. In practice, **G** (or the HUD button) restarts it.
@@ -243,7 +244,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   (driven by `audio/envelope.ts`, the lines' loudness over time).
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
-  for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, footsteps timed to
+  for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, Protego's hum while
+  Cho's shield is up, footsteps timed to
   the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
   the game just runs without it.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.

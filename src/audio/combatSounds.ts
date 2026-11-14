@@ -25,6 +25,8 @@ const RELEASE_SOUND: Record<string, { id: 'expelliarmus'; rate: number; volume: 
   stupefy: { id: 'expelliarmus', rate: 1.3, volume: 0.7 },
   ventus: { id: 'expelliarmus', rate: 0.55, volume: 0.6 },
 };
+/** Protego's hum while the shield is up (a steady, loud sound: quieter than the one-shot spells) */
+const SHIELD = { volume: 0.5, rate: 1.0 };
 /** at most one grunt per fighter in this long (s); fast combos don't stack them */
 const GRUNT_GAP = 0.35;
 /** light hits grunt this often; heavy ones always */
@@ -50,6 +52,8 @@ export interface SoundFighter {
   char: Malfoid;
   combat: ComboSystem;
   spells: SpellSystem;
+  /** her Protego, if she has one: it hums while it is up */
+  protego?: { readonly up: boolean } | null;
 }
 
 export interface CombatSoundRefs {
@@ -131,11 +135,27 @@ export function connectCombatSounds(sfx: Sfx, r: CombatSoundRefs): CombatSounds 
     sfx.play('step', { at: at.copy(m.position).setY(0.1), volume: s.volume, rate: s.rate * (1 + (Math.random() * 2 - 1) * STEP.rateJitter) });
   };
 
+  // Protego: the hum starts as the shield goes up and fades out as it comes down (a reset or
+  // the end of the duel lowers it too)
+  const hums = new Map<SoundFighter, { stop(): void } | null>();
+  const shields = () => {
+    for (const o of r.opponents) {
+      const up = !!o.protego?.up && o.char.root.visible;
+      const hum = hums.get(o) ?? null;
+      if (up && !hum) hums.set(o, sfx.play('protego', { at: o.char.position.clone().setY(1.2), volume: SHIELD.volume, rate: SHIELD.rate }) ?? { stop() {} });
+      else if (!up && hum) {
+        hum.stop();
+        hums.set(o, null);
+      }
+    }
+  };
+
   return {
     update(dt) {
       clock += dt;
       steps(r.malfoid);
       for (const o of r.opponents) steps(o.char);
+      shields();
     },
   };
 }

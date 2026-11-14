@@ -10,10 +10,12 @@ import { loudnessEnvelope } from './envelope';
 
 const BASE = import.meta.env.BASE_URL;
 
-type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'walking'
-  | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win';
-const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'walking',
-  'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win'];
+type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
+  | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
+  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win';
+const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
+  'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
+  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -40,6 +42,8 @@ export const BANKS = {
   confringo: [slice('confringo', 0.10, 2.40)],
   // Expelliarmus bursts at once: played at the release
   expelliarmus: [slice('expelliarmus', 0.0, 1.62)],
+  // Protego's hum (steady for 2 s, longer than the shield ever stays up): played while it is up
+  protego: [slice('protego', 0.0, 99)],
   // single clean footsteps (the file's double scuffs and faint ones left out), levelled to one loudness
   step: [slice('walking', 2.31, 2.59, 1.15), slice('walking', 6.97, 7.17, 0.8), slice('walking', 8.75, 9.02, 0.97),
     slice('walking', 10.52, 10.78, 1.05), slice('walking', 11.465, 11.70, 0.94), slice('walking', 14.135, 14.41, 1.35),
@@ -49,6 +53,11 @@ export const BANKS = {
   ginnyOpening: [slice('ginny_opening', 0, 99)],
   malfoidWin: [slice('malfoid_win', 0, 99)],
   ginnyWin: [slice('ginny_win', 0, 99)],
+  // the duel against Cho (she speaks first)
+  choOpening: [slice('cho_opening', 0, 99)],
+  malfoidOpening2: [slice('malfoid_opening2', 0, 99)],
+  malfoidWin2: [slice('malfoid_win2', 0, 99)],
+  choWin: [slice('cho_win', 0, 99)],
 } as const;
 export type SoundId = keyof typeof BANKS;
 

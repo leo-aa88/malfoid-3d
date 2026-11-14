@@ -51,6 +51,13 @@ export interface DuelLines {
   opponentWin: SoundId | null;
 }
 
+/** Cho's duel: Cho speaks first, Malfoid replies; a line for each winner */
+export const CHO_LINES: DuelLines = {
+  intro: [{ who: 'opponent', id: 'choOpening' }, { who: 'malfoid', id: 'malfoidOpening2' }],
+  malfoidWin: 'malfoidWin2',
+  opponentWin: 'choWin',
+};
+
 /** Ginny's duel: Malfoid's opening line, Ginny's reply, a line for each winner */
 export const GINNY_LINES: DuelLines = {
   intro: [{ who: 'malfoid', id: 'malfoidOpening' }, { who: 'opponent', id: 'ginnyOpening' }],

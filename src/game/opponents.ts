@@ -6,7 +6,7 @@ import type { SpellLook } from '../combat/spells/ConfringoFx';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from '../combat/spells/Expelliarmus';
 import { STUPEFY, STUPEFY_LOOK } from '../combat/spells/Stupefy';
 import { VENTUS } from '../combat/spells/Ventus';
-import { DuelLines, GINNY_LINES } from '../audio/duelVoices';
+import { CHO_LINES, DuelLines, GINNY_LINES } from '../audio/duelVoices';
 
 /*
  * The opponents Malfoid can duel, and everything that differs between them: model, faces,
@@ -81,8 +81,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     protego: true,
     // she fights from range: the duel starts inside her preferred distance
     startDistance: 5.0,
-    // no recordings for Cho yet (cho_opening / cho_win): her duel starts at once, no win lines
-    lines: { intro: [], malfoidWin: null, opponentWin: null },
+    // she opens the exchange, Malfoid answers (campaign; practice goes straight to the fight)
+    lines: CHO_LINES,
     faces: { start: 'determined', attack: 'determined', retreat: 'worried', disarmedFoe: 'amused', shielded: 'determined',
       parried: 'amused', win: 'cheerful', lose: 'sad' },
     hudColour: '#3d64b0',
