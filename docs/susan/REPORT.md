@@ -97,7 +97,7 @@ The effects are additive meshes and particles with no lights:
 Effect pools are shared through the existing `ConfringoFx` / `SpellLook`.
 
 Impedimenta has its own sound, a soft swell from the cast's start that peaks just after the bolt
-leaves, and Episkey a bright swell the moment she heals. Depulso still borrows Ventus's (never Expelliarmus's, which means a disarm). She has no voice lines yet, so her duel goes straight to the fight with no win lines.
+leaves, and Episkey a bright swell the moment she heals. Depulso still borrows Ventus's (never Expelliarmus's, which means a disarm). Her campaign duel opens with Malfoid's line, then Susan's reply; each has a win line.
 
 ## Her AI
 
@@ -192,7 +192,7 @@ guard, Episkey amount, HP.
 
 - **Malfoid's Episkey** (the reward for beating her) is not built, so the campaign reward is
   empty for now. (Cho's Protego is now taught: see the README controls.)
-- **No voice lines**, and Depulso's sound is borrowed from Ventus.
+- Depulso's sound is borrowed from Ventus.
 - **Hair:**
   - she has no wispy fringe, only the pack's hairline with an off-centre part; after Cho's
     rejected fringe, none was added;

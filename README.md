@@ -151,7 +151,8 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
   and she is pushed 40 % less.
 - **More determined, not more aggressive:** below half health her face hardens and she guards
   more.
-- She fights in the Herbology Greenhouse. She has no voice lines yet.
+- She fights in the Herbology Greenhouse. In the campaign Malfoid opens the duel and Susan replies;
+  each has a win line.
 
 | Level | Susan's HP | Episkey | How she fights |
 |---|---|---|---|
@@ -170,7 +171,7 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
 ## How a duel runs
 
 - **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
-  speaks first, against Cho, Cho does.
+  speaks first, against Cho, Cho does, against Susan, Malfoid does.
   Then **ROUND 1** shows; nobody can move or attack until **DUEL!** appears. Practice goes
   straight to the fight.
 - **Rounds (campaign):** a round lost or won short of the match is announced (**GINNY WINS
