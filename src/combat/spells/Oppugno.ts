@@ -241,7 +241,7 @@ const BIRD_LOOK = {
   body: '#f2c53a',
   wing: '#ffe17a',
   beak: '#e8792a',
-  scale: 1.0,            // the bird is ~16 cm from beak to tail
+  scale: 1.5,            // the bird is ~24 cm from beak to tail (at 16 cm the flock read as specks at duel distance)
   flap: 18,              // rad/s wing beat
   flapAngle: 0.9,        // rad either way
 };

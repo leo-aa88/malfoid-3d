@@ -137,9 +137,10 @@ export const LUNA_FACES: Record<string, Weights> = {
   pleased: { 'にこり': 0.6, mouthSmileLeft: 0.45, mouthSmileRight: 0.45, 'vrc.blink_Straight': 0.2, blush: 0.15 },
   // "Amused (gentle laugh)": eyes eased shut in arcs, an open smile
   amused: { 'なごみ': 0.85, 'ワ': 0.35, mouthSmileLeft: 0.55, mouthSmileRight: 0.55, 'vrc.blink_Straight': 0, blush: 0.2 },
-  // "Excited (bright, open)": wide bright eyes, a big open smile
-  excited: { Excited: 0.7, 'ワ': 0.5, jawOpen: 0.12, eyeWideLeft: 0.2, eyeWideRight: 0.2, 'vrc.blink_Straight': 0,
-    browOuterUpLeft: 0.45, browOuterUpRight: 0.45 },
+  // "Excited (bright, open)": wide bright eyes, a big open smile (from the open smile: the pack's
+  // Excited key opened the mouth into a round shout)
+  excited: { Smile2: 0.75, 'ワ': 0.35, jawOpen: 0.06, mouthSmileLeft: 0.4, mouthSmileRight: 0.4, eyeWideLeft: 0.25,
+    eyeWideRight: 0.25, 'vrc.blink_Straight': 0, browOuterUpLeft: 0.45, browOuterUpRight: 0.45, blush: 0.15 },
   cheerful: { Smile2: 1.0, 'ワ': 0.45, jawOpen: 0.1, 'vrc.blink_Straight': 0, blush: 0.2 },
   // "Surprised (eyes widened, open)"
   surprised: { ...noSmileLuna, 'びっくり': 0.8, jawOpen: 0.25, mouthFunnel: 0.4, browInnerUp: 0.6, browOuterUpLeft: 0.7,
