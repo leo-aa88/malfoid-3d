@@ -183,7 +183,7 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
   over.
 - **Dobby:** now and then, when a duellist is stunned (a stagger: Stupefy, Expelliarmus, a
   combo's stunning blow), Dobby peeks up from the bottom-right corner with a "Toasty!", as in the
-  classic arcade fighters. The chance is 5 % per stun, with at least 60 s of game time between
+  classic arcade fighters. The chance is 10 % per stun, with at least 60 s of game time between
   appearances. Susan's Resolve turns a stagger into a flinch, so she never brings him. The
   settings are in `src/ui/DobbyCameo.ts` ([screenshot](docs/dobby/cameo.png)).
 - **Lip movement:** the speakers' mouths open and close with the loudness of their lines

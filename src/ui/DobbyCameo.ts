@@ -7,7 +7,7 @@
 
 export const CAMEO = {
   /** chance (0..1) that a stun brings him on */
-  chance: 0.05,
+  chance: 0.10,
   /** s of game time after an appearance before he can come again */
   cooldown: 60,
   /** s: rising into the corner, staying (the voice says its line meanwhile), dropping away */
