@@ -118,7 +118,7 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
   Nobody can move or attack until **DUEL!** appears. Practice goes straight to the fight.
 - **The fight:** first to 0 HP loses. A strike blocked by a fighter leaves the attacker slow
   to recover, an opening for either side. In practice, **G** (or the HUD button) restarts it.
-- **The last word:** the winner says her line after the KO. In the campaign the result follows:
+- **The last word (campaign):** the winner says her line after the KO, then the result follows:
   the spell learned and the next opponent, the lives left, or game over.
 - **Lip movement:** the speakers' mouths open and close with the loudness of their lines
   (`audio/duelVoices.ts`).

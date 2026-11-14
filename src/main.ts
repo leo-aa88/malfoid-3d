@@ -214,7 +214,8 @@ async function start(): Promise<void> {
     }
     if (winner === opp.char) opp.char.setExpression(opp.def.faces.win, 4);
     else if (opp.def.faces.lose) opp.char.setExpression(opp.def.faces.lose, 99);
-    voices.win(winner);
+    // the winner's line: the campaign only (practice has no voice lines, like no opening lines)
+    if (mode === 'campaign') voices.win(winner);
   };
   malfoidTarget.onDefeated = () => finish(opp.char);
 
