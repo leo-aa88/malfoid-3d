@@ -51,15 +51,17 @@ export class PitchArena implements Arena {
     const solidMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: grad });
     const woodMesh = new THREE.Mesh(wood.build()!, solidMat);
     woodMesh.name = 'pitch_structures';
-    woodMesh.castShadow = true;                                   // onto the fighters when they stand close
+    // the stands and towers shade the grass, each other and the fighters (the sun's shadow
+    // covers the stadium here); the cloth too (its alpha cut-outs included)
+    woodMesh.castShadow = woodMesh.receiveShadow = true;
     const clothMesh = new THREE.Mesh(cloth.build()!, new THREE.MeshToonMaterial({ map: clothAtlas(), gradientMap: grad,
       alphaTest: 0.5, side: THREE.DoubleSide }));
     clothMesh.name = 'pitch_cloth';
-    // ground: the generated texture over the stadium, the shadows of the stands baked in
-    const sun = new THREE.Vector3(...cfg.sunOffset).normalize();
+    clothMesh.castShadow = clothMesh.receiveShadow = true;
+    // ground: the generated texture over the stadium (shaded by the sun's real shadow)
     const { halfX, halfZ } = groundExtent(cfg);
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * halfX, 2 * halfZ),
-      new THREE.MeshLambertMaterial({ map: groundTexture(cfg, built.occluders, sun) }));
+      new THREE.MeshLambertMaterial({ map: groundTexture(cfg) }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     ground.name = 'pitch_ground';
@@ -112,6 +114,7 @@ export class PitchArena implements Arena {
       keyOffset: c.sunOffset,
       rim: [c.rimColour, c.rimIntensity],
       cameraFar: c.landRadius * 1.1,
+      shadow: { centre: [0, 0, 0], halfSize: c.shadowHalfSize, mapSize: c.shadowMapSize, bias: c.shadowBias, normalBias: c.shadowNormalBias },
     };
   }
 

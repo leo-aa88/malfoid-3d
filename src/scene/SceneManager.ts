@@ -11,7 +11,17 @@ export interface EnvironmentLook {
   keyOffset: [number, number, number];    // key light (sun / moon) direction from the player
   rim: [string, number];
   cameraFar: number;
+  /**
+   * the sun's shadow over a fixed area (a finite arena): its centre (m), the half size of the
+   * square it covers (m) and the shadow map's size (texels). Omitted: the default small,
+   * sharp shadow that follows the character.
+   */
+  shadow?: { centre: [number, number, number]; halfSize: number; mapSize: number; bias: number; normalBias: number };
 }
+
+/** the key light's own shadow: small and sharp, following the character (studio, woods) */
+const DEFAULT_SHADOW = { mapSize: 2048, frustum: [-1.6, 1.6, 2.2, -0.4, 0.5, 12] as [number, number, number, number, number, number],
+  bias: -0.0004, normalBias: 0.02 };
 
 /** the original test scene */
 export const STUDIO_LOOK: EnvironmentLook = {
@@ -36,6 +46,9 @@ export class SceneManager {
   readonly studio = new THREE.Group();
   environment: EnvironmentKind = 'studio';
   private readonly keyOffset = new THREE.Vector3(2.2, 4.0, 3.0);
+  /** a fixed shadow area (an arena's look), or null: the shadow follows the character */
+  private shadowCentre: THREE.Vector3 | null = null;
+  private readonly v = new THREE.Vector3();
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -58,11 +71,11 @@ export class SceneManager {
     this.keyLight = new THREE.DirectionalLight('#fff6ee', 1.5);
     this.keyLight.position.set(2.2, 4.0, 3.0);
     this.keyLight.castShadow = true;
-    this.keyLight.shadow.mapSize.set(2048, 2048);
+    this.keyLight.shadow.mapSize.set(DEFAULT_SHADOW.mapSize, DEFAULT_SHADOW.mapSize);
     const c = this.keyLight.shadow.camera;
-    c.left = -1.6; c.right = 1.6; c.top = 2.2; c.bottom = -0.4; c.near = 0.5; c.far = 12;
-    this.keyLight.shadow.bias = -0.0004;
-    this.keyLight.shadow.normalBias = 0.02;
+    [c.left, c.right, c.top, c.bottom, c.near, c.far] = DEFAULT_SHADOW.frustum;
+    this.keyLight.shadow.bias = DEFAULT_SHADOW.bias;
+    this.keyLight.shadow.normalBias = DEFAULT_SHADOW.normalBias;
     this.scene.add(this.keyLight, this.keyLight.target);
     this.rimLight = new THREE.DirectionalLight('#cfe8ff', 0.8);
     this.rimLight.position.set(-2.5, 2.5, -3);
@@ -101,12 +114,40 @@ export class SceneManager {
     this.rimLight.intensity = look.rim[1];
     this.camera.far = look.cameraFar;
     this.camera.updateProjectionMatrix();
+    this.setShadow(look.shadow ?? null);
   }
 
-  /** keep the shadow frustum (and the rim light) centred on the character */
+  /** the key light's shadow: a fixed area (an arena), or the default that follows the character */
+  private setShadow(s: EnvironmentLook['shadow'] | null): void {
+    const sh = this.keyLight.shadow;
+    const c = sh.camera;
+    const size = s ? s.mapSize : DEFAULT_SHADOW.mapSize;
+    if (sh.mapSize.x !== size) {
+      sh.mapSize.set(size, size);
+      sh.map?.dispose();
+      sh.map = null;                                     // reallocated at the new size on the next render
+    }
+    if (s) {
+      c.left = -s.halfSize; c.right = s.halfSize; c.top = s.halfSize; c.bottom = -s.halfSize;
+      c.near = 1; c.far = s.halfSize * 4;
+      sh.bias = s.bias;
+      sh.normalBias = s.normalBias;
+      this.shadowCentre = new THREE.Vector3(...s.centre);
+    } else {
+      [c.left, c.right, c.top, c.bottom, c.near, c.far] = DEFAULT_SHADOW.frustum;
+      sh.bias = DEFAULT_SHADOW.bias;
+      sh.normalBias = DEFAULT_SHADOW.normalBias;
+      this.shadowCentre = null;
+    }
+    c.updateProjectionMatrix();
+  }
+
+  /** keep the shadow frustum (and the rim light) centred on the character (or on its fixed area) */
   followShadow(target: THREE.Vector3): void {
-    this.keyLight.target.position.copy(target);
-    this.keyLight.position.copy(target).add(this.keyOffset);
+    const at = this.shadowCentre ?? target;
+    this.keyLight.target.position.copy(at);
+    // (a fixed area: the light stands far back along the sun's direction, so the whole arena fits)
+    this.keyLight.position.copy(at).add(this.shadowCentre ? this.v.copy(this.keyOffset).setLength(this.keyLight.shadow.camera.far / 2) : this.keyOffset);
     this.rimLight.target.position.copy(target);
     this.rimLight.position.set(target.x - 2.5, target.y + 2.5, target.z - 3);
   }

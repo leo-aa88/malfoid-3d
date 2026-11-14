@@ -88,13 +88,6 @@ export class Kit {
   }
 }
 
-/** a box the sun's rays can hit, for the shadows baked into the ground (world, turned yaw about +y) */
-export interface Occluder {
-  centre: THREE.Vector3;
-  half: THREE.Vector3;
-  yaw: number;
-}
-
 /** small deterministic colour jitter: c scaled by 1 +- amount */
 export function jitter(base: string, rand: () => number, amount = 0.12): THREE.Color {
   return new THREE.Color(base).multiplyScalar(1 - amount + 2 * amount * rand());

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { HOUSES, HOUSE_ORDER, House, PitchConfig } from './config';
-import { Kit, Occluder, jitter } from './kit';
+import { Kit, jitter } from './kit';
 import { clothCell } from './textures';
 import { rng } from '../forest/random';
 
@@ -54,7 +54,6 @@ export class Ring {
 }
 
 export interface Built {
-  occluders: Occluder[];
   /** solid posts inside the play area (the hoops): centre and radius (m) */
   posts: { x: number; z: number; r: number; h: number }[];
 }
@@ -62,7 +61,6 @@ export interface Built {
 /** everything round the oval: towers, grandstands, the barrier, the hoops */
 export function buildStadium(cfg: PitchConfig, wood: Kit, cloth: Kit): Built {
   const rand = rng(cfg.seed * 7919 + 13);
-  const occluders: Occluder[] = [];
   const A = cfg.fieldHalfLength + cfg.apron;
   const B = cfg.fieldHalfWidth + cfg.apron;
   const ring = new Ring(A, B);
@@ -74,21 +72,21 @@ export function buildStadium(cfg: PitchConfig, wood: Kit, cloth: Kit): Built {
     const house = HOUSE_ORDER[i % 4];
     const t = ring.at(start + i * step);
     const height = cfg.towerBoxHeight + (rand() * 2 - 1) * cfg.towerHeightJitter;
-    tower(cfg, wood, cloth, t.p.clone().addScaledVector(t.n, hw), t.yaw, house, height, rand, occluders);
+    tower(cfg, wood, cloth, t.p.clone().addScaledVector(t.n, hw), t.yaw, house, height, rand);
     // the grandstand to the next tower, coloured by the tower before it
     const s0 = start + i * step + hw + 0.6;
     const s1 = start + (i + 1) * step - hw - 0.6;
-    grandstand(cfg, wood, cloth, ring, s0, s1, house, rand, occluders);
+    grandstand(cfg, wood, cloth, ring, s0, s1, house, rand);
   }
   barrier(cfg, wood, rand);
-  const posts = hoops(cfg, wood, occluders);
-  return { occluders, posts };
+  const posts = hoops(cfg, wood);
+  return { posts };
 }
 
 // --- house tower ---------------------------------------------------------------------------
 
 function tower(cfg: PitchConfig, wood: Kit, cloth: Kit, origin: THREE.Vector3, yaw: number, house: House, H: number,
-  rand: () => number, occ: Occluder[]): void {
+  rand: () => number): void {
   const [, accent, dark] = HOUSES[house];
   wood.setFrame(origin, yaw);
   cloth.setFrame(origin, yaw);
@@ -170,18 +168,12 @@ function tower(cfg: PitchConfig, wood: Kit, cloth: Kit, origin: THREE.Vector3, y
   }
   wood.resetFrame();
   cloth.resetFrame();
-  // shadow casters: the posts, the box and its skirts, the roof
-  const m = new THREE.Matrix4().makeRotationY(yaw).setPosition(origin);
-  const at = (x: number, y: number, z: number) => V(x, y, z).applyMatrix4(m);
-  for (const [sx, sz2] of C) occ.push({ centre: at(sx * (hw + topHw) / 2, roofBase / 2, sz2 * (hw + topHw) / 2), half: V(0.22, roofBase / 2, 0.22), yaw });
-  occ.push({ centre: at(0, H - 1.0, 0), half: V(bw / 2, 2.0, bw / 2), yaw });
-  occ.push({ centre: at(0, roofBase + roofH * 0.3, 0), half: V(bw * 0.38, roofH * 0.3, bw * 0.38), yaw });
 }
 
 // --- grandstand --------------------------------------------------------------------------
 
 function grandstand(cfg: PitchConfig, wood: Kit, cloth: Kit, ring: Ring, s0: number, s1: number, house: House,
-  rand: () => number, occ: Occluder[]): void {
+  rand: () => number): void {
   const p0 = ring.at(s0), p1 = ring.at(s1);
   const L = p0.p.distanceTo(p1.p);
   if (L < 4) return;
@@ -273,10 +265,6 @@ function grandstand(cfg: PitchConfig, wood: Kit, cloth: Kit, ring: Ring, s0: num
   wood.box(sx1 - 0.6, top, sz - 0.3, 1.4, 0.12, 1.6, WOOD.plank);
   wood.resetFrame();
   cloth.resetFrame();
-  const m = new THREE.Matrix4().makeRotationY(yaw).setPosition(origin);
-  occ.push({ centre: V(0, (base + top) / 2, D / 2).applyMatrix4(m), half: V(L / 2, (top - base) / 2 + 0.4, D / 2), yaw });
-  if (cfg.standCanopy) occ.push({ centre: V(0, hc - 0.6, D / 2).applyMatrix4(m), half: V(L / 2, 0.6, D / 2 + 0.4), yaw });
-  occ.push({ centre: V(0, rowY(T) / 2, D).applyMatrix4(m), half: V(L / 2, rowY(T) / 2, 0.15), yaw });
 }
 
 // --- barrier and hoops ---------------------------------------------------------------------
@@ -300,7 +288,7 @@ function barrier(cfg: PitchConfig, wood: Kit, rand: () => number): void {
 }
 
 /** three hoops at each end: tall posts of different heights, brass rings facing the field */
-function hoops(cfg: PitchConfig, wood: Kit, occ: Occluder[]): Built['posts'] {
+function hoops(cfg: PitchConfig, wood: Kit): Built['posts'] {
   const posts: Built['posts'] = [];
   const R = cfg.hoopRadius;
   for (const side of [-1, 1]) {
@@ -313,8 +301,6 @@ function hoops(cfg: PitchConfig, wood: Kit, occ: Occluder[]): Built['posts'] {
       wood.add(new THREE.TorusGeometry(R, cfg.hoopTube, 8, 40), m, cfg.hoopColour);
       wood.add(new THREE.SphereGeometry(0.16, 10, 8), new THREE.Matrix4().setPosition(x, h + R + 0.08, z), cfg.hoopColour);
       posts.push({ x, z, r: 0.22, h });
-      occ.push({ centre: V(x, (h - R) / 2, z), half: V(0.12, (h - R) / 2, 0.12), yaw: 0 });
-      occ.push({ centre: V(x, h, z), half: V(0.1, R, R), yaw: 0 });
     });
   }
   return posts;
