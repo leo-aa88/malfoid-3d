@@ -1,8 +1,9 @@
 # malfoid-3d
 
 An anime-style 3D fighting game in the browser: **Malfoid**, a Slytherin student, duels Harry
-Potter's potential romantic interests one by one, with fists, kicks and spells, then Harry
-himself, and finally faces Bellatrix Lestrange. Built with Three.js + TypeScript + Vite.
+Potter's potential romantic interests (and a Hufflepuff who simply wants her stopped) one by
+one, with fists, kicks and spells, then Harry himself, Bellatrix Lestrange, and finally Lord
+Voldemort. Built with Three.js + TypeScript + Vite.
 
 Like Mega Man, every opponent Malfoid beats in the campaign teaches her a spell: beating Ginny
 teaches her **Expelliarmus**. **Ginny Weasley** and **Cho Chang**, the first two opponents, are
@@ -47,16 +48,21 @@ that streams in chunks around the player, with no walls. See `src/scene/forest/`
 
 ## Opponents
 
-The campaign, in order:
+The campaign, in order (the planned roster; see the status column for what is in the game):
 
-| Order | Opponent | Gameplay focus | Story purpose | Malfoid learns | Status |
+| Stage | Opponent | Combat challenge | Story purpose | Spell unlocked | Status |
 |---|---|---|---|---|---|
-| 1 | Ginny Weasley | Melee, Expelliarmus | Establish the romantic rivalry | Expelliarmus | playable |
-| 2 | Cho Chang | Evasion, fast counterattacks | Another romantic rival | – | playable |
-| 3 | Luna Lovegood | Chaotic, unpredictable magic | Comic relief before the darker story | – | planned |
-| 4 | Hermione Granger | Tactical spells, crowd control | Final challenging school duel | – | planned |
-| 5 | Harry Potter | Defensive mastery, Sectumsempra | Scripted defeat; major turning point | – | planned |
-| 6 | Bellatrix Lestrange | Crucio, Imperio, multiple opponents | First genuinely terrifying boss | – | planned |
+| 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
+| 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable (Protego not yet taught) |
+| 3 | Susan Bones | Defence, resilience, healing | The first who ignores the rivalry: she wants Malfoid stopped | Episkey | planned ([design](docs/susan/DESIGN.md)) |
+| 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Confundo | planned |
+| 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
+| 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
+| 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
+| 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |
+
+The campaign in the game still follows the earlier six-opponent order (`src/game/campaign.ts`),
+without Susan or Voldemort.
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
