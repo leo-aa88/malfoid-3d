@@ -29,7 +29,7 @@ The start screen offers three modes:
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with every spell
   except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines.
-  **G** restarts the fight. Ginny or Cho; a Malfoid mirror match is listed as coming soon.
+  **G** restarts the fight. Ginny, Cho or Susan; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...) with **3 lives** for the whole run:
   - a win teaches Malfoid the opponent's spell and moves on to the next opponent;
@@ -61,15 +61,15 @@ The campaign, in order (the planned roster; see the status column for what is in
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable (Protego not yet taught) |
-| 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | planned ([design](docs/susan/DESIGN.md)) |
+| 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Confundo | planned |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
 | 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |
 
-The game follows this order (`src/game/campaign.ts`): after Cho, the campaign shows Susan Bones as
-the next duel (coming soon).
+The game follows this order (`src/game/campaign.ts`): after Susan, the campaign shows Luna
+Lovegood as the next duel (coming soon).
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
@@ -115,6 +115,35 @@ above all repeated Confringos. See `docs/cho/REPORT.md`.
 | Easy | 100 | slow reactions, rarely shields, seldom parries, few counters |
 | Normal | 130 | quicker; shields and counters more, parries now and then |
 | Hard | 170 | sharp reactions, frequent dodges and counters, the best-timed parries |
+
+### Susan Bones
+
+The only Hufflepuff, a defensive duellist: not fast or aggressive, but stubborn and very hard
+to put down. She stands her ground and makes you work for every hit. See `docs/susan/REPORT.md`.
+
+- **Holding her ground:** she waits at middle distance and walks in only when you are far. She
+  guards a lot, holds her guard, and raises it against a spell she sees you cast at her (it
+  stops spells like strikes: chip damage only). No parry and no dodging.
+- **Impedimenta:** a cold blue bolt (4 damage, 6 s) that **slows you to 55 % for 2.5 s**
+  (moving, striking and casting). She uses it when you rush at her. Blue rings at your legs
+  show the slow.
+- **Depulso:** a violet bolt that throws you well back (9 damage, 7 m range, 8 s) when you crowd
+  or attack her.
+- **Punishing a rush:** run straight into her reach and she may strike first.
+- **Episkey:** hurt (below 60 %), she makes room with Depulso or a short run, then heals over
+  1.5 s (a green-gold column). **Any hit that gets through breaks the charm** (she keeps the
+  charge). Chasing her down is the counter.
+- **Hufflepuff Resolve:** a stagger only makes her flinch, a knockdown only knocks her back,
+  and she is pushed 40 % less.
+- **More determined, not more aggressive:** below half health her face hardens and she guards
+  more.
+- She fights on the Quidditch Pitch (open ground for her spells). She has no voice lines yet.
+
+| Level | Susan's HP | Episkey | How she fights |
+|---|---|---|---|
+| Easy | 120 | 2 x 20 HP | slow reactions, guards half the time, seldom answers a rush |
+| Normal | 150 | 2 x 25 HP | quicker; guards and counters more; meets most rushes and spells |
+| Hard | 190 | 3 x 30 HP | sharp reactions, a stubborn guard, real combos, heals more often |
 
 ## Expelliarmus (P)
 
@@ -233,10 +262,15 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/CombatTarget.ts` – what any attack hits; `FighterTarget.ts` – a character as a target
   (health, blocking, reactions, disarm, defeat).
 - `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
-  cast, retrieve her wand; with an evasive style also circle, shield, dodge, counter, push);
+  cast, retrieve her wand; with an evasive style also circle, shield, dodge, counter, push;
+  with a defensive style hold ground, guard against spells, meet a rush, heal);
   `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning of each opponent.
 - `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned);
-  `Stupefy.ts`, `Ventus.ts` (+ its gust effect) – Cho's spells.
+  `Stupefy.ts`, `Ventus.ts` (+ its gust effect) – Cho's spells; `Impedimenta.ts` (the slow),
+  `Depulso.ts` – Susan's.
+- `combat/Episkey.ts` – the healing charm (cast, interruption, charges); `EpiskeyFx.ts` – its look;
+  `SlowFx.ts` – the rings of a slow. `FighterTarget` carries the slow (`timeScale`) and
+  Susan's Hufflepuff Resolve.
 - `combat/Protego.ts` – the shield (timing, perfect window, cooldown); `ProtegoFx.ts` – its look.
   A shield's owner takes over a reflected spell (`SpellSystem.adopt`).
 - `game/opponents.ts` – the opponents as definitions (model, faces, spells, AI per difficulty,
@@ -298,6 +332,7 @@ override with `BLENDER=...`).
 make model        # textures + build/malfoid.blend + public/models/malfoid.glb
 make ginny        # Ginny: build/ginny.blend + public/models/ginny.glb (MF_CHAR=ginny)
 make cho          # Cho: build/cho.blend + public/models/cho.glb (MF_CHAR=cho)
+make susan        # Susan: build/susan.blend + public/models/susan.glb (MF_CHAR=susan)
 make help         # all targets (renders, dev, build, clean, ...)
 ```
 

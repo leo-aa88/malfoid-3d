@@ -1,6 +1,6 @@
 # Susan Bones — the Hufflepuff Bulwark (design)
 
-Campaign stage 3, after Cho Chang. **Status: planned** (design only; nothing of her is built yet).
+Campaign stage 3, after Cho Chang. **Status: playable** (practice and campaign); Malfoid's Episkey (the reward) is not built yet. What was built and how it was checked: [REPORT.md](REPORT.md).
 
 Susan is the roster's defensive specialist: not particularly fast or aggressive, but stubborn,
 disciplined and extremely hard to put down. Ginny pressures you and Cho evades you; Susan stands
@@ -63,5 +63,6 @@ it becomes particularly valuable in the later Bellatrix and Voldemort battles.
 
 ## What the game has today
 
-- **Spell rewards:** Ginny teaches Expelliarmus. Cho teaches nothing yet, because Malfoid's Protego is not built.
-- **Campaign order:** the game follows the order above (`src/game/campaign.ts`). After Cho, the campaign shows Susan Bones as the next duel, marked coming soon.
+- **Spell rewards:** Ginny teaches Expelliarmus. Cho and Susan teach nothing yet, because Malfoid's Protego and Episkey are not built.
+- **Campaign order:** the game follows the order above (`src/game/campaign.ts`). Susan is stage 3; after her the campaign shows Luna Lovegood as the next duel, marked coming soon.
+- **Susan's reward:** beating her teaches nothing yet, because Malfoid's Episkey is not built (Susan's own Episkey is).
