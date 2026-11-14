@@ -163,7 +163,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     // the Ravenclaw common room: her house's tower, under the painted stars
     arena: 'ravenclaw',
     lines: LUNA_LINES,
-    faces: { start: 'dreamy', attack: 'pleased', retreat: 'surprised', disarmedFoe: 'amused', distracted: 'dreamy',
+    // angry at Malfoid through the opening lines (she speaks first), then her dreamy self
+    faces: { start: 'dreamy', intro: 'angry', attack: 'pleased', retreat: 'surprised', disarmedFoe: 'amused', distracted: 'dreamy',
       shielded: 'curious', parried: 'amused', lowHp: 'determined', win: 'cheerful', lose: 'sad' },
     hudColour: '#9a8fc9',
   },

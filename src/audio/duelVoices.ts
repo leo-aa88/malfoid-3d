@@ -65,8 +65,12 @@ export const SUSAN_LINES: DuelLines = {
   opponentWin: 'susanWin',
 };
 
-/** Luna's duel: no recorded lines yet (straight to the fight; no win lines) */
-export const LUNA_LINES: DuelLines = { intro: [], malfoidWin: null, opponentWin: null };
+/** Luna's duel: Luna speaks first (angry at Malfoid), Malfoid replies; a line for each winner */
+export const LUNA_LINES: DuelLines = {
+  intro: [{ who: 'opponent', id: 'lunaOpening' }, { who: 'malfoid', id: 'malfoidOpening4' }],
+  malfoidWin: 'malfoidWin4',
+  opponentWin: 'lunaWin',
+};
 
 /** Ginny's duel: Malfoid's opening line, Ginny's reply, a line for each winner */
 export const GINNY_LINES: DuelLines = {

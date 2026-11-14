@@ -159,9 +159,16 @@ export const LUNA_FACES: Record<string, Weights> = {
   // character atlas "Determined": calm resolve, brows lowered, a steady gaze, lips pressed softly
   determined: { ...noSmileLuna, browDownLeft: 0.55, browDownRight: 0.55, eyeSquintLeft: 0.3, eyeSquintRight: 0.3,
     mouthPressLeft: 0.45, mouthPressRight: 0.45, '真面目': 0.5, browOuterUpLeft: 0, browOuterUpRight: 0 },
+  // angry at Malfoid (her face through the opening lines): brows drawn down hard, eyes narrowed,
+  // the mouth set in a frown (nothing dreamy left)
+  // (the angled brows hide under her hair: the eyes carry it, a hard squint and lowered lids)
+  angry: { ...noSmileLuna, Angry: 0.5, '怒り': 0.5, browDownLeft: 0.9, browDownRight: 0.9, browOuterUpLeft: 0, browOuterUpRight: 0,
+    eyeSquintLeft: 0.45, eyeSquintRight: 0.45, 'vrc.blink_Straight': 0.22, mouthFrownLeft: 0.45, mouthFrownRight: 0.45,
+    mouthPressLeft: 0.2, mouthPressRight: 0.2 },
   pain: { ...noSmileLuna, eyeBlinkLeft: 0.65, eyeBlinkRight: 0.65, browDownLeft: 0.7, browDownRight: 0.7, browInnerUp: 0.7,
     mouthStretchLeft: 0.6, mouthStretchRight: 0.6, jawOpen: 0.12 },
 };
 
-/** Luna's speaking mouth (atlas "Speaking: light, open"): the "a" viseme, soft corners */
-export const LUNA_TALK: Weights = { 'あ': 0.42, jawOpen: 0.07, mouthSmileLeft: 0.25, mouthSmileRight: 0.25 };
+/** Luna's speaking mouth (atlas "Speaking: light, open"): the "a" viseme. No smile of its own: the
+ *  corners come from her face (angry in the opening lines, cheerful in her win line) */
+export const LUNA_TALK: Weights = { 'あ': 0.42, jawOpen: 0.07 };

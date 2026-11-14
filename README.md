@@ -200,7 +200,8 @@ own wind-up and wand glow, so it can be read and answered. See `docs/luna/REPORT
   pauses. Light on guard, quick to sidestep. No healing.
 - **Protego:** she meets a spell she sees cast at her with the shield when it's ready (now and
   then timed to send it back).
-- She fights in the Ravenclaw Common Room. She has no voice lines yet.
+- She fights in the Ravenclaw Common Room. In the campaign she opens the duel, angry at Malfoid
+  (her face set hard through the exchange), and Malfoid replies; each has a win line.
 
 | Level | Luna's HP | Confusion | Birds | Copies | How she fights |
 |---|---|---|---|---|---|
@@ -220,7 +221,7 @@ reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spel
 ## How a duel runs
 
 - **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
-  speaks first, against Cho, Cho does, against Susan, Malfoid does.
+  speaks first, against Cho, Cho does, against Susan, Malfoid does, against Luna, Luna does.
   Then **ROUND 1** shows; nobody can move or attack until **DUEL!** appears. Practice goes
   straight to the fight.
 - **Rounds (campaign):** a round lost or won short of the match is announced (**GINNY WINS

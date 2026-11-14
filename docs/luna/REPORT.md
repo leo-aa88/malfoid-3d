@@ -46,7 +46,11 @@ not a Blender render. Her character and facial atlases stay local (`/Luna/` in `
 - excited, surprised, confused, serene, sad, determined;
 - pain (in combat).
 
-`LUNA_TALK` is her speaking mouth. "Excited" is built from the open smile; the pack's `Excited`
+`LUNA_TALK` is her speaking mouth, with no smile of its own: she speaks with the face she's
+making. **angry** is her face through the campaign's opening exchange: she speaks first, angry at
+Malfoid, and Malfoid replies (`luna_opening`, `malfoid_opening4`; win lines `luna_win`,
+`malfoid_win4`). Her brows hide under her hair, so the eyes carry it: a hard squint, lowered lids
+and a frown. "Excited" is built from the open smile; the pack's `Excited`
 key opened the mouth into a round shout.
 
 ## Animation
@@ -190,7 +194,6 @@ she got cornered against the carpet's edge.
 ## Known limitations
 
 - **Her reward:** Illusio for Malfoid isn't built yet (like Susan's Episkey).
-- **Voice lines:** she has none yet; her duel goes straight to ROUND 1.
 - **Hair:** the two loose braids aren't modelled.
 - **Statue:** Rowena's statue is simple shapes.
 - **Copies cost:** about 44 draw calls each while out, outlines included, so they look like her.
