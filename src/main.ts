@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { SceneManager, STUDIO_LOOK } from './scene/SceneManager';
 import { ForestArena } from './scene/forest/ForestArena';
 import { PitchArena } from './scene/pitch';
+import { GreenhouseArena } from './scene/greenhouse';
 import type { Arena } from './scene/arena';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
@@ -458,7 +459,8 @@ async function start(): Promise<void> {
   hud.onDuelButton = () => { if (mode === 'practice') setDuel(true); };
   // the arenas (each opponent's definition names hers; training keeps the studio): the
   // Forbidden Woods, the Quidditch Pitch. Built once; only the current one is shown and updated.
-  const arenas: Record<'woods' | 'pitch', Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene) };
+  const arenas: Record<'woods' | 'pitch' | 'greenhouse', Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene),
+    greenhouse: new GreenhouseArena(sm.scene) };
   let arena: Arena | null = null;
   // spells hit trunks and stands: every caster shares one list of solids, refilled each frame
   spells.world.solids = solids;

@@ -330,7 +330,7 @@ function clothGrid(kit: Kit, nu: number, nv: number, cell: [number, number, numb
 }
 
 /** a banner hanging from top (centre of its top edge), w x h, facing out, with a gentle belly */
-function hang(kit: Kit, top: THREE.Vector3, w: number, h: number, out: THREE.Vector3, cell: [number, number, number, number]): void {
+export function hang(kit: Kit, top: THREE.Vector3, w: number, h: number, out: THREE.Vector3, cell: [number, number, number, number]): void {
   const side = V(out.z, 0, -out.x);                              // the viewer's right (facing the banner)
   clothGrid(kit, 3, 6, cell, (u, v) => top.clone().addScaledVector(side, (u - 0.5) * w).add(V(0, -v * h, 0))
     .addScaledVector(out, Math.sin(Math.PI * v) * 0.12 + Math.sin(Math.PI * u) * 0.05));
