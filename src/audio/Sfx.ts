@@ -12,10 +12,10 @@ const BASE = import.meta.env.BASE_URL;
 
 type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
   | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
-  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus';
+  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus' | 'impedimenta' | 'episkey';
 const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
   'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
-  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus'];
+  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus', 'impedimenta', 'episkey'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -48,6 +48,13 @@ export const BANKS = {
   // Ventus: a rush of air swelling to a bright gust (loudest ~1.25 s into the file); started
   // 0.55 s in, from the cast's start, its loud part meets the gust leaving the wand
   ventus: [slice('ventus', 0.55, 2.45)],
+  // Impedimenta: a soft swell (loudest ~0.4 s into the file, gone by 1.6 s); started 0.1 s in,
+  // from the cast's start, its peak follows the bolt just after it leaves the wand
+  impedimenta: [slice('impedimenta', 0.10, 1.60)],
+  // Episkey: a bright, holy swell (loudest ~0.8 s into the file, gone by 2.2 s; the file is
+  // ~9 dB quieter than the other spells, hence the gain). The heal is instant: started 0.3 s in,
+  // it peaks as the green column rises
+  episkey: [slice('episkey', 0.30, 2.20, 2.5)],
   // Protego's hum (steady for 2 s, longer than the shield ever stays up): played while it is up
   protego: [slice('protego', 0.0, 99)],
   // single clean footsteps (the file's double scuffs and faint ones left out), levelled to one loudness

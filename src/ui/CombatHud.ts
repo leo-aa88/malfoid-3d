@@ -46,13 +46,12 @@ export class CombatHud {
     // duel: both fighters' health, Ginny's state, start / stop
     this.duelBox = el('div', 'duel-box');
     this.duelBox.innerHTML =
-      '<div class="fighter"><div class="row"><span class="label">Malfoid</span><span class="hp-text"></span></div>' +
+      '<div class="fighter"><div class="row"><span><span class="label">Malfoid</span><span class="rounds"></span></span><span class="hp-text"></span></div>' +
       '<div class="hp"><div class="hp-fill"></div></div></div>' +
-      '<div class="fighter"><div class="row"><span class="label">Ginny</span><span class="hp-text"></span></div>' +
+      '<div class="fighter"><div class="row"><span><span class="label">Ginny</span><span class="rounds"></span></span><span class="hp-text"></span></div>' +
       '<div class="hp"><div class="hp-fill ginny"></div></div></div>' +
       '<div class="row"><span class="label">Ginny AI</span><span class="ai-state">waiting</span></div>' +
       '<div class="row"><span class="label">Difficulty</span><span class="level"></span></div>' +
-      '<div class="row lives-row"><span class="label">Lives</span><span class="lives"></span></div>' +
       '<button class="duel-button" type="button">Restart duel [G]</button>';
     hud.append(this.duelBox);
     for (const f of this.duelBox.querySelectorAll<HTMLElement>('.fighter')) {
@@ -81,7 +80,6 @@ export class CombatHud {
     this.dummyBox.hidden = mode !== 'training';
     this.duelBox.hidden = mode === 'training';
     this.duelButton.hidden = mode !== 'practice';
-    this.duelBox.querySelector<HTMLElement>('.lives-row')!.hidden = mode !== 'campaign';
   }
 
   /** whom Malfoid duels: her name on the health bar and the AI row, her bar's colour */
@@ -92,9 +90,12 @@ export class CombatHud {
     this.bars[1].fill.style.background = colour;
   }
 
-  /** the campaign's lives left (of total) */
-  setLives(left: number, total: number): void {
-    this.duelBox.querySelector('.lives')!.textContent = '♥'.repeat(left) + '♡'.repeat(Math.max(0, total - left));
+  /** the campaign match's round wins as pips by each name (toWin pips; null: no match, hidden) */
+  setRounds(wins: [malfoid: number, opponent: number] | null, toWin = 2): void {
+    this.duelBox.querySelectorAll<HTMLElement>('.rounds').forEach((r, i) => {
+      r.hidden = !wins;
+      if (wins) r.textContent = '●'.repeat(wins[i]) + '○'.repeat(Math.max(0, toWin - wins[i]));
+    });
   }
 
   setLevel(label: string): void {

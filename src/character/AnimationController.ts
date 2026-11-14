@@ -112,6 +112,13 @@ export class AnimationController {
     this.fadeTo(action, fade, startAt);
   }
 
+  /** straight into a state, nothing blended in from before (a fighter reset behind a cut) */
+  snap(state: AnimationState): void {
+    this.mixer.stopAllAction();
+    this.current = null;
+    this.start(state, 0);
+  }
+
   /** where the walk / run loop is in its cycle (0..1; the feet land at 0 and 0.5), or null */
   get stridePhase(): number | null {
     // (the side-step lands its feet at phase 0 and 0.5 like the walk)
