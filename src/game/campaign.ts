@@ -10,7 +10,7 @@ import type { Difficulty } from '../combat/ai/difficulty';
 
 export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna' | 'hermione' | 'harry' | 'bellatrix' | 'voldemort';
 /** Malfoid's spells; Confringo she always has, the rest are learned in the campaign */
-export type SpellId = 'confringo' | 'expelliarmus';
+export type SpellId = 'confringo' | 'expelliarmus' | 'protego';
 /** the spells learned from opponents */
 export type LearnedSpell = Exclude<SpellId, 'confringo'>;
 
@@ -25,8 +25,8 @@ export interface Opponent {
 
 export const CAMPAIGN: readonly Opponent[] = [
   { id: 'ginny', name: 'Ginny Weasley', reward: 'expelliarmus', playable: true },
-  { id: 'cho', name: 'Cho Chang', playable: true },
-  { id: 'susan', name: 'Susan Bones', playable: false },
+  { id: 'cho', name: 'Cho Chang', reward: 'protego', playable: true },
+  { id: 'susan', name: 'Susan Bones', playable: true },
   { id: 'luna', name: 'Luna Lovegood', playable: false },
   { id: 'hermione', name: 'Hermione Granger', playable: false },
   { id: 'harry', name: 'Harry Potter', playable: false },
@@ -38,11 +38,12 @@ export const CAMPAIGN: readonly Opponent[] = [
 export const CAMPAIGN_LIVES = 3;
 
 /** every spell (training and practice) */
-export const ALL_SPELLS: ReadonlySet<SpellId> = new Set<SpellId>(['confringo', 'expelliarmus']);
+export const ALL_SPELLS: ReadonlySet<SpellId> = new Set<SpellId>(['confringo', 'expelliarmus', 'protego']);
 
 /** what the game says about a learned spell (key: the key that casts it) */
 export const SPELL_INFO: Record<LearnedSpell, { name: string; key: string; how: string }> = {
   expelliarmus: { name: 'Expelliarmus', key: 'P', how: 'disarm your opponent' },
+  protego: { name: 'Protego', key: 'H', how: 'raise a shield (raised just as a spell arrives, it sends the spell back)' },
 };
 
 export interface Run {
@@ -81,6 +82,9 @@ export function parseRun(stored: string | null): Run | null {
   if (!Number.isInteger(stage) || stage! < 0 || stage! > CAMPAIGN.length) return null;
   const rewards = new Set<unknown>(CAMPAIGN.map((o) => o.reward).filter(Boolean));
   const spells = Array.isArray(learned) ? learned.filter((s) => rewards.has(s)) : [];
+  // every opponent already beaten has taught her spell (a run saved before that opponent had a
+  // reward to teach, Cho's Protego, gets it now)
+  for (const o of CAMPAIGN.slice(0, stage!)) if (o.reward) spells.push(o.reward);
   return { level: level as Difficulty, lives: lives!, stage: stage!, learned: [...new Set(spells)] };
 }
 

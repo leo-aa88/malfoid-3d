@@ -49,6 +49,7 @@ function setup() {
   const spells = sys();
   const choSpells = sys();
   const shield = { up: false };
+  const malfoidShield = { up: false };
   const hurt = (name: string) => ({ name, fighter: { position: new THREE.Vector3() }, onHurt: null as ((d: number, e: HitEffect) => void) | null });
   const targets = [hurt('Malfoid'), hurt('Ginny')];
   const sounds = connectCombatSounds(sfx as unknown as Sfx, {
@@ -57,6 +58,7 @@ function setup() {
     spells: spells as unknown as SpellSystem,
     opponents: [{ char: ginny as unknown as Malfoid, combat: sys() as unknown as ComboSystem, spells: choSpells as unknown as SpellSystem, protego: shield }],
     fighters: targets as unknown as FighterTarget[],
+    malfoidShield,
   });
   const run = (seconds: number) => {
     for (let i = 0; i < Math.round(seconds / DT); i++) {
@@ -65,7 +67,7 @@ function setup() {
       sounds.update(DT);
     }
   };
-  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield, choSpells };
+  return { sfx, malfoid, ginny, targets, run, sounds, spells, shield, choSpells, malfoidShield };
 }
 
 test('footsteps: two per walk cycle, none when standing or hidden', () => {
@@ -172,4 +174,25 @@ test("Cho's spells: Stupefy crackles at the release; Ventus builds from the cast
   ev('cast', 'ventus');
   ev('cancel', 'ventus');
   assert.deepEqual(sfx.stopped, ['ventus'], 'a cancelled Ventus is cut');
+});
+
+test("Malfoid's Protego (learned from Cho) hums like Cho's", () => {
+  const { sfx, malfoidShield, run } = setup();
+  malfoidShield.up = true;
+  run(0.3);
+  assert.equal(sfx.count('protego'), 1);
+  malfoidShield.up = false;
+  run(0.1);
+  assert.deepEqual(sfx.stopped, ['protego']);
+});
+
+test("Susan's spells: never Expelliarmus's sound (that means a disarm); Impedimenta is a lower crackle", () => {
+  const { sfx, choSpells } = setup();
+  const ev = (type: string, id: string) => choSpells.onEvent!({ type, spell: { id } });
+  ev('cast', 'impedimenta');
+  ev('release', 'impedimenta');
+  ev('cast', 'depulso');
+  assert.equal(sfx.count('expelliarmus'), 0);
+  assert.deepEqual(sfx.played.map((p) => p.id), ['stupefy', 'ventus']);
+  assert.ok(sfx.played[0].opts.rate! < 0.9, 'pitched below Stupefy');
 });

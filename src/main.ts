@@ -25,6 +25,10 @@ import { SpellFxSet } from './combat/spells/SpellFxSet';
 import { ALL_SPELLS, CAMPAIGN, CAMPAIGN_LIVES, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
 import { OPPONENTS, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
+import { SlowFx } from './combat/SlowFx';
+import { PROTEGO, Protego } from './combat/Protego';
+import { ProtegoFx } from './combat/ProtegoFx';
+import type { SpellDef, SpellFx } from './combat/spells/SpellSystem';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -82,6 +86,12 @@ async function start(): Promise<void> {
 
   // who can be hit: the dummy and the fighters
   const malfoidTarget = new FighterTarget(malfoid);
+  const slowFx = new SlowFx(sm.scene, malfoidTarget);   // Impedimenta's rings round her legs while she is slowed
+  // her Protego (learned from Cho): spells reaching its front are stopped, or sent back by a
+  // shield raised just as they arrive; strikes are guarded like a block
+  const protego = new Protego(malfoid);
+  const protegoFx = new ProtegoFx(sm.scene, protego, malfoid);
+  malfoidTarget.shield = protego;
   const solids: THREE.Box3[] = [];
   // training: the dummy in the studio; practice (any opponent, every spell, straight into the
   // fight) and the campaign (opponents in order, lives, spells learned): a duel in the woods
@@ -100,8 +110,12 @@ async function start(): Promise<void> {
   // orb each); Malfoid's spell system advances both of her pools (it runs in every mode)
   const spellFx = new ConfringoFx(sm.scene);
   const ginnyFx = new ConfringoFx(sm.scene, EXPELLIARMUS_LOOK, 'expelliarmus_fx');
+  // (her pools by spell id also get every opponent's, below: a bolt her Protego sends back
+  // flies on in its caster's pool, which its caster's system advances)
+  const malfoidPools: Record<string, SpellFx> = { confringo: spellFx, expelliarmus: ginnyFx };
   const spells = new SpellSystem(malfoid, malfoid.spellEmitter, () => combat.busy,
-    new SpellFxSet({ confringo: spellFx, expelliarmus: ginnyFx }, [spellFx, ginnyFx]), { solids, groundY: 0 });
+    new SpellFxSet(malfoidPools, [spellFx, ginnyFx]), { solids, groundY: 0 });
+  malfoidTarget.reflector = spells;                    // a spell she sends back becomes hers
   spells.onEvent = (e) => {
     hud.handleSpell(e);
     if (e.type === 'hit' && e.disarmed) hud.announce('DISARMED!', 'disarm');
@@ -111,7 +125,12 @@ async function start(): Promise<void> {
   };
   hud.addSpell('confringo', CONFRINGO.name, 'L', 'confringo');
   hud.addSpell('expelliarmus', SPELL_INFO.expelliarmus.name, SPELL_INFO.expelliarmus.key, 'expelliarmus');
-  const SPELL_DEFS: Record<SpellId, typeof CONFRINGO> = { confringo: CONFRINGO, expelliarmus: EXPELLIARMUS };
+  hud.addSpell('protego', SPELL_INFO.protego.name, SPELL_INFO.protego.key, 'protego');
+  const SPELL_DEFS: Record<Exclude<SpellId, 'protego'>, SpellDef> = { confringo: CONFRINGO, expelliarmus: EXPELLIARMUS };
+  malfoidTarget.onShield = (r) => {
+    if (r === 'reflect') hud.announce('REFLECTED!', 'disarm');
+    else hud.flashStatusText('PROTEGO', 'miss');
+  };
 
   // the campaign run: lives, the next opponent, the spells learned (remembered in this browser)
   let store: Storage | null = null;
@@ -132,6 +151,7 @@ async function start(): Promise<void> {
   ids.forEach((id, i) => {
     const o = new Opponent(OPPONENTS[id], opponentChars[i], world);
     opponents[id] = o;
+    for (const [spell, fx] of Object.entries(o.fxBySpell)) malfoidPools[spell] ??= fx;
     o.combat.onEvent = (e) => hud.handle(e);
     o.spells.onEvent = (e) => {
       hud.handleSpell(e);
@@ -139,6 +159,7 @@ async function start(): Promise<void> {
         hud.announce('DISARMED!', 'disarm');
         o.char.setExpression(o.def.faces.disarmedFoe, 1.6);
       }
+      if (e.type === 'hit' && e.direct && e.spell.slow && e.report.result === 'hit' && !e.report.ko) hud.announce('SLOWED!', 'disarm');
     };
     o.target.onDefeated = () => { if (o === opp) finish(malfoid); };
   });
@@ -175,6 +196,7 @@ async function start(): Promise<void> {
     if (on) {
       // a fresh start: full health, wands back, facing each other a few steps apart
       malfoidTarget.reset();
+      protego.reset();
       opp.reset();
       if (!malfoid.hasWand) malfoid.wand.retrieve();
       spells.reset();
@@ -224,6 +246,18 @@ async function start(): Promise<void> {
 
   const input = new CharacterController(malfoid, combat);
   input.viewYaw = () => cam.getYaw();
+  // H: Protego while held (learned from Cho). Raised over a held block or crouch; not while
+  // striking, casting, reacting or disarmed; letting go (or its time running out) lowers it
+  input.onShield = (on) => {
+    if (!on) {
+      protego.lower();
+      return;
+    }
+    if (!mySpells.has('protego') || !protego.ready) return;
+    malfoid.setHold('block', false);
+    malfoid.setHold('crouch', false);
+    if (malfoid.canHold) protego.raise();
+  };
   input.onSpell = (id) => {
     if (!mySpells.has(id)) return;                    // not learned yet (or not in this fight)
     if (!malfoid.hasWand) hud.flashStatusText('NO WAND', 'miss');
@@ -236,6 +270,7 @@ async function start(): Promise<void> {
   // Confringo and what she has learned in this run
   let mySpells: ReadonlySet<SpellId> = ALL_SPELLS;
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
+  const helpProtego = document.getElementById('help-protego')!;
   const refreshSpells = () => {
     // practice: every spell but the one this opponent teaches (no Expelliarmus against Ginny)
     const own = CAMPAIGN.find((o) => o.id === opp.def.id)?.reward;
@@ -244,6 +279,9 @@ async function start(): Promise<void> {
     hud.showSpell('confringo', true);
     hud.showSpell('expelliarmus', mySpells.has('expelliarmus'));
     helpExpelliarmus.hidden = !mySpells.has('expelliarmus');
+    hud.showSpell('protego', mySpells.has('protego'));
+    helpProtego.hidden = !mySpells.has('protego');
+    if (!mySpells.has('protego')) protego.reset();
   };
   // the start menu's campaign box: continue the run (who is next, lives, difficulty) or start
   // a new one (two clicks while a run is in progress: a stray click gives up nothing)
@@ -391,6 +429,7 @@ async function start(): Promise<void> {
       placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
       if (!malfoid.hasWand) malfoid.wand.retrieve();
       malfoidTarget.reset();
+      protego.reset();
     } else {
       // the duel starts in the spawn clearing of the woods
       malfoid.root.position.set(arena!.spawn.x - opp.def.startDistance / 2, 0, arena!.spawn.z);
@@ -444,7 +483,7 @@ async function start(): Promise<void> {
 
   const pausedEl = document.getElementById('paused')!;
   // sound effects (public/sfx); M mutes
-  const combatSounds = connectCombatSounds(sfx, { malfoid, combat, spells,
+  const combatSounds = connectCombatSounds(sfx, { malfoid, combat, spells, malfoidShield: protego,
     opponents: Object.values(opponents), fighters: [malfoidTarget, ...Object.values(opponents).map((o) => o.target)] });
   // the volume control: on the start menu and the pause screen
   const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
@@ -490,20 +529,27 @@ async function start(): Promise<void> {
       playerBot?.update(dt);                // automated playtests drive Malfoid (debug only)
       const duelMode = isDuel();
       const foe = opp.char;
-      if (duelMode) opp.ai.update(dt);
-      combat.update(dt);
-      if (duelMode) opp.combat.update(dt);
+      // a slowed fighter (Impedimenta) lives at a fraction of the game's time: moving, striking
+      // and casting (her bolts in flight too) all slow down together
+      const mdt = dt * malfoidTarget.timeScale;
+      const fdt = dt * opp.target.timeScale;
+      if (duelMode) opp.ai.update(fdt);
+      combat.update(mdt);
+      if (duelMode) opp.combat.update(fdt);
       voices.update(dt);                    // voice lines and mouths: before the pose update applies them
-      malfoid.update(dt);
-      if (duelMode) foe.update(dt);
-      spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
+      malfoid.update(mdt);
+      if (duelMode) foe.update(fdt);
+      spells.update(mdt);                   // after the pose update: the wand tip is where it is drawn
+      protego.update(mdt);
+      protegoFx.update(dt);
       if (duelMode) {
-        opp.spells.update(dt);
-        opp.update(dt);                     // her shield
+        opp.spells.update(fdt);
+        opp.update(fdt);                    // her shield, her healing charm
       }
       combatSounds.update(dt);              // footsteps follow the poses just updated
       malfoidTarget.update(dt);
       opp.target.update(dt);
+      slowFx.update(dt);
       if (duelMode) {
         keepApart(malfoid.position, foe.position, FIGHTER_GAP, 0.5);
         const ar = arena!;
@@ -528,6 +574,7 @@ async function start(): Promise<void> {
     hud.setDummy(dummy.hp, dummy.guard);
     hud.setSpell('confringo', spells.cooldownLeft(CONFRINGO), CONFRINGO.cooldown, malfoid.hasWand);
     if (mySpells.has('expelliarmus')) hud.setSpell('expelliarmus', spells.cooldownLeft(EXPELLIARMUS), EXPELLIARMUS.cooldown, malfoid.hasWand);
+    if (mySpells.has('protego')) hud.setSpell('protego', protego.cooldownLeft, PROTEGO.cooldown, malfoid.hasWand);
     hud.setFighters(malfoidTarget, opp.target, duel ? opp.ai.state : null);
     spellFx.setView(sm.camera, sm.renderer.domElement.height);
     ginnyFx.setView(sm.camera, sm.renderer.domElement.height);
@@ -563,10 +610,13 @@ async function start(): Promise<void> {
   // expose for debugging / automated checks
   const g = opponents.ginny;
   const c = opponents.cho;
+  const su = opponents.susan;
   Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, malfoidTarget,
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
+    susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
+    protego, protegoFx,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
     renderer: sm.renderer, scene: sm.scene, input, solids });

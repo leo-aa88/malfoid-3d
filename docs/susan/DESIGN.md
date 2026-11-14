@@ -1,6 +1,6 @@
 # Susan Bones — the Hufflepuff Bulwark (design)
 
-Campaign stage 3, after Cho Chang. **Status: planned** (design only; nothing of her is built yet).
+Campaign stage 3, after Cho Chang. **Status: playable** (practice and campaign); Malfoid's Episkey (the reward) is not built yet. What was built and how it was checked: [REPORT.md](REPORT.md).
 
 Susan is the roster's defensive specialist: not particularly fast or aggressive, but stubborn,
 disciplined and extremely hard to put down. Ginny pressures you and Cho evades you; Susan stands
@@ -18,16 +18,16 @@ the other side.
 |---|---|
 | **Impedimenta** | Slows Malfoid's movement and attacks briefly, making reckless aggression dangerous. |
 | **Depulso** | A powerful knockback spell that creates distance and interrupts combos. |
-| **Episkey** | Susan heals a portion of her HP. The cast takes time and can be interrupted. |
+| **Episkey** | Susan heals a portion of her HP. Instantaneous: it leaves no opening. A cooldown keeps her from spamming it. |
 | **Hufflepuff Resolve** | Passive: greater resistance to staggering and knockdown. |
 
 ## Fighting style
 
 - Slow, deliberate attacks with high defensive reliability.
-- Blocks frequently, but has no perfect parry (that is Cho's speciality).
+- Blocks frequently. She also uses Protego against spells, though she parries less than Cho (changed on request).
 - Punishes Malfoid for blindly rushing into melee.
-- Uses Impedimenta to interrupt aggression.
-- Retreats briefly when injured to cast Episkey.
+- Uses Impedimenta to interrupt aggression, and alternates it with Expelliarmus at range (added on request).
+- Heals with Episkey when injured, where she stands (changed from retreating to cast it).
 - Becomes more determined as her health drops, not more aggressive.
 
 The challenge is breaking her defence and stopping her from recovering.
@@ -63,5 +63,6 @@ it becomes particularly valuable in the later Bellatrix and Voldemort battles.
 
 ## What the game has today
 
-- **Spell rewards:** Ginny teaches Expelliarmus. Cho teaches nothing yet, because Malfoid's Protego is not built.
-- **Campaign order:** the game follows the order above (`src/game/campaign.ts`). After Cho, the campaign shows Susan Bones as the next duel, marked coming soon.
+- **Spell rewards:** Ginny teaches Expelliarmus and Cho teaches Protego. Susan teaches nothing yet, because Malfoid's Episkey is not built.
+- **Campaign order:** the game follows the order above (`src/game/campaign.ts`). Susan is stage 3; after her the campaign shows Luna Lovegood as the next duel, marked coming soon.
+- **Susan's reward:** beating her teaches nothing yet, because Malfoid's Episkey is not built (Susan's own Episkey is).

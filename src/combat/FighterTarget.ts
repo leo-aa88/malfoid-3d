@@ -18,6 +18,17 @@ const PUSH: Record<HitEffect, number> = { flinch: 0.6, stagger: 1.2, knockback: 
 const REACTION: Record<HitEffect, ReactionState> = { flinch: 'hit', stagger: 'stagger', knockback: 'knockback', knockdown: 'knockback' };
 
 /**
+ * Resistance to being thrown about (Susan's Hufflepuff Resolve): what a hit's effect becomes
+ * (a stagger only makes her flinch, a knockdown only knocks her back) and how much of its
+ * push she takes. Damage is unchanged.
+ */
+export interface Resolve {
+  effect: Partial<Record<HitEffect, HitEffect>>;
+  push: number;
+}
+export const HUFFLEPUFF_RESOLVE: Resolve = { effect: { stagger: 'flinch', knockdown: 'knockback' }, push: 0.6 };
+
+/**
  * A character as something attacks can hit: health, blocking (the block pose stops high and
  * low strikes, chip damage gets through), hit reactions (flinch, stagger, knockback), a pained
  * face, disarming, and defeat at 0 health.
@@ -39,6 +50,11 @@ export class FighterTarget implements CombatTarget {
   reflector: Reflector | null = null;
   /** the shield stopped or reflected a spell */
   onShield: ((result: 'reflect' | 'absorb', spell: SpellDef) => void) | null = null;
+  /** her resistance to staggers and knockdowns (Susan), if any */
+  resolve: Resolve | null = null;
+  /** slowed (Impedimenta): her own time runs at slowFactor for slowLeft more seconds */
+  slowLeft = 0;
+  slowFactor = 1;
 
   constructor(readonly fighter: Malfoid, public maxHp = 100) {
     this.hp = maxHp;
@@ -93,8 +109,9 @@ export class FighterTarget implements CombatTarget {
     if (ko) {
       this.defeat(hit.dir);
     } else {
-      const push = hit.dir.clone().setY(0).normalize().multiplyScalar(hit.knockback ?? PUSH[hit.effect]);
-      this.fighter.react(REACTION[hit.effect], push);
+      const effect = this.resolve?.effect[hit.effect] ?? hit.effect;
+      const push = hit.dir.clone().setY(0).normalize().multiplyScalar((hit.knockback ?? PUSH[hit.effect]) * (this.resolve?.push ?? 1));
+      this.fighter.react(REACTION[effect], push);
       this.fighter.setExpression('pain', 0.7);
     }
     return { result: 'hit', damage: hit.damage, ko };
@@ -107,9 +124,25 @@ export class FighterTarget implements CombatTarget {
     return ok;
   }
 
+  /** slowed: her own time runs at `factor` for `duration` s (a new slow replaces a weaker or shorter one) */
+  slow(factor: number, duration: number): void {
+    if (this.fighter.defeated) return;
+    this.slowFactor = this.slowLeft > 0 ? Math.min(this.slowFactor, factor) : factor;
+    this.slowLeft = Math.max(this.slowLeft, duration);
+  }
+
+  /** how fast her own time runs now (1: normal; < 1 while slowed) */
+  get timeScale(): number {
+    return this.slowLeft > 0 ? this.slowFactor : 1;
+  }
+
   update(dt: number): void {
     this.sinceHit += dt;
     if (this.sinceHit > 2.0) this.recentHits = 0;
+    if (this.slowLeft > 0) {
+      this.slowLeft = Math.max(0, this.slowLeft - dt);
+      if (this.slowLeft === 0) this.slowFactor = 1;
+    }
   }
 
   /** back to full health and on her feet */
@@ -117,6 +150,8 @@ export class FighterTarget implements CombatTarget {
     this.hp = this.maxHp;
     this.sinceHit = 99;
     this.recentHits = 0;
+    this.slowLeft = 0;
+    this.slowFactor = 1;
     this.fighter.setDefeated(false);
   }
 

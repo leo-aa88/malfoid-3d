@@ -1,4 +1,4 @@
-"""Cho's Ravenclaw ribbon: a dark blue bow tied where her half-up is gathered at the back of
+"""Cho's Ravenclaw ribbon (and Susan's black one): a bow tied where her half-up is gathered at the back of
 the head (blueprint 3/4 back and back views, facial atlas 3/4 back-head and hair details).
 
 Built as real geometry, not a card:
@@ -34,6 +34,16 @@ TAIL_W = (0.0058, 0.0074)  # half width at the knot, at the end
 TAIL_T = 0.0009           # half thickness
 TAIL_SPREAD = 0.020       # how far each tail end drifts sideways
 CLEAR = 0.0022            # gap kept above the hair surface
+
+# a character's profile may size the whole bow (Susan's is larger than Cho's); Cho's is 1
+from .character import P as _P  # noqa: E402
+_K = _P.get('ribbon_scale', 1.0)
+if _K != 1.0:
+    LOOP_LEN, LOOP_H0, LOOP_H1, LOOP_D, LOOP_LIFT = (v * _K for v in (LOOP_LEN, LOOP_H0, LOOP_H1, LOOP_D, LOOP_LIFT))
+    KNOT_W, KNOT_H, KNOT_D = KNOT_W * _K, KNOT_H * _K, KNOT_D * _K
+    TAIL_LEN = tuple(v * _K for v in TAIL_LEN)
+    TAIL_W = tuple(v * _K for v in TAIL_W)
+    TAIL_SPREAD *= _K
 RINGS = 18                # sections along a loop
 SEG = 16                  # points round a loop section
 

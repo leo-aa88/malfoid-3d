@@ -72,3 +72,45 @@ export const CHO_FACES: Record<string, Weights> = {
 
 /** Cho's speaking mouth (atlas "Speaking: light, natural"): the "a" viseme, a little jaw */
 export const CHO_TALK: Weights = { 'あ': 0.38, jawOpen: 0.06, mouthSmileLeft: 0.2, mouthSmileRight: 0.2 };
+
+/*
+ * Susan's expressions (the same keys and face channels, tuned against her facial atlas in the
+ * viewer). Her resting face is composed and kind: a warm closed smile, relaxed lids. Warmer and
+ * softer than Cho's; even her resolve is quiet (brows lowered, lips pressed, no glare).
+ */
+const noSmileSusan = { mouthSmileLeft: 0, mouthSmileRight: 0 };
+
+export const SUSAN_FACES: Record<string, Weights> = {
+  neutral: {},
+  // atlas: eyes closed in happy arcs, an open bright smile, a touch of colour
+  cheerful: { Smile2: 1.0, 'ワ': 0.45, jawOpen: 0.1, 'vrc.blink_Straight': 0, eyeSquintLeft: 0, eyeSquintRight: 0, blush: 0.25 },
+  // a glance aside and down, a lowered brow, the mouth pulled a little to one side
+  thoughtful: { ...noSmileSusan, browDownLeft: 0.4, browDownRight: 0.25, browInnerUp: 0.3, eyeLookOutLeft: 0.55,
+    eyeLookInRight: 0.55, eyeLookDownLeft: 0.25, eyeLookDownRight: 0.25, 'vrc.blink_Straight': 0.25, mouthPressLeft: 0.35,
+    mouthPressRight: 0.35, mouthRight: 0.35 },
+  // raised inner brows, a tense mouth (the atlas's anxious look)
+  worried: { ...noSmileSusan, '困る': 1.0, browInnerUp: 1.0, mouthPressLeft: 0.55, mouthPressRight: 0.55, mouthFrownLeft: 0.3,
+    mouthFrownRight: 0.3, eyeSquintLeft: 0, eyeSquintRight: 0, eyeWideLeft: 0.2, eyeWideRight: 0.2 },
+  surprised: { ...noSmileSusan, 'びっくり': 0.8, jawOpen: 0.28, mouthFunnel: 0.45, browInnerUp: 0.6, browOuterUpLeft: 0.6,
+    browOuterUpRight: 0.6, eyeSquintLeft: 0, eyeSquintRight: 0, 'vrc.blink_Straight': 0 },
+  // a soft laugh: eyes eased shut, an open smile
+  amused: { 'なごみ': 0.8, mouthSmileLeft: 0.6, mouthSmileRight: 0.6, 'ワ': 0.2, eyeSquintLeft: 0, eyeSquintRight: 0, blush: 0.15 },
+  // shy: a lowered gaze, a small smile, the cheeks flushed
+  blushing: { Shy: 0.8, eyeLookDownLeft: 0.5, eyeLookDownRight: 0.5, browInnerUp: 0.45, mouthSmileLeft: 0.35,
+    mouthSmileRight: 0.35, blush: 1 },
+  // downcast, no tears
+  sad: { ...noSmileSusan, Sad: 0.4, '困る': 0.6, browInnerUp: 0.9, eyeLookDownLeft: 0.6, eyeLookDownRight: 0.6,
+    mouthFrownLeft: 0.5, mouthFrownRight: 0.5, 'vrc.blink_Straight': 0.35 },
+  teary: { ...noSmileSusan, Teary_Eyes: 1.0, Sad: 0.6, browInnerUp: 0.7, tears: 1, blush: 0.35 },
+  // quiet resolve: brows lowered, a steady gaze, lips pressed (firm, not angry)
+  determined: { ...noSmileSusan, browDownLeft: 0.8, browDownRight: 0.8, eyeSquintLeft: 0.35, eyeSquintRight: 0.35,
+    mouthPressLeft: 0.6, mouthPressRight: 0.6, '真面目': 0.7 },
+  // comforted / sincere: eyes gently closed, a warm smile (she heals with this face)
+  comforted: { 'なごみ': 0.95, mouthSmileLeft: 0.45, mouthSmileRight: 0.45, browInnerUp: 0.25, eyeSquintLeft: 0,
+    eyeSquintRight: 0, blush: 0.15 },
+  pain: { ...noSmileSusan, eyeBlinkLeft: 0.65, eyeBlinkRight: 0.65, browDownLeft: 0.7, browDownRight: 0.7, browInnerUp: 0.7,
+    mouthStretchLeft: 0.6, mouthStretchRight: 0.6, jawOpen: 0.12 },
+};
+
+/** Susan's speaking mouth (atlas "Speaking: light, natural"): the "a" viseme, warm corners */
+export const SUSAN_TALK: Weights = { 'あ': 0.4, jawOpen: 0.06, mouthSmileLeft: 0.3, mouthSmileRight: 0.3 };

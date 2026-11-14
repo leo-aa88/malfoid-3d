@@ -166,6 +166,30 @@ enough (with Easy's timing error and the headless 0.1 s frames) to land in the p
 Easy reflected 3 of 7 Confringos; plain blocks now go up well ahead and the error only affects
 parries.
 
+## Malfoid's Protego (the reward)
+
+Beating Cho in the campaign teaches Malfoid **Protego** (key **H**, held). It uses the same
+`Protego` class and look as Cho's, on Malfoid's `FighterTarget`, with her spell system as the
+reflector:
+
+- **Timing:** up for at most 0.9 s, then a 5 s cooldown. A spell reaching its front is stopped.
+- **Parry:** raised within 0.2 s of a spell arriving, it sends the spell back at its caster, as
+  Malfoid's own. A sent-back Impedimenta slows Susan.
+- **Guard:** it guards strikes like a block.
+- **Input:** it is raised over a held block or crouch, but not while striking, casting, reacting
+  or disarmed. The wand comes out of the sleeve for it.
+- **Model:** the `protego` clip was added to Malfoid's model. Her 28 existing clips are
+  keyframe-identical, and nothing else changed.
+- **HUD:** a pale-blue slot with its cooldown, and the controls line.
+- **Campaign:** the reward screen says "New spell acquired: Protego". A run saved past Cho
+  before this change gets it on load.
+- **Practice:** against Cho it isn't available, as Expelliarmus isn't against Ginny.
+
+![malfoid protego](malfoid_protego.png)
+
+Top: the held pose; a parried Impedimenta flying back at Susan. Bottom: Susan's Impedimenta
+stopped (no damage, no slow); the campaign reward.
+
 ## Known limitations
 
 - **No fringe:** the reference has airy bangs; Cho has the pack's open centre-parted hairline

@@ -33,6 +33,19 @@ test('beating Ginny teaches Expelliarmus and Cho is next; practice and training 
   assert.ok(ALL_SPELLS.has('confringo') && ALL_SPELLS.has('expelliarmus'));
 });
 
+test('beating Cho teaches Protego; a run saved past Cho before she taught it gets it', () => {
+  const c = new Campaign(new MemoryStore());
+  c.start('normal');
+  c.win();
+  const r = c.win();
+  assert.equal(r.beaten.id, 'cho');
+  assert.equal(r.learned, 'protego');
+  assert.deepEqual([...c.spells], ['confringo', 'expelliarmus', 'protego']);
+  assert.ok(ALL_SPELLS.has('protego'));
+  assert.deepEqual(parseRun('{"level":"easy","lives":3,"stage":2,"learned":["expelliarmus"]}')!.learned, ['expelliarmus', 'protego']);
+  assert.deepEqual(parseRun('{"level":"easy","lives":3,"stage":1,"learned":[]}')!.learned, ['expelliarmus']);
+});
+
 test('a loss costs a life and the same opponent comes again; the third loss is game over', () => {
   const c = new Campaign(new MemoryStore());
   c.start('hard');
@@ -78,7 +91,7 @@ test('a stored run is read safely', () => {
   c.clear();
 });
 
-test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Voldemort; Susan comes after Cho', async () => {
+test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Voldemort; Susan (playable) after Cho, then Luna (not yet)', async () => {
   const { CAMPAIGN } = await import('../src/game/campaign');
   assert.deepEqual(CAMPAIGN.map((o) => o.id), ['ginny', 'cho', 'susan', 'luna', 'hermione', 'harry', 'bellatrix', 'voldemort']);
   const c = new Campaign(new MemoryStore());
@@ -86,5 +99,8 @@ test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Vold
   c.win();
   const r = c.win();                                   // Cho beaten
   assert.equal(r.next?.name, 'Susan Bones');
-  assert.equal(r.next?.playable, false, 'not in the game yet');
+  assert.equal(r.next?.playable, true, 'Susan is in the game');
+  const s = c.win();                                   // Susan beaten
+  assert.equal(s.next?.name, 'Luna Lovegood');
+  assert.equal(s.next?.playable, false, 'not in the game yet');
 });

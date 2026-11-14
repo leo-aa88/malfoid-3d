@@ -31,6 +31,8 @@ export interface SpellDef {
   hitEffect?: HitEffect;
   /** a direct hit knocks the target's wand away (Expelliarmus) */
   disarms?: boolean;
+  /** a direct hit that gets through slows the target (Impedimenta): this fraction of her speed, for this long (s) */
+  slow?: { factor: number; duration: number };
 }
 
 /** the caster as the spell system sees it (Malfoid) */
@@ -346,6 +348,7 @@ export class SpellSystem implements Reflector {
         damage: def.directDamage, height: heightAt(at, t), effect: def.hitEffect ?? 'knockback', dir, knockback: def.directKnockback,
       });
       const disarmed = def.disarms && report.result === 'hit' && t.disarm ? t.disarm(dir) : false;
+      if (def.slow && report.result === 'hit' && !report.ko) t.slow?.(def.slow.factor, def.slow.duration);
       this.emit({ type: 'hit', spell: def, target: t, direct: true, report, at: at.clone(), disarmed });
     }
     // splash: everyone else inside the blast and not shielded by a wall, once each

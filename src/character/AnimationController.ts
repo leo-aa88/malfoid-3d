@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { MOVE_CLIPS, MoveId } from '../combat/moves';
 import { SPELL_CLIPS, SpellClip } from '../combat/spells/clips';
 
-export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident' | 'cho_idle' | 'strafe';
+export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident' | 'cho_idle' | 'susan_idle' | 'strafe';
 /** quick evasive steps (Cho): in place clips, the character moves her through the world */
 export type DodgeState = 'dodge_left' | 'dodge_right' | 'dodge_back';
 export const DODGE_CLIPS: DodgeState[] = ['dodge_left', 'dodge_right', 'dodge_back'];
@@ -25,6 +25,7 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   idle_annoyed: 0.6,
   confident: 0.45,
   cho_idle: 0.45,
+  susan_idle: 0.45,
   strafe: 0.2,
   jump: 0.08,
   dodge_left: 0.05,

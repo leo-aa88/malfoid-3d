@@ -51,6 +51,8 @@ export interface CombatTarget {
   takeHit(hit: HitRequest): HitReport;
   /** a strike this target blocks leaves the attacker this much slower to recover (s): an opening */
   readonly blockRecoil?: number;
+  /** slow it down (fighters only): its own time runs at `factor` for `duration` s */
+  slow?(factor: number, duration: number): void;
   /** knock its wand away (fighters only); true if it had one */
   disarm?(dir: THREE.Vector3): boolean;
   /** a spell reaches it: a shield may stop it ('absorb') or send it back ('reflect') */

@@ -27,10 +27,14 @@ CHO_TEX      := build/textures/Cho_Head_BaseColor.png build/textures/Cho_Body_Ba
                 build/textures/Cho_Crest.png
 CHO_GLB      := public/models/cho.glb
 CHO_BLEND    := build/cho.blend
+SUSAN_TEX    := build/textures/Susan_Head_BaseColor.png build/textures/Susan_Body_BaseColor.png \
+                build/textures/Susan_Crest.png
+SUSAN_GLB    := public/models/susan.glb
+SUSAN_BLEND  := build/susan.blend
 RENDER_DIR   := docs/integration
 
 .DEFAULT_GOAL := all
-.PHONY: all help check-assets textures model ginny cho models renders install dev build preview typecheck clean clean-model distclean
+.PHONY: all help check-assets textures model ginny cho susan models renders install dev build preview typecheck clean clean-model distclean
 
 all: models build ## Build both character models and the production viewer
 
@@ -52,7 +56,7 @@ $(TEXTURES) &: tools/textures/make_textures.py tools/textures/make_crest.py | ch
 	$(PYTHON) tools/textures/make_textures.py
 	$(PYTHON) tools/textures/make_crest.py
 
-models: model ginny cho ## Build every character
+models: model ginny cho susan ## Build every character
 
 model: $(GLB) ## Build build/malfoid.blend and public/models/malfoid.glb
 
@@ -87,6 +91,19 @@ $(CHO_GLB) $(CHO_BLEND) &: $(CHO_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-assets
 	MF_CHAR=cho "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
 		--stage 5 --save $(CHO_BLEND) --glb $(CHO_GLB)
 
+# Susan: MF_CHAR=susan (Hufflepuff uniform and badger crest, honey-blonde half-up hair with a
+# black bow, gold studs)
+$(SUSAN_TEX) &: tools/textures/make_textures.py tools/textures/make_crest_hufflepuff.py tools/textures/make_crest_ravenclaw.py tools/blender/malfoid/character.py | check-assets
+	MF_CHAR=susan $(PYTHON) tools/textures/make_textures.py
+	$(PYTHON) tools/textures/make_crest_hufflepuff.py
+
+susan: $(SUSAN_GLB) ## Build build/susan.blend and public/models/susan.glb
+
+$(SUSAN_GLB) $(SUSAN_BLEND) &: $(SUSAN_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-assets
+	@mkdir -p build public/models
+	MF_CHAR=susan "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
+		--stage 5 --save $(SUSAN_BLEND) --glb $(SUSAN_GLB)
+
 renders: $(TEXTURES) | check-assets ## Render the validation set into docs/integration
 	@mkdir -p $(RENDER_DIR)
 	MF_FRAME=fixed "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
@@ -120,7 +137,7 @@ clean: ## Remove the viewer build output
 
 clean-model: ## Remove generated textures, .blend and .glb (checkpoints are kept)
 	rm -rf build/textures $(BLEND_OUT) $(GLB) public/models/malfoid.json $(GINNY_BLEND) $(GINNY_GLB) public/models/ginny.json \
-		$(CHO_BLEND) $(CHO_GLB) public/models/cho.json
+		$(CHO_BLEND) $(CHO_GLB) public/models/cho.json $(SUSAN_BLEND) $(SUSAN_GLB) public/models/susan.json
 
 distclean: clean clean-model ## Also remove node_modules
 	rm -rf node_modules

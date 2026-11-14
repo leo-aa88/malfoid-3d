@@ -290,3 +290,22 @@ test('no shield without a wand: Protego can\'t be raised disarmed, and drops if 
   assert.ok(!s.shield.up, 'no Protego while disarmed');
   assert.notEqual(s.ai.state, 'PROTEGO');
 });
+
+test("Malfoid's Protego (learned from Cho): a parried Stupefy flies back and hits Cho; a reflected Impedimenta slows its caster", async () => {
+  const { IMPEDIMENTA } = await import('../src/combat/spells/Impedimenta');
+  for (const [def, dmg] of [[STUPEFY, STUPEFY_DAMAGE], [IMPEDIMENTA, IMPEDIMENTA.directDamage]] as const) {
+    const { mT, cT, mS, cS, malfoid, events } = duel();
+    const mine = new Protego(malfoid);
+    mT.shield = mine;
+    mT.reflector = mS;
+    assert.ok(cS.cast(def));
+    // raise it as the bolt is about to arrive
+    run([mS, cS], def.release + 4.0 / def.projectile.speed - 0.06);
+    assert.ok(mine.raise());
+    run([mS, cS], 1.2, () => { mine.update(DT); mT.update(DT); cT.update(DT); });
+    assert.equal(mT.hp, 100, `${def.id}: Malfoid untouched`);
+    assert.equal(cT.hp, 100 - dmg, `${def.id}: Cho takes her own spell`);
+    assert.ok(events.includes('cho:reflected') && events.includes('malfoid:hit'));
+    if (def === IMPEDIMENTA) assert.ok(cT.slowLeft > 0, 'the caster is slowed by her own Impedimenta');
+  }
+});

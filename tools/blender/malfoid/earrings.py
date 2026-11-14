@@ -1,5 +1,6 @@
-"""Earrings through both ear lobes: Malfoid's black hoops, or Cho's small dangling silver
-stars (facial atlas: a short drop from the lobe, a four-point star below it)."""
+"""Earrings through both ear lobes: Malfoid's black hoops, Cho's small dangling silver stars
+(facial atlas: a short drop from the lobe, a four-point star below it), or Susan's small gold
+studs (her facial atlas: a round bead on the front of the lobe)."""
 from math import sin, cos, pi
 import bpy
 from mathutils import Vector
@@ -14,6 +15,8 @@ STAR_R = 0.0058           # point radius
 STAR_IN = 0.0018          # radius between the points
 STAR_T = 0.0015           # half thickness at the centre ridge
 SILVER = 'mf_earring_silver'
+GOLD = 'mf_earring_gold'
+STUD_R = 0.0017           # stud bead radius (m)
 
 
 def _lobes(head, parts):
@@ -76,7 +79,19 @@ def _stars(md, head, parts):
                 md.fm.append(SILVER)
 
 
+def _studs(md, head, parts):
+    for sgn, lobe, axis, up, sidev in _lobes(head, parts):
+        # on the front of the lobe, a little proud of it (a slightly flattened bead)
+        c = lobe + Vector((0.0024 * sgn, 0, 0.0004)) + axis * 0.0012
+        rings = []
+        for i in range(1, 8):
+            a = pi * i / 8
+            rings.append([c + (sidev * cos(b) * sin(a) + up * sin(b) * sin(a)) * STUD_R + axis * (cos(a) * STUD_R * 0.75)
+                          for b in [2 * pi * k / 10 for k in range(10)]])
+        md.add_grid(rings, GOLD, closed=True, flip=sgn < 0, cap_start=c + axis * STUD_R * 0.75, cap_end=c - axis * STUD_R * 0.75)
+
+
 def build(head, parts, mats, style=True):
     md = MeshData()
-    (_stars if style == 'star' else _hoops)(md, head, parts)
+    {'star': _stars, 'stud': _studs}.get(style, _hoops)(md, head, parts)
     return md.to_object('Earrings', mats, rig=bpy.data.objects.get('rig'))

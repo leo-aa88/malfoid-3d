@@ -1,6 +1,6 @@
 """Which character the build makes, and everything that differs between them.
 
-  MF_CHAR=malfoid (default) | ginny | cho
+  MF_CHAR=malfoid (default) | ginny | cho | susan
 
 Pure Python (no bpy): read by the Blender build and by tools/textures/*.py. Malfoid's
 profile holds exactly the values the pipeline was written with, so her model is
@@ -32,6 +32,8 @@ PROFILES = {
         'tie': ((0x1f, 0x5c, 0x40), (0xc6, 0xc6, 0xc9)),   # base, stripe
         'palette': {},                       # mats.PALETTE overrides
         'crest': 'Malfoid_Crest.png',
+        # her Protego (learned from Cho): the held shield pose. Clips only add to her model
+        'extra_clips': ('protego',),
     },
     'ginny': {
         'name': 'Ginny',
@@ -114,6 +116,52 @@ PROFILES = {
         # her own clips (combat.EXTRA_CLIPS), built into her model only
         'extra_clips': ('cho_idle', 'dodge_left', 'dodge_right', 'dodge_back', 'protego', 'cast_quick', 'cast_ventus',
                         'strafe'),
+    },
+    'susan': {
+        'name': 'Susan',
+        'prefix': 'Susan',
+        # skin #FBE6D8: fair, a gentle warm undertone (between Ginny's and Cho's)
+        'skin_warm': 0.5,
+        # hazel brown #7B4E2E from the pack's brown iris art: lighter and more golden than Ginny's
+        'iris': {'src': 'Eyes_Color5', 'hue': 26.0 / 360.0, 'sat': 0.82, 'val': 0.74},
+        'brow': ((0x8a, 0x5c, 0x30), (0xcc, 0x98, 0x5c)),  # honey brown, a shade darker than her hair
+        'lashes': 'brown',                   # natural and soft (facial atlas: "natural, elegant")
+        'hide_nose_mark': True,
+        'scalp': (176, 128, 70),             # honey root tone
+        'freckles': None,
+        'face_keys': (),                     # the base face as authored: soft and round (atlas)
+        # composed and kind: a warm closed smile, the lids relaxed a touch (a soft almond opening)
+        'rest_keys': {'vrc.blink_Straight': 0.08, 'eyeSquintLeft': 0.15, 'eyeSquintRight': 0.15,
+                      'mouthSmileLeft': 0.22, 'mouthSmileRight': 0.22},
+        'extra_keys': ('Smile1', 'Smile2', 'Shy', 'Sad', 'Teary_Eyes', 'Crying', 'Scared', 'Confused', 'Shocked',
+                       'Excited', 'jawOpen', 'mouthUpperUpLeft', 'mouthUpperUpRight', 'mouthLowerDownLeft',
+                       'mouthLowerDownRight', 'vrc.blink_Joy', 'あ', 'い', 'お', 'ワ', 'にこり', 'なごみ', 'びっくり',
+                       '照れ', '瞳大', 'eyeBlinkLeft', 'eyeBlinkRight', 'mouthFunnel', 'eyeLookInLeft', 'eyeLookInRight',
+                       'eyeLookOutLeft', 'eyeLookOutRight'),
+        'earrings': 'stud',                  # small gold studs (facial atlas)
+        # honey blonde #D8A65F where most of the hair sits in the texture's tone range: warm
+        # golden-brown roots and shadows, light honey highlights (warmer and darker than
+        # Malfoid's platinum, so the two never read alike). Long, wavy and full like Ginny's
+        # (not slimmed), half-up with a black bow, a soft off-centre part.
+        # (as rendered the toon shading lifts and saturates the mid tones: the first ramp read
+        # marigold, so it sits more tan than the swatch)
+        'hair': {'ramp': ((0x5e, 0x40, 0x26), (0x98, 0x70, 0x46), (0xbe, 0x96, 0x62), (0xd0, 0xac, 0x7a), (0xe6, 0xcc, 0xa2)),
+                 'flatten': True, 'slim': False, 'part_shift': -0.008, 'half_up': True},
+        'ribbon': True,                      # the black ribbon bow where the half-up is gathered
+        'ribbon_scale': 1.2,                 # a larger bow than Cho's (atlas back views)
+        'tie': ((0x2b, 0x2b, 0x2b), (0xe1, 0xb2, 0x41)),   # black, Hufflepuff gold
+        'palette': {
+            'mf_robe': ('#1c1c1c', 0.90, 0.0),
+            'mf_robe_lining': ('#e1b241', 0.85, 0.0),
+            'mf_tie': ('#2b2b2b', 0.75, 0.0),
+            'mf_tie_stripe': ('#e1b241', 0.60, 0.0),
+            'mf_earring_gold': ('#e0b65c', 0.30, 0.0),     # gold (toon shaded: no metal)
+            'mf_ribbon': ('#1e1e1e', 0.75, 0.0),           # black ribbon
+        },
+        'crest': 'Susan_Crest.png',
+        # her clips (combat.EXTRA_CLIPS), built into her model only: her idle and Episkey;
+        # Cho's flick (Impedimenta) and sweep (Depulso); the side-step for moving while facing
+        'extra_clips': ('susan_idle', 'episkey', 'cast_quick', 'cast_ventus', 'strafe', 'protego'),
     },
 }
 
