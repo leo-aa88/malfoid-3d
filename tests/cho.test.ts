@@ -252,3 +252,41 @@ test('crowded and under attack: Ventus; an attack she sees coming in reach: a do
     Math.random = random;
   }
 });
+
+test("her counter-spell waits for her to face Malfoid (it never flies off the wrong way)", () => {
+  const s = aiSetup(5, { castChance: 0, dodgeChance: 0, evasive: { shieldChance: 0, counterChance: 1, counterDelay: [0.05, 0.05] } });
+  s.self.facingAngle = Math.PI;                               // facing away (she just picked up her wand)
+  s.ai.setActive(true);
+  s.ai.shieldResult('absorb');
+  for (let i = 0; i < 20; i++) s.ai.update(DT);
+  assert.equal(s.casts.length, 0, 'not while facing away');
+  s.self.facingAngle = 0.2;
+  for (let i = 0; i < 10; i++) s.ai.update(DT);
+  assert.deepEqual(s.casts, ['stupefy'], 'once facing her');
+});
+
+test('no shield without a wand: Protego can\'t be raised disarmed, and drops if the wand is lost', () => {
+  const f = fighter('Cho', 0, 0, 0);
+  const p = new Protego(f);
+  f.hasWand = false;
+  assert.ok(!p.ready);
+  assert.ok(!p.raise(), 'disarmed: no shield');
+  assert.equal(p.intercept(new THREE.Vector3(0, 0, -1)), null);
+  f.hasWand = true;
+  assert.ok(p.raise());
+  f.hasWand = false;                                        // knocked out of her hand while it is up
+  p.update(DT);
+  assert.ok(!p.up, 'the shield goes with the wand');
+  // her AI doesn't plan a shield while disarmed
+  const s = aiSetup(5, { castChance: 0, evasive: { shieldChance: 1, perfectChance: 1, timingError: 0 } });
+  s.self.hasWand = false;
+  s.ai.setActive(true);
+  s.ai.update(DT);
+  s.opp.facingAngle = Math.PI;
+  s.oppSpells.isCasting = true;
+  s.oppSpells.castingSpell = CONFRINGO;
+  s.oppSpells.castTime = CONFRINGO.release - 0.1;
+  for (let i = 0; i < 40; i++) { s.oppSpells.castTime += DT; s.ai.update(DT); s.shield.update(DT); }
+  assert.ok(!s.shield.up, 'no Protego while disarmed');
+  assert.notEqual(s.ai.state, 'PROTEGO');
+});
