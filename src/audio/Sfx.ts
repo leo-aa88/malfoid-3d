@@ -12,10 +12,10 @@ const BASE = import.meta.env.BASE_URL;
 
 type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
   | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
-  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus' | 'impedimenta' | 'episkey';
+  | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus' | 'impedimenta' | 'episkey' | 'toasty';
 const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
   'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
-  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus', 'impedimenta', 'episkey'];
+  'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus', 'impedimenta', 'episkey', 'toasty'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -55,6 +55,8 @@ export const BANKS = {
   // ~9 dB quieter than the other spells, hence the gain). The heal is instant: started 0.3 s in,
   // it peaks as the green column rises
   episkey: [slice('episkey', 0.30, 2.20, 2.5)],
+  // Dobby's cameo: "Toasty!" (the voice from 0.15 s, its line 0.3-0.9 s; the file's silent start cut)
+  toasty: [slice('toasty', 0.10, 1.40)],
   // Protego's hum (steady for 2 s, longer than the shield ever stays up): played while it is up
   protego: [slice('protego', 0.0, 99)],
   // single clean footsteps (the file's double scuffs and faint ones left out), levelled to one loudness
