@@ -9,6 +9,9 @@ her ground and makes you work for every hit.
 She is also the first opponent who doesn't care about the romantic rivalry at all: she is simply
 trying to put a stop to Malfoid's rampage.
 
+She is the roster's **only Hufflepuff**: the one duel where Hufflepuff yellow and black is on
+the other side.
+
 ## Abilities
 
 | Ability | Effect |

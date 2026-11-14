@@ -54,7 +54,7 @@ The campaign, in order (the planned roster; see the status column for what is in
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable (Protego not yet taught) |
-| 3 | Susan Bones | Defence, resilience, healing | The first who ignores the rivalry: she wants Malfoid stopped | Episkey | planned ([design](docs/susan/DESIGN.md)) |
+| 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | planned ([design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Confundo | planned |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
