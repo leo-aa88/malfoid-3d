@@ -18,9 +18,10 @@ export class Kit {
   /** keep texture coordinates (cloth: an atlas) instead of dropping them */
   constructor(private readonly keepUv = false) {}
 
-  /** following parts are in this frame: origin (world), turned yaw (rad) about +y */
-  setFrame(origin: THREE.Vector3, yaw: number): void {
+  /** following parts are in this frame: origin (world), turned yaw (rad) about +y, scaled */
+  setFrame(origin: THREE.Vector3, yaw: number, scale = 1): void {
     this.frame.makeRotationY(yaw).setPosition(origin);
+    if (scale !== 1) this.frame.multiply(this.m.makeScale(scale, scale, scale));
   }
 
   resetFrame(): void {
@@ -86,13 +87,6 @@ export class Kit {
     g.computeBoundingSphere();
     return g;
   }
-}
-
-/** a box the sun's rays can hit, for the shadows baked into the ground (world, turned yaw about +y) */
-export interface Occluder {
-  centre: THREE.Vector3;
-  half: THREE.Vector3;
-  yaw: number;
 }
 
 /** small deterministic colour jitter: c scaled by 1 +- amount */

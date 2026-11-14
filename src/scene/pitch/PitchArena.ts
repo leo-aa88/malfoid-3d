@@ -5,7 +5,9 @@ import { PITCH_CONFIG, PitchConfig } from './config';
 import { Kit } from './kit';
 import { buildStadium } from './structures';
 import { clothAtlas, groundExtent, groundTexture } from './textures';
-import { buildCastle, buildClouds, buildSky, buildTerrain, buildTrees } from './landscape';
+import { buildClouds, buildSky, buildTerrain } from './landscape';
+import { buildCastle } from './castle';
+import { buildTrees } from './trees';
 
 /** two-step toon ramp, softer than the characters' (a lot of daylight on wood) */
 function gradient(): THREE.DataTexture {
@@ -20,8 +22,8 @@ function gradient(): THREE.DataTexture {
  * The Hogwarts Quidditch Pitch: a finite arena, built once from code (no model files). The
  * fighters stay inside the oval at the foot of the stands (a low barrier marks it); the hoop
  * posts are solid; spells burst on the barrier and the posts. The camera stays inside the
- * stands. Everything is static: a handful of merged meshes, the stands' shadows baked into the
- * ground texture, nothing rebuilt per frame.
+ * stands. Everything is static: a handful of merged meshes and one sun shadow over the stadium,
+ * nothing rebuilt per frame.
  */
 export class PitchArena implements Arena {
   readonly kind = 'pitch' as const;
@@ -45,27 +47,32 @@ export class PitchArena implements Arena {
     const wood = new Kit();
     const cloth = new Kit(true);
     const built = buildStadium(cfg, wood, cloth);
-    buildTrees(cfg, wood);
-    buildCastle(cfg, wood);
     this.posts = built.posts;
     const solidMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: grad });
     const woodMesh = new THREE.Mesh(wood.build()!, solidMat);
     woodMesh.name = 'pitch_structures';
-    woodMesh.castShadow = true;                                   // onto the fighters when they stand close
+    // the stands and towers shade the grass, each other and the fighters (the sun's shadow
+    // covers the stadium here); the cloth too (its alpha cut-outs included)
+    woodMesh.castShadow = woodMesh.receiveShadow = true;
     const clothMesh = new THREE.Mesh(cloth.build()!, new THREE.MeshToonMaterial({ map: clothAtlas(), gradientMap: grad,
       alphaTest: 0.5, side: THREE.DoubleSide }));
     clothMesh.name = 'pitch_cloth';
-    // ground: the generated texture over the stadium, the shadows of the stands baked in
-    const sun = new THREE.Vector3(...cfg.sunOffset).normalize();
+    clothMesh.castShadow = clothMesh.receiveShadow = true;
+    // ground: the generated texture over the stadium (shaded by the sun's real shadow)
     const { halfX, halfZ } = groundExtent(cfg);
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * halfX, 2 * halfZ),
-      new THREE.MeshLambertMaterial({ map: groundTexture(cfg, built.occluders, sun) }));
+      new THREE.MeshLambertMaterial({ map: groundTexture(cfg) }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     ground.name = 'pitch_ground';
     const terrain = new THREE.Mesh(buildTerrain(cfg), new THREE.MeshLambertMaterial({ vertexColors: true }));
     terrain.name = 'pitch_land';
-    this.group.add(buildSky(cfg), buildClouds(cfg), terrain, ground, woodMesh, clothMesh);
+    // the castle: its own mesh (same material), out of the stadium's shadow, so no shadow pass
+    const castleKit = new Kit();
+    buildCastle(cfg, castleKit);
+    const castle = new THREE.Mesh(castleKit.build()!, solidMat);
+    castle.name = 'pitch_castle';
+    this.group.add(buildSky(cfg), buildClouds(cfg), terrain, ground, woodMesh, clothMesh, castle, buildTrees(cfg, grad));
     // the fighters' oval (inside the barrier), the camera's (inside the stands' foot)
     this.boundA = cfg.fieldHalfLength + cfg.apron - cfg.boundaryMargin;
     this.boundB = cfg.fieldHalfWidth + cfg.apron - cfg.boundaryMargin;
@@ -112,6 +119,7 @@ export class PitchArena implements Arena {
       keyOffset: c.sunOffset,
       rim: [c.rimColour, c.rimIntensity],
       cameraFar: c.landRadius * 1.1,
+      shadow: { centre: [0, 0, 0], halfSize: c.shadowHalfSize, mapSize: c.shadowMapSize, bias: c.shadowBias, normalBias: c.shadowNormalBias },
     };
   }
 

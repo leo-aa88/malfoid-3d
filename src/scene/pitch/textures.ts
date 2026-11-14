@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { HOUSES, HOUSE_ORDER, House, PitchConfig } from './config';
-import type { Occluder } from './kit';
 import { fbm, hash3 } from '../forest/random';
 
 /*
  * The pitch's generated textures: the house cloth atlas, a cloud, and the ground (mown grass,
- * worn apron, chalk lines, the stands' shadows baked in). Nothing is loaded from files.
+ * worn apron, chalk lines). Nothing is loaded from files.
  */
 
 /** where each house's cloth lives in the atlas (uv rectangle: u0, v0, u1, v1) */
@@ -133,13 +132,12 @@ export function outerGrass(cfg: PitchConfig): THREE.Color {
 /**
  * The ground under the stadium: mown stripes on the field, worn earth under the stands, chalk
  * lines (the field's edge, the centre circle, the scoring areas round the hoops), and the
- * shadows of the towers, stands and hoops for a sun along sunDir (unit, towards the sun).
+ * (The stadium's shadows are the sun's real shadow, not baked in: SceneManager / the arena's look.)
  */
-export function groundTexture(cfg: PitchConfig, occluders: Occluder[], sunDir: THREE.Vector3): THREE.CanvasTexture {
+export function groundTexture(cfg: PitchConfig): THREE.CanvasTexture {
   const { halfX, halfZ } = groundExtent(cfg);
   const W = Math.round(2 * halfX * cfg.groundTexelsPerMetre);
   const H = Math.round(2 * halfZ * cfg.groundTexelsPerMetre);
-  const shadow = shadowMask(cfg, occluders, sunDir, halfX, halfZ);
   // coarse colour variation (0.5 m cells), sampled bilinearly
   const vc = 0.5;
   const VW = Math.ceil((2 * halfX) / vc) + 2;
@@ -194,9 +192,6 @@ export function groundTexture(cfg: PitchConfig, occluders: Occluder[], sunDir: T
         Math.abs(Math.hypot((Math.abs(x) - cfg.hoopDistance) / 7, z / 10) - 1) * 7,   // scoring areas
       );
       if (dl < lw * 1.6 && e < 1.002) col.lerp(line, Math.min(1, (lw * 1.6 - dl) / (lw * 0.6)) * 0.85);
-      // baked stand shadows
-      const s = sample(shadow, x, z);
-      if (s > 0) col.multiplyScalar(1 - cfg.bakedShadow * s);
       const o = (py * W + px) * 4;
       d[o] = Math.min(255, col.r * 255);
       d[o + 1] = Math.min(255, col.g * 255);
@@ -212,73 +207,4 @@ export function groundTexture(cfg: PitchConfig, occluders: Occluder[], sunDir: T
   t.colorSpace = THREE.LinearSRGBColorSpace;       // colours were written as linear values
   t.anisotropy = 8;
   return t;
-}
-
-interface Mask { data: Float32Array; w: number; h: number; cell: number; halfX: number; halfZ: number }
-
-function sample(m: Mask, x: number, z: number): number {
-  const fx = (x + m.halfX) / m.cell - 0.5, fz = (z + m.halfZ) / m.cell - 0.5;
-  const ix = Math.max(0, Math.min(m.w - 2, Math.floor(fx))), iz = Math.max(0, Math.min(m.h - 2, Math.floor(fz)));
-  const tx = Math.min(1, Math.max(0, fx - ix)), tz = Math.min(1, Math.max(0, fz - iz));
-  const d = m.data, w = m.w;
-  const a = d[iz * w + ix] + (d[iz * w + ix + 1] - d[iz * w + ix]) * tx;
-  const b = d[(iz + 1) * w + ix] + (d[(iz + 1) * w + ix + 1] - d[(iz + 1) * w + ix]) * tx;
-  return a + (b - a) * tz;
-}
-
-/** 1 where the ground (y = 0) is in an occluder's shadow, 0 in sunlight (softened a little) */
-function shadowMask(cfg: PitchConfig, occ: Occluder[], sun: THREE.Vector3, halfX: number, halfZ: number): Mask {
-  const cell = cfg.bakedShadowCell;
-  const w = Math.ceil((2 * halfX) / cell), h = Math.ceil((2 * halfZ) / cell);
-  const raw = new Float32Array(w * h);
-  const horiz = Math.hypot(sun.x, sun.z) / Math.max(sun.y, 0.05);         // shadow length per metre of height
-  const boxes = occ.map((o) => ({ o, c: Math.cos(o.yaw), s: Math.sin(o.yaw),
-    reach: (o.centre.y + o.half.y) * horiz + Math.hypot(o.half.x, o.half.z) + 1 }));
-  for (let j = 0; j < h; j++) {
-    const z = -halfZ + (j + 0.5) * cell;
-    for (let i = 0; i < w; i++) {
-      const x = -halfX + (i + 0.5) * cell;
-      for (const b of boxes) {
-        const dx = x - b.o.centre.x, dz = z - b.o.centre.z;
-        if (dx * dx + dz * dz > b.reach * b.reach) continue;
-        if (rayHitsBox(dx, -b.o.centre.y, dz, sun, b.o.half, b.c, b.s)) {
-          raw[j * w + i] = 1;
-          break;
-        }
-      }
-    }
-  }
-  // soften: one 3 x 3 box blur
-  const data = new Float32Array(w * h);
-  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
-    let sum = 0, n = 0;
-    for (let v = -1; v <= 1; v++) for (let u = -1; u <= 1; u++) {
-      const ii = i + u, jj = j + v;
-      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
-      sum += raw[jj * w + ii];
-      n++;
-    }
-    data[j * w + i] = sum / n;
-  }
-  return { data, w, h, cell, halfX, halfZ };
-}
-
-/** does the ray from p (relative to the box centre) along dir cross the box (turned yaw)? */
-function rayHitsBox(px: number, py: number, pz: number, dir: THREE.Vector3, half: THREE.Vector3, c: number, s: number): boolean {
-  // into the box's frame (rotate by -yaw about +y)
-  const lx = px * c - pz * s, lz = px * s + pz * c;
-  const dx = dir.x * c - dir.z * s, dz = dir.x * s + dir.z * c;
-  let t0 = 0, t1 = 1e9;
-  for (const [o, d, hh] of [[lx, dx, half.x], [py, dir.y, half.y], [lz, dz, half.z]] as const) {
-    if (Math.abs(d) < 1e-9) {
-      if (o < -hh || o > hh) return false;
-      continue;
-    }
-    let a = (-hh - o) / d, b = (hh - o) / d;
-    if (a > b) [a, b] = [b, a];
-    t0 = Math.max(t0, a);
-    t1 = Math.min(t1, b);
-    if (t0 > t1) return false;
-  }
-  return true;
 }

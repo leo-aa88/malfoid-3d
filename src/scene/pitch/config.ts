@@ -64,7 +64,7 @@ export const PITCH_CONFIG = {
   /** radius of the surrounding land (m) */
   landRadius: 640,
   hillHeight: 38,
-  trees: 420,
+  trees: 600,
   /** the castle: direction from the pitch (deg, 0 = -z, 90 = +x), distance and size (m) */
   castleBearing: -28,
   castleDistance: 280,
@@ -86,9 +86,12 @@ export const PITCH_CONFIG = {
   /** haze: none up to fogNear, full at fogFar (softens the distant land) */
   fogNear: 180,
   fogFar: 760,
-  /** baked shadows of the stands on the ground: how dark (0 none .. 1 black) and the map's cell (m) */
-  bakedShadow: 0.38,
-  bakedShadowCell: 0.25,
+  /** the sun's real shadow covers the whole stadium: half size of the square (m), map size
+   *  (texels: 4096 over 120 m is ~3 cm a texel), depth bias against acne */
+  shadowHalfSize: 60,
+  shadowMapSize: 4096,
+  shadowBias: -0.0006,
+  shadowNormalBias: 0.04,
 };
 
 export type PitchConfig = typeof PITCH_CONFIG;
