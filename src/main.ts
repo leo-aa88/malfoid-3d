@@ -186,6 +186,11 @@ async function start(): Promise<void> {
     hud.setOpponent(opp.def.name, opp.def.hudColour);
     spells.world.targets = malfoidTargets();
   };
+  /** every fighter's wand back in her hand: a knocked-away wand lies in the scene, not under its
+   *  owner, so hiding an opponent (or changing arena) would leave it on the floor */
+  const gatherWands = () => {
+    for (const c of [malfoid, ...Object.values(opponents).map((o) => o.char)]) if (!c.hasWand) c.wand.retrieve();
+  };
   voices.onIntroDone = () => startFight();
   let duel = false;
   let duelOver = 0;
@@ -199,7 +204,7 @@ async function start(): Promise<void> {
       malfoidTarget.reset();
       protego.reset();
       opp.reset();
-      if (!malfoid.hasWand) malfoid.wand.retrieve();
+      gatherWands();
       spells.reset();
       // side by side across the screen (the camera looks along -z): Malfoid on the left
       // facing right, her opponent on the right facing left (a bounded arena: at its centre)
@@ -412,6 +417,7 @@ async function start(): Promise<void> {
     if (m === 'practice') who = who ?? practiceOpponent;
     if (who) setOpponent(who);
     mode = m;
+    gatherWands();                                    // nothing left lying from an earlier fight
     if (l || who) setLevel(l ?? level);
     menuOpen = false;
     modeEl.hidden = true;
@@ -428,7 +434,6 @@ async function start(): Promise<void> {
       setDuel(false);
       malfoid.root.position.set(0, 0, 0);
       placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
-      if (!malfoid.hasWand) malfoid.wand.retrieve();
       malfoidTarget.reset();
       protego.reset();
     } else {
