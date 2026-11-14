@@ -590,6 +590,56 @@ def cast_ventus(sk, t):
     return spec
 
 
+# --- Susan -----------------------------------------------------------------------
+# (she also uses Cho's cast_quick for Impedimenta and cast_ventus for Depulso)
+
+def susan_idle(sk, t):
+    """looping idle: planted and patient, feet a little wider than Cho's, the wand held ready
+    in front of her waist pointing at the floor ahead, slow even breathing, head level"""
+    b = sin(2 * pi * t / 6.0)                       # a small weight shift
+    br = sin(2 * pi * t / 4.0)                      # breathing
+    spec = base(sk, 0.0, 0.0, arms={'R': (V(-0.105, 0.170, 1.000), V(-0.205, 0.040, 1.110), 1.0, 'chest')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.22, 0.80, -0.55)          # wand forward and down: ready, not raised
+    arm['hand_k'] = 1.0
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(roll=0.9 * b, yaw=-3.0)
+    D['spine'] = E(roll=-0.5 * b, pitch=0.6 + 0.3 * br)
+    D['chest'] = E(roll=-0.4 * b, pitch=-0.8 - 0.5 * br, yaw=2.0)
+    D['neck'] = E(pitch=0.4)
+    D['head'] = E(pitch=1.0 + 0.3 * br, yaw=-2.0 + 0.8 * sin(2 * pi * t / 6.0 + 1.1))
+    D['shoulder_L'] = qy(-0.6 * br)
+    D['shoulder_R'] = qy(0.6 * br)
+    spec['t'] = spec['t'] + Vector((0.006 * b, 0.0, -0.008))
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(0.022, 0.035, 0.0)   # left foot forward and out
+    spec['leg_R']['ankle'] = spec['leg_R']['ankle'] + V(-0.018, -0.010, 0.0)
+    spec['leg_L']['foot'] = qz(10.0)
+    spec['leg_R']['foot'] = qz(-12.0)
+    spec['curl'] = 38.0                             # a firm grip
+    return spec
+
+
+def episkey(sk, t):
+    """Episkey, healing herself (EPISKEY_TIME s, interruptible): the wand comes in to touch
+    her chest over the heart, the left hand rests beside it, the head bows; near the end the
+    chest lifts as the charm takes (the game heals her at the end of the clip)"""
+    T = CLIPS['episkey']
+    k = env(t, 0.0, 0.30, T - 0.22, T)
+    lift = env(t, T - 0.45, T - 0.25, T - 0.12, T)
+    spec = base(sk, 0.2 * k, k, arms={'R': (V(-0.055, 0.205, 1.215), V(-0.205, 0.060, 1.110), k, 'world'),
+                                      'L': (V(0.045, 0.175, 1.190), V(0.195, 0.040, 1.105), k, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.45, -0.45, 0.55)          # the wand tip turned in, onto her chest
+    arm['hand_k'] = k
+    D = spec['D']
+    D['spine'] = E(pitch=3.0 * k - 3.0 * lift)
+    D['chest'] = E(pitch=2.0 * k - 4.0 * lift)
+    D['head'] = E(pitch=11.0 * k - 6.0 * lift, roll=2.0 * k)          # bowed, lifting at the end
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, -0.012 * k))
+    spec['curl'] = lerp(16.0, 30.0, k)
+    return spec
+
+
 # --- side-step walk (Cho circling her opponent while facing her)
 # A duelling-stance shuffle to her left: the lead (left) foot steps out, the trailing (right)
 # foot closes to it; the feet never cross. Played reversed it moves her right (the trail foot
@@ -635,6 +685,7 @@ def strafe(sk, t):
 
 QUICK_RELEASE = 0.20    # s: Stupefy leaves the wand tip (viewer: STUPEFY.release)
 VENTUS_RELEASE = 0.34   # s: the gust leaves (viewer: VENTUS.release)
+EPISKEY_TIME = 1.5      # s: Episkey's cast (viewer: EPISKEY.castTime)
 EXTRA_CLIPS = {
     'cho_idle': 8.0,       # looping idle: composed, the wand held low
     'dodge_left': 0.42,    # quick sidestep to her left (the game slides her)
@@ -644,6 +695,8 @@ EXTRA_CLIPS = {
     'cast_quick': 0.45,    # Stupefy flick
     'cast_ventus': 0.70,   # Ventus sweep
     'strafe': STRAFE_T,    # looping side-step to her left (reversed: to her right)
+    'susan_idle': 6.0,     # looping idle: planted, the wand ready low
+    'episkey': EPISKEY_TIME,   # healing herself (the game heals at the end)
 }
 from .character import P as _P  # noqa: E402
 for _n in _P.get('extra_clips', ()):
@@ -652,6 +705,8 @@ if 'cho_idle' in CLIPS:
     LOOPING = LOOPING + ('cho_idle',)
 if 'strafe' in CLIPS:
     LOOPING = LOOPING + ('strafe',)
+if 'susan_idle' in CLIPS:
+    LOOPING = LOOPING + ('susan_idle',)
 if 'protego' in CLIPS:
     HELD = HELD + ('protego',)
 

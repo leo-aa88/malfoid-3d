@@ -14,7 +14,7 @@ import type { Sfx, SoundId } from './Sfx';
 /** strikes that use the heavy impact sounds */
 const HEAVY_MOVES = new Set<MoveId>(['kick_low', 'kick_high', 'leg_sweep', 'spin_kick', 'rising_kick', 'uppercut', 'heavy_body']);
 /** the same voice, pitched a touch apart for each fighter */
-const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.02 };
+const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.02, Susan: 1.0 };
 /**
  * an opponent's spell sounds (by spell id): played at the release (the bolt leaves the wand) or
  * from the cast's start (it builds over the wind-up; a cast cancelled before its release cuts it)
@@ -23,6 +23,9 @@ const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume:
   expelliarmus: { id: 'expelliarmus', at: 'release', volume: 0.85 },
   stupefy: { id: 'stupefy', at: 'release', volume: 0.85 },
   ventus: { id: 'ventus', at: 'cast', volume: 0.8 },
+  // Susan's spells borrow these until they have their own sounds
+  impedimenta: { id: 'expelliarmus', at: 'release', volume: 0.75 },
+  depulso: { id: 'ventus', at: 'cast', volume: 0.85 },
 };
 /** Protego's hum while the shield is up (a steady, loud sound: quieter than the one-shot spells) */
 const SHIELD = { volume: 0.5, rate: 1.0 };

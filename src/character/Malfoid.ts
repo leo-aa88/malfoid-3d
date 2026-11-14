@@ -38,7 +38,7 @@ export type Weights = Record<string, number>;
 export interface CharacterOptions {
   name: string;
   /** standing-still clip */
-  idleClip?: 'idle' | 'confident' | 'cho_idle';
+  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle';
   /** after IDLE_ANNOYED_TIMEOUT s without input: cross the arms, annoyed face (Malfoid) */
   annoyedIdle?: boolean;
   /** named faces (shape-key weights) for setExpression(); 'annoyed' is used by the annoyed idle */

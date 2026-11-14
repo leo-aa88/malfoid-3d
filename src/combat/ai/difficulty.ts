@@ -7,6 +7,8 @@ export interface DifficultyLevel {
   /** Ginny's health (Malfoid has 100) */
   hp: number;
   ai: AIParams;
+  /** her Episkey at this level (Susan): HP healed per cast, casts per duel */
+  heal?: { amount: number; charges: number };
 }
 
 /*
@@ -133,5 +135,86 @@ export const CHO_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       evasive: { ...CHO_EASY.evasive!, dodgeClipChance: 0.65, counterChance: 0.75, counterDelay: [0.08, 0.22], shieldChance: 0.4,
         perfectChance: 0.24, timingError: 0.04, spamBonus: 0.05, pushChance: 0.65, backStepChance: 0.6 },
     },
+  },
+};
+
+/*
+ * Susan: a defensive duellist who stands her ground, guards a lot (and holds her guard), meets
+ * a rush with Impedimenta and a crowding with Depulso, strikes first at someone who rushes into
+ * her reach, and backs off to heal with Episkey when hurt (a hit breaks the charm). Slow,
+ * deliberate strikes; no parry, no dodging. Her Hufflepuff Resolve (FighterTarget.resolve)
+ * makes staggers mere flinches. Levels sharpen her reactions and guard, and her healing.
+ */
+const SUSAN_EASY: AIParams = {
+  detectRange: 120,
+  meleeRange: 0.72,
+  castRange: [3.0, 12.0],
+  reaction: [0.25, 0.45],
+  attackCooldown: [1.1, 1.8],
+  comboChance: 0.25,
+  blockChance: 0.5,
+  blockTime: [0.6, 1.0],
+  castChance: 0.3,
+  retreatTime: [0.8, 1.2],
+  retreatAfterHits: 3,
+  recover: 0.4,
+  runDistance: 9.0,
+  punishChance: 0.3,
+  counterChance: 0.4,
+  dodgeChance: 0,
+  smartCombos: false,
+  pressure: 0,
+  guardAfterHit: 0.4,
+  defensive: {
+    holdRange: [2.0, 6.5],
+    rushSpeed: 2.2,
+    rushRange: [2.2, 7.0],
+    rushChance: 0.4,
+    pushChance: 0.4,
+    pushRange: 2.6,
+    healBelow: 0.6,
+    healDistance: 4.5,
+    healChance: 0.6,
+    resolveBlock: 0.1,
+    spellBlockChance: 0.35,
+  },
+};
+
+export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
+  easy: { label: 'Easy', hp: 120, ai: SUSAN_EASY, heal: { amount: 20, charges: 2 } },
+  normal: {
+    label: 'Normal',
+    hp: 150,
+    ai: {
+      ...SUSAN_EASY,
+      reaction: [0.16, 0.3],
+      blockChance: 0.65,
+      castChance: 0.4,
+      punishChance: 0.5,
+      counterChance: 0.6,
+      guardAfterHit: 0.6,
+      defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.6, pushChance: 0.55, healChance: 0.75, spellBlockChance: 0.55 },
+    },
+    heal: { amount: 25, charges: 2 },
+  },
+  hard: {
+    label: 'Hard',
+    hp: 190,
+    ai: {
+      ...SUSAN_EASY,
+      reaction: [0.1, 0.2],
+      attackCooldown: [0.8, 1.4],
+      comboChance: 0.45,
+      blockChance: 0.78,
+      blockTime: [0.5, 0.9],
+      castChance: 0.5,
+      punishChance: 0.7,
+      counterChance: 0.8,
+      smartCombos: true,
+      guardAfterHit: 0.8,
+      recover: 0.3,
+      defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.75, pushChance: 0.7, healChance: 0.85, spellBlockChance: 0.7 },
+    },
+    heal: { amount: 30, charges: 3 },
   },
 };

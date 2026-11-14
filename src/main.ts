@@ -25,6 +25,7 @@ import { SpellFxSet } from './combat/spells/SpellFxSet';
 import { ALL_SPELLS, CAMPAIGN, CAMPAIGN_LIVES, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
 import { OPPONENTS, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
+import { SlowFx } from './combat/SlowFx';
 
 const BASE = import.meta.env.BASE_URL;
 const DUMMY_DISTANCE = 0.56;                  // m, centre to centre: in reach of every strike
@@ -82,6 +83,7 @@ async function start(): Promise<void> {
 
   // who can be hit: the dummy and the fighters
   const malfoidTarget = new FighterTarget(malfoid);
+  const slowFx = new SlowFx(sm.scene, malfoidTarget);   // Impedimenta's rings round her legs while she is slowed
   const solids: THREE.Box3[] = [];
   // training: the dummy in the studio; practice (any opponent, every spell, straight into the
   // fight) and the campaign (opponents in order, lives, spells learned): a duel in the woods
@@ -139,6 +141,7 @@ async function start(): Promise<void> {
         hud.announce('DISARMED!', 'disarm');
         o.char.setExpression(o.def.faces.disarmedFoe, 1.6);
       }
+      if (e.type === 'hit' && e.direct && e.spell.slow && e.report.result === 'hit' && !e.report.ko) hud.announce('SLOWED!', 'disarm');
     };
     o.target.onDefeated = () => { if (o === opp) finish(malfoid); };
   });
@@ -490,20 +493,25 @@ async function start(): Promise<void> {
       playerBot?.update(dt);                // automated playtests drive Malfoid (debug only)
       const duelMode = isDuel();
       const foe = opp.char;
-      if (duelMode) opp.ai.update(dt);
-      combat.update(dt);
-      if (duelMode) opp.combat.update(dt);
+      // a slowed fighter (Impedimenta) lives at a fraction of the game's time: moving, striking
+      // and casting (her bolts in flight too) all slow down together
+      const mdt = dt * malfoidTarget.timeScale;
+      const fdt = dt * opp.target.timeScale;
+      if (duelMode) opp.ai.update(fdt);
+      combat.update(mdt);
+      if (duelMode) opp.combat.update(fdt);
       voices.update(dt);                    // voice lines and mouths: before the pose update applies them
-      malfoid.update(dt);
-      if (duelMode) foe.update(dt);
-      spells.update(dt);                    // after the pose update: the wand tip is where it is drawn
+      malfoid.update(mdt);
+      if (duelMode) foe.update(fdt);
+      spells.update(mdt);                   // after the pose update: the wand tip is where it is drawn
       if (duelMode) {
-        opp.spells.update(dt);
-        opp.update(dt);                     // her shield
+        opp.spells.update(fdt);
+        opp.update(fdt);                    // her shield, her healing charm
       }
       combatSounds.update(dt);              // footsteps follow the poses just updated
       malfoidTarget.update(dt);
       opp.target.update(dt);
+      slowFx.update(dt);
       if (duelMode) {
         keepApart(malfoid.position, foe.position, FIGHTER_GAP, 0.5);
         const ar = arena!;
@@ -563,10 +571,12 @@ async function start(): Promise<void> {
   // expose for debugging / automated checks
   const g = opponents.ginny;
   const c = opponents.cho;
+  const su = opponents.susan;
   Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, malfoidTarget,
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
+    susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
     renderer: sm.renderer, scene: sm.scene, input, solids });
