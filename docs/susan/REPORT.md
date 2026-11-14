@@ -140,8 +140,8 @@ Found and fixed while playtesting:
 ![menu](menu.png)
 ![campaign](campaign_start.png)
 
-- **Practice:** a Susan button. She fights on the Quidditch Pitch, which is open ground for her
-  spells.
+- **Practice:** a Susan button. She fights in the Herbology Greenhouse (first on the pitch,
+  until the greenhouse was built).
 - **Campaign:** she is stage 3, after Cho. Beating her teaches nothing yet, because Malfoid's
   Episkey isn't built. After her, Luna is shown as coming soon.
 - **HUD:** her bar is Hufflepuff gold. "SLOWED!" is announced when Impedimenta lands.
@@ -200,7 +200,8 @@ guard, Episkey amount, HP.
   - the pack's straight-cut card ends show as blocks at the temple in the side view;
   - the half-up is softer than drawn.
 - **Robe:** it has no gold hood lining at the back (the shared robe has no hood).
-- **Arena:** she fights on Cho's pitch. A Hufflepuff place (the greenhouses) would suit her.
+- **Arena:** she now fights in the Herbology Greenhouse ([report](../greenhouse/REPORT.md)). The screenshots
+  above were taken on the pitch, before it existed.
 - **Balance** is tuned only against a scripted player; Normal and Hard need human play.
 - **Headless only:** the real frame rate and how the effects feel in motion are untested.
   Headless runs at 1–10 fps, so the AI was exercised in 0.1 s frames.

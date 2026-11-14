@@ -52,6 +52,14 @@ Each opponent has her arena:
   banners, twelve house towers, and hills, trees and the castle beyond, in daylight. The fighters
   stay inside a low barrier at the foot of the stands, spells burst on it, and the camera stays
   on the pitch. See `docs/pitch/REPORT.md`; all values are in `src/scene/pitch/config.ts`.
+- **Herbology Greenhouse** (Susan): a finite Victorian glasshouse generated in code.
+  - **Structure:** a brick plinth, iron-framed glass walls and a barrel-vaulted glass roof.
+  - **Planting:** potting benches and staging full of potted plants along both long walls,
+    planters of palms at the ends, hanging baskets, ivy and Hufflepuff banners.
+  - **The fight:** on the stone floor in the middle. The fighters can't walk into the benches
+    or planters, spells burst on the plants, and the camera never stands behind the plants.
+  - **Outside:** the Hogwarts grounds and castle, seen through the glass.
+  - See `docs/greenhouse/REPORT.md`; all values are in `src/scene/greenhouse/config.ts`.
 
 ## Opponents
 
@@ -139,7 +147,7 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
   and she is pushed 40 % less.
 - **More determined, not more aggressive:** below half health her face hardens and she guards
   more.
-- She fights on the Quidditch Pitch (open ground for her spells). She has no voice lines yet.
+- She fights in the Herbology Greenhouse. She has no voice lines yet.
 
 | Level | Susan's HP | Episkey | How she fights |
 |---|---|---|---|
@@ -310,7 +318,10 @@ Screenshots from the viewer are in `docs/confringo/`.
   grandstands, hoops and barrier, `landscape.ts` the land and sky, `trees.ts` the instanced
   conifers and broadleaves, `castle.ts` the castle on its crag, `textures.ts` the generated
   cloth and ground textures, `PitchArena.ts` collision, camera limit, light and the
-  stadium-wide sun shadow).
+  stadium-wide sun shadow); `scene/greenhouse/` – the Herbology Greenhouse (`config.ts` the
+  tunables, `structure.ts` the plinth, iron frame, glass and floor, `plants.ts` the benches,
+  pots, plants, planters, baskets and ivy, `GreenhouseArena.ts` collision, camera limit, light,
+  the grounds outside and the drifting motes).
 
 ## Tests
 

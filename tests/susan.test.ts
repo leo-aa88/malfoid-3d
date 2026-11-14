@@ -268,7 +268,8 @@ test('hurt, she heals with Episkey where she stands, close or far, and keeps fig
   }
 });
 
-test("Susan's definition: her spells, Episkey per level, Resolve, the pitch", () => {
+test("Susan's definition: her spells, Episkey per level, Resolve, the greenhouse", () => {
+  assert.equal(OPPONENTS.susan.arena, 'greenhouse');
   const s = OPPONENTS.susan;
   assert.equal(s.spell.id, 'impedimenta');
   assert.equal(s.push?.id, 'depulso');

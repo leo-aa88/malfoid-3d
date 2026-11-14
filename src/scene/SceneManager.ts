@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type EnvironmentKind = 'studio' | 'woods' | 'pitch';
+export type EnvironmentKind = 'studio' | 'woods' | 'pitch' | 'greenhouse';
 
 /** light, fog and sky settings of one environment */
 export interface EnvironmentLook {

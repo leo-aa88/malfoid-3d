@@ -66,7 +66,7 @@ export interface OpponentDef {
   /** m between the fighters when a duel starts */
   startDistance: number;
   /** where she is fought */
-  arena: 'woods' | 'pitch';
+  arena: 'woods' | 'pitch' | 'greenhouse';
   lines: DuelLines;
   faces: OpponentFaces;
   /** her health bar in the HUD */
@@ -125,8 +125,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     resolve: HUFFLEPUFF_RESOLVE,
     // she holds her ground: the duel starts at a middle distance, Malfoid must come to her
     startDistance: 4.5,
-    // open ground for her spells (no trunks in the way of Impedimenta)
-    arena: 'pitch',
+    // the Herbology greenhouse: Hufflepuff's home ground (an open stone floor between the benches)
+    arena: 'greenhouse',
     lines: SUSAN_LINES,
     faces: { start: 'determined', attack: 'neutral', retreat: 'worried', disarmedFoe: 'determined', heal: 'comforted',
       lowHp: 'determined', shielded: 'determined', parried: 'amused', win: 'comforted', lose: 'sad' },
