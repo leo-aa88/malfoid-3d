@@ -200,3 +200,8 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 /* the dip to dark between a campaign match's rounds (the fighters are reset behind it) */
 #round-fade { position: fixed; inset: 0; background: #05060a; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
 #round-fade.on { opacity: 1; }
+
+/* Dobby's cameo (ui/DobbyCameo.ts): peeking up from the bottom-right corner; its height and
+   motion are set from the script */
+#dobby-cameo { position: fixed; right: 1vw; bottom: 0; aspect-ratio: 1; pointer-events: none; transform-origin: 100% 100%;
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.45)); }

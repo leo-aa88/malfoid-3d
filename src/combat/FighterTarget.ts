@@ -38,6 +38,9 @@ export class FighterTarget implements CombatTarget {
   onDefeated: (() => void) | null = null;
   /** a hit got through (not blocked): damage dealt and its effect (sounds, ...) */
   onHurt: ((damage: number, effect: HitEffect) => void) | null = null;
+  /** a hit she reacts to (not a knockout): the reaction she takes, after her Resolve (Susan's
+   *  stagger is a flinch); 'stagger' means stunned */
+  onReaction: ((effect: HitEffect) => void) | null = null;
   /** seconds since the last hit (the AI uses it to tell when it is under pressure) */
   sinceHit = 99;
   /** hits taken in the last couple of seconds */
@@ -113,6 +116,7 @@ export class FighterTarget implements CombatTarget {
       const push = hit.dir.clone().setY(0).normalize().multiplyScalar((hit.knockback ?? PUSH[hit.effect]) * (this.resolve?.push ?? 1));
       this.fighter.react(REACTION[effect], push);
       this.fighter.setExpression('pain', 0.7);
+      this.onReaction?.(effect);
     }
     return { result: 'hit', damage: hit.damage, ko };
   }

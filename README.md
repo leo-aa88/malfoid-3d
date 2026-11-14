@@ -27,8 +27,9 @@ The start screen offers three modes:
 
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
-- **Practice:** pick an opponent and a difficulty and fight straight away, with every spell
-  except the one that opponent teaches (no Expelliarmus against Ginny), and no voice lines.
+- **Practice:** pick an opponent and a difficulty and fight straight away, with the spells
+  Malfoid has when she reaches that opponent in the campaign (Ginny: Confringo only; Cho: and
+  Expelliarmus; Susan: and Protego), and no voice lines.
   **G** restarts the fight. Ginny, Cho or Susan; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
@@ -180,6 +181,11 @@ picks it up before casting again. Tuning is in `src/combat/spells/Expelliarmus.t
 - **The last word (campaign):** the match's winner says her line after the deciding KO, then the
   result follows with the score in rounds: the spell learned and the next opponent, or game
   over.
+- **Dobby:** now and then, when a duellist is stunned (a stagger: Stupefy, Expelliarmus, a
+  combo's stunning blow), Dobby peeks up from the bottom-right corner with a "Toasty!", as in the
+  classic arcade fighters. The chance is 10 % per stun, with at least 60 s of game time between
+  appearances. Susan's Resolve turns a stagger into a flinch, so she never brings him. The
+  settings are in `src/ui/DobbyCameo.ts` ([screenshot](docs/dobby/cameo.png)).
 - **Lip movement:** the speakers' mouths open and close with the loudness of their lines
   (`audio/duelVoices.ts`).
 - **Leaving:** **Change mode** in the HUD returns to the start screen.
@@ -304,6 +310,7 @@ Screenshots from the viewer are in `docs/confringo/`.
   `ConfringoFx.ts` + `ExplosionEffect.ts` + `fx/` (pooled particles, glows, explosion; one pool
   per look, shared by every caster of that spell), `SpellFxSet.ts` (a caster's spells to their pools).
 - `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, a cooldown slot per spell, round wins.
+- `ui/DobbyCameo.ts` – Dobby's cameo: when he appears (`CameoTrigger`) and his pop-up in the corner.
 - `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
   pause screen; remembered in the browser, with a short sample at the new level.
 - `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement
@@ -311,7 +318,7 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
   `public/sfx/`, placed by distance and screen side; `audio/combatSounds.ts` – which sound plays
   for which event (punches, kicks, grunts on damage, Confringo, Expelliarmus, Protego's hum while
-  Cho's shield is up, Stupefy's crackle, Ventus's rush of air, Impedimenta's swell, Episkey's chime, footsteps timed to
+  Cho's shield is up, Stupefy's crackle, Ventus's rush of air, Impedimenta's swell, Episkey's chime, Dobby's "Toasty!", footsteps timed to
   the walk / run cycles' foot landings). The sound files are in `public/sfx/`; if one is missing
   the game just runs without it.
 - `character/HairSway.ts` – damped-spring secondary motion on the hair's strand bones.

@@ -12,6 +12,7 @@ import { TrainingDummy, DUMMY_RADIUS, Guard } from './combat/TrainingDummy';
 import { ComboSystem } from './combat/ComboSystem';
 import { FighterTarget } from './combat/FighterTarget';
 import { CombatHud } from './ui/CombatHud';
+import { CAMEO, CameoTrigger, DobbyCameo } from './ui/DobbyCameo';
 import { SpellSystem } from './combat/spells/SpellSystem';
 import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
@@ -23,7 +24,7 @@ import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
-import { ALL_SPELLS, CAMPAIGN, Campaign, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
+import { ALL_SPELLS, CAMPAIGN, Campaign, spellsBefore, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
 import { MATCH, Match } from './game/match';
 import { OPPONENTS, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
@@ -208,9 +209,16 @@ async function start(): Promise<void> {
   const fadeEl = document.createElement('div');
   fadeEl.id = 'round-fade';
   sm.renderer.domElement.after(fadeEl);            // over the scene, under the HUD and the menus
+  // Dobby's cameo (a fighting-game easter egg): rarely, when a duellist is stunned, he pops up in
+  // the bottom-right corner with a "Toasty!" (over the HUD's help bar, under the pause screen
+  // and the menus; hooked to the fighters below, once the sounds are connected)
+  const cameo = new DobbyCameo(document.body, `${BASE}dobby.png`);
+  document.getElementById('paused')!.before(cameo.el);
+  const cameoTrigger = new CameoTrigger();
   let closeUpOn: Malfoid | null = null;            // the voice-line close-up being held
   const faceAt = new THREE.Vector3();
   const setDuel = (on: boolean) => {
+    cameo.hide();                                     // not carried into a new duel or round
     duel = on;
     duelOver = 0;
     roundBreak = false;
@@ -314,10 +322,10 @@ async function start(): Promise<void> {
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
   const helpProtego = document.getElementById('help-protego')!;
   const refreshSpells = () => {
-    // practice: every spell but the one this opponent teaches (no Expelliarmus against Ginny)
-    const own = CAMPAIGN.find((o) => o.id === opp.def.id)?.reward;
+    // practice: the spells she has when she reaches this opponent in the campaign (against
+    // Ginny only Confringo; nothing learned from her or anyone after her)
     mySpells = mode === 'campaign' ? campaign.spells
-      : mode === 'practice' ? new Set([...ALL_SPELLS].filter((s) => s !== own)) : ALL_SPELLS;
+      : mode === 'practice' ? spellsBefore(opp.def.id) : ALL_SPELLS;
     hud.showSpell('confringo', true);
     hud.showSpell('expelliarmus', mySpells.has('expelliarmus'));
     helpExpelliarmus.hidden = !mySpells.has('expelliarmus');
@@ -523,6 +531,16 @@ async function start(): Promise<void> {
   // sound effects (public/sfx); M mutes
   const combatSounds = connectCombatSounds(sfx, { malfoid, combat, spells, malfoidShield: protego,
     opponents: Object.values(opponents), fighters: [malfoidTarget, ...Object.values(opponents).map((o) => o.target)] });
+  // a stun (a stagger, after Susan's Resolve) during a fight: now and then, Dobby
+  for (const t of [malfoidTarget, ...Object.values(opponents).map((o) => o.target)]) {
+    const prev = t.onReaction;
+    t.onReaction = (effect) => {
+      prev?.(effect);
+      if (effect !== 'stagger' || !duel || duelOver || !cameoTrigger.stunned()) return;
+      cameo.show();
+      sfx.play('toasty', { volume: CAMEO.volume });
+    };
+  }
   // the volume control: on the start menu and the pause screen
   const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
   window.addEventListener('keydown', (e) => {
@@ -601,6 +619,8 @@ async function start(): Promise<void> {
       else if (!dummy.down) keepApart(malfoid.position, dummy.position, DUMMY_RADIUS + 0.22);
       if (!duelMode) dummy.update(dt, malfoid.position);
       hud.update(dt);
+      cameoTrigger.update(dt);
+      cameo.update(dt);
       if (duelOver) {
         duelOver += dt;
         // a round of a campaign match: dip to dark, then the next round
@@ -659,7 +679,7 @@ async function start(): Promise<void> {
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
     susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
-    protego, protegoFx,
+    protego, protegoFx, cameo, cameoTrigger,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, match, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
     renderer: sm.renderer, scene: sm.scene, input, solids });
