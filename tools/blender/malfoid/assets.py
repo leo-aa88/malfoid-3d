@@ -283,8 +283,6 @@ def import_hair(head, parts):
             ears.append(sum(vs, Vector()) / len(vs))
         tuck_behind_ears(ob, ears)
         _hair_clearance(ob, skull, centre)
-    if PROFILE['hair'].get('bangs'):
-        bangs(me, skull, centre, BANG_CARDS)
     print('MF hair: %d verts, %d faces, %d secondary bones' % (len(me.vertices), len(me.polygons), len(HAIR_BONES)))
     return ob
 
@@ -434,31 +432,6 @@ def half_up(me, skull, centre):
     return tie
 
 
-# Cho's fringe (blueprint / facial atlas: airy, layered bangs across the forehead down to the
-# brows, fine separated strands over them). The purchased hair has a bare-forehead centre part,
-# so the fringe is made of new hair cards textured with the pack's own strand art: a back layer
-# of overlapping cards on its opaque strand strip (the body of the fringe) and a front layer of
-# thin cards on its fine-strand strip (the separated wisps). Each card runs from under the crown
-# hair (its cut root end hidden) over the hairline and down the forehead, hugging its curve
-# strand by strand, and ends in frayed tips just over the brows.
-# (x of the card's centre, half width, tip height (m), layer: 0 back, 1 front wisps)
-BANG_CARDS = [
-    # the body: two curtains parted at the centre (the inner cards shortest: a narrow V of
-    # forehead between them), longest over the brows, sweeping out towards the temples
-    (-0.064, 0.012, 1.420, 0), (-0.047, 0.012, 1.404, 0), (-0.030, 0.011, 1.408, 0), (-0.014, 0.009, 1.424, 0),
-    (0.013, 0.009, 1.426, 0), (0.029, 0.011, 1.407, 0), (0.046, 0.012, 1.403, 0), (0.063, 0.012, 1.418, 0),
-    # separated wisps over it, the longest reaching just above the eyelids
-    (-0.056, 0.004, 1.403, 1), (-0.039, 0.004, 1.396, 1), (-0.022, 0.004, 1.402, 1), (-0.007, 0.003, 1.418, 1),
-    (0.008, 0.003, 1.420, 1), (0.021, 0.004, 1.400, 1), (0.038, 0.004, 1.395, 1), (0.055, 0.004, 1.404, 1),
-]
-# strand art in the pack's hair atlas (u band) and the part of a strand used (v: tip .. root):
-# the body on the opaque strand strip (a sparser strip looked stringy), the wisps on the finest;
-# the airiness comes from the uneven lengths, the gaps between the body cards and the frayed tips
-BANG_STRIPS = {0: (0.728, 0.812), 1: (0.578, 0.628)}
-BANG_V = (0.05, 0.85)
-# height of the fringe above the skin: under the crown hair, at the hairline, at the tips (m)
-BANG_GAP = {0: (0.0018, 0.0035, 0.0055), 1: (0.0022, 0.0050, 0.0080)}
-BANG_HAIRLINE = 1.476             # where the fringe leaves the crown hair and lies on the forehead
 def frame_locks(me):
     """Cho's face-framing side locks hang beside her cheeks (blueprint / atlas side and 3/4
     views). Some of the pack's front cards sweep from the part diagonally forward across the
@@ -484,76 +457,6 @@ def frame_locks(me):
             moved += 1
     print('MF hair: %d face-framing locks eased back beside the cheeks (%d verts)' % (cards, moved))
 
-
-def bangs(me, skull, centre, cards):
-    """Cho's fringe (see BANG_CARDS): new cards in the pack's strand art, hugging the head"""
-    import bmesh as _bm
-    bm = _bm.new()
-    bm.from_mesh(me)
-    # the pack's tiny hairline pieces at the centre parting (1-2 cm cards): with the fringe
-    # parted over them they read as dark debris in the gap; the fringe covers that hairline
-    bm.verts.ensure_lookup_table()
-    doomed, gone = [], 0
-    for comp in _islands(me):
-        cs = [me.vertices[i].co for i in comp]
-        if (len(comp) <= 48 and max(abs(c.x) for c in cs) < 0.03 and min(c.z for c in cs) > 1.43
-                and max(c.y for c in cs) < -0.05):
-            doomed += [bm.verts[i] for i in comp]                 # (collected first: deleting shifts indices)
-            gone += 1
-    if doomed:
-        _bm.ops.delete(bm, geom=doomed, context='VERTS')
-    print('MF hair: %d tiny hairline pieces at the parting removed (%d verts)' % (gone, len(doomed)))
-    uv = bm.loops.layers.uv.active
-    dl = bm.verts.layers.deform.verify()
-    hob = bpy.data.objects.get('Hair')
-    gi = next((i for i, g in enumerate(hob.vertex_groups) if g.name == 'head.x'), 0) if hob else 0
-
-    def on_skull(x, y, z, gap):
-        """the skull's surface towards (x, y, z) from the head centre, lifted by gap"""
-        d = Vector((x, y, z)) - centre
-        d.normalize()
-        hit = skull.ray_cast(centre + d * 0.4, -d, 0.4)[0]
-        return (hit if hit is not None else centre + d * 0.1) + d * gap
-
-    nu, nv = 5, 14
-    made = 0
-    for x0, half_w, z_tip, layer in cards:
-        g0, g1, g2 = BANG_GAP[layer]
-        u0, u1 = BANG_STRIPS[layer]
-        verts = []
-        for j in range(nv + 1):
-            t = j / nv                                           # 0 root (on the crown) .. 1 tip
-            taper = 1.0 - 0.45 * max(0.0, (t - 0.55) / 0.45) ** 1.5
-            row = []
-            for i in range(nu + 1):
-                a = 2 * i / nu - 1
-                x = x0 + a * half_w * taper
-                # the strand's path: crown -> hairline -> forehead -> tip (x spreads a little
-                # outwards towards the temples, like hair falling from a centre)
-                if t < 0.35:
-                    k = t / 0.35
-                    p = (x * (0.45 + 0.5 * k), -0.010 - 0.062 * k, 1.538 - (1.538 - BANG_HAIRLINE) * k, g0 + (g1 - g0) * k)
-                else:
-                    # down the forehead, sweeping out from the parting towards the temples
-                    k = (t - 0.35) / 0.65
-                    sweep = (0.006 if x0 > 0 else -0.006) * k * k
-                    p = (x * 0.95 + sweep, -0.072 - 0.018 * k, BANG_HAIRLINE - (BANG_HAIRLINE - z_tip) * k, g1 + (g2 - g1) * k)
-                v = bm.verts.new(on_skull(*p))
-                v[dl][gi] = 1.0
-                row.append((v, (u0 + (u1 - u0) * (i / nu), BANG_V[1] - (BANG_V[1] - BANG_V[0]) * t)))
-            verts.append(row)
-        for j in range(nv):
-            for i in range(nu):
-                quad = [verts[j][i], verts[j + 1][i], verts[j + 1][i + 1], verts[j][i + 1]]
-                f = bm.faces.new([q[0] for q in quad])
-                f.smooth = True
-                for loop, q in zip(f.loops, quad):
-                    loop[uv].uv = q[1]
-        made += 1
-    bm.to_mesh(me)
-    bm.free()
-    me.update()
-    print('MF hair: fringe of %d cards over the forehead' % made)
 
 def slim_hair(me):
     n = 0

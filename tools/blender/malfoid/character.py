@@ -98,7 +98,7 @@ PROFILES = {
         # (more neutral than the swatch: as rendered, a bluer ramp read navy and the blue bow
         # vanished against it at gameplay distance)
         'hair': {'ramp': ((0x03, 0x03, 0x05), (0x07, 0x08, 0x0d), (0x0e, 0x11, 0x19), (0x1a, 0x20, 0x2e), (0x33, 0x3c, 0x52)),
-                 'flatten': True, 'slim': True, 'part_shift': -0.005, 'half_up': True, 'bangs': True,
+                 'flatten': True, 'slim': True, 'part_shift': -0.005, 'half_up': True,
                  'frame_locks': True},
         'ribbon': True,                      # the Ravenclaw bow where the half-up is gathered
         'tie': ((0x1f, 0x2c, 0x55), (0xc4, 0xc8, 0xd0)),   # navy, silver
