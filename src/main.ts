@@ -280,6 +280,7 @@ async function start(): Promise<void> {
     closeUpOn = null;
     roundIntro = ROUND_INTRO;
     if (opp.def.faces.intro) opp.char.setExpression(opp.def.faces.start, 2.5);   // the opening lines are over
+    malfoid.setExpression(null);                      // (her face from the exchange, Hermione's: back to her own)
     hud.announce(match.final ? 'FINAL ROUND' : `ROUND ${match.round}`, 'duel');
   };
   const intro = () => mode === 'campaign' && match.round === 1;

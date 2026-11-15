@@ -231,6 +231,8 @@ test('Hermione\'s definition and levels: Petrificus and Expelliarmus, Protego, t
   assert.equal(d.push?.id, 'depulso', 'Susan\'s Depulso throws Malfoid back when she crowds her');
   assert.ok(!d.episkey && !d.oppugno && !d.illusio);
   assert.equal(d.arena, 'greathall');
+  assert.equal(d.faces.intro, 'serious', 'serious through the opening exchange');
+  assert.equal(OPPONENTS.ginny.faces.intro, undefined);
   const [e, n, h] = (['easy', 'normal', 'hard'] as const).map((l) => HERMIONE_DIFFICULTY[l]);
   assert.deepEqual([e.hermione!.plates, n.hermione!.plates, h.hermione!.plates], [8, 10, 12]);
   assert.ok(e.hermione!.petrify < n.hermione!.petrify && n.hermione!.petrify < h.hermione!.petrify);

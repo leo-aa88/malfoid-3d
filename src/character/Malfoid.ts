@@ -75,6 +75,19 @@ export const FACE_FX_KEYS = ['blush', 'tears'] as const;
  */
 export const MALFOID_TALK: Weights = { 'あ': 0.42, jawOpen: 0.08, mouthPressLeft: 0, mouthPressRight: 0 };
 
+/** Malfoid teasing (the opening lines against Hermione): a one-sided smirk, one brow up, a
+ *  narrowed, amused look */
+export const TEASING_FACE: Weights = {
+  Smirk: 0.65, 'にやり': 0.3, mouthSmileLeft: 0.5, mouthSmileRight: 0.12, browOuterUpLeft: 0.6, browDownRight: 0.3,
+  eyeSquintLeft: 0.15, eyeSquintRight: 0.3, mouthPressLeft: 0, mouthPressRight: 0,
+};
+
+/** Malfoid smug: a self-satisfied closed smile, half-lowered lids, chin up */
+export const SMUG_FACE: Weights = {
+  Confident: 0.6, 'にやり': 0.45, mouthSmileLeft: 0.35, mouthSmileRight: 0.35, 'vrc.blink_Straight': 0.35,
+  browOuterUpLeft: 0.25, browOuterUpRight: 0.25, mouthPressLeft: 0, mouthPressRight: 0,
+};
+
 /** Malfoid's face while annoyed (existing shape keys of the base mesh). */
 export const ANNOYED_FACE: Weights = {
   // stronger than her (already haughty) resting face: brows pulled down hard,
@@ -108,7 +121,8 @@ interface ModelMeta {
 export class Malfoid {
   readonly root = new THREE.Group();
   name = 'Malfoid';
-  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE }, talk: MALFOID_TALK,
+  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true,
+    expressions: { annoyed: ANNOYED_FACE, teasing: TEASING_FACE, smug: SMUG_FACE }, talk: MALFOID_TALK,
     run: null, twins: false };
   /** the model as loaded (before toon shading), for copies of her (CharacterOptions.twins) */
   private pristine: { scene: THREE.Object3D; animations: THREE.AnimationClip[]; meta: ModelMeta } | null = null;

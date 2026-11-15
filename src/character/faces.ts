@@ -181,6 +181,10 @@ const noSmileHermione = { mouthSmileLeft: 0, mouthSmileRight: 0 };
 
 export const HERMIONE_FACES: Record<string, Weights> = {
   neutral: {},
+  // serious: her face through the opening exchange (warning Malfoid): no smile, brows drawn a
+  // little down and in, a level, steady gaze, lips set
+  serious: { ...noSmileHermione, browDownLeft: 0.6, browDownRight: 0.6, browInnerUp: 0.2, eyeSquintLeft: 0.2,
+    eyeSquintRight: 0.2, '真面目': 0.7, mouthPressLeft: 0.2, mouthPressRight: 0.2, mouthFrownLeft: 0.15, mouthFrownRight: 0.15 },
   // "Happy / Cheerful (bright)": eyes closed in happy arcs, an open smile
   cheerful: { Smile2: 1.0, 'ワ': 0.45, jawOpen: 0.1, 'vrc.blink_Straight': 0, blush: 0.15 },
   // "Confident (smug, self-assured, clever)": a closed one-sided smile, one brow up, lids lowered a little

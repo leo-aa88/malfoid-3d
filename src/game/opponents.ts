@@ -196,7 +196,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     // the Great Hall: the house tables (and their dinner plates)
     arena: 'greathall',
     lines: HERMIONE_LINES,
-    faces: { start: 'confident', attack: 'determined', retreat: 'frustrated', disarmedFoe: 'confident', shielded: 'determined',
+    // serious through the opening exchange (her lines set it too), then her confident self
+    faces: { start: 'confident', intro: 'serious', attack: 'determined', retreat: 'frustrated', disarmedFoe: 'confident', shielded: 'determined',
       parried: 'confident', lowHp: 'angry', win: 'cheerful', lose: 'frustrated' },
     hudColour: '#a8613f',
   },
