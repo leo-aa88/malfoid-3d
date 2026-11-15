@@ -64,7 +64,7 @@ Top: Malfoid's new clips, from the side. Bottom: Hermione's.
 | `cast_plates` | Hermione | The wand high and the left hand out over the rising plates (the wind-up, to 1.1 s), then the wand conducting them at the target. |
 | `cast_accio` | Hermione | The wand at the wand on the floor, the left hand reaching, then closing on the catch. |
 
-She also has Cho's `cast_quick` (Petrificus), `cast_ventus` (Ventus), the side-step, the dodges
+She also has Cho's `cast_quick` (Petrificus), `cast_ventus` (Depulso), the side-step, the dodges
 and the `protego` pose.
 
 **Fixes from the first passes:**
@@ -91,7 +91,7 @@ Hard, her real AI, frozen at each moment. From top left:
 | **Petrificus Totalus** | A pale blue bolt: 4 damage. It binds Malfoid for 1.7 / 2.0 / 2.2 s, then she gets up. While she's down or getting up, only one more hit lands. A guard or Protego stops it. | `spells/Petrificus.ts`; cooldown 15 / 12 / 9 s |
 | **Expelliarmus + Accio** | She disarms into Malfoid's casts, then turns to the dropped wand and summons it into her left hand (ACCIO!). A hit that gets through makes her let go. Accio can be interrupted and has a 10 s cooldown. | `spells/Accio.ts`, `Wand.summon` / `loose` |
 | **Protego** | Often timed to reflect. | `Protego.ts` |
-| **Ventus** (added on request) | Cho's gust: crowd her and she throws Malfoid back. | `spells/Ventus.ts` |
+| **Depulso** (added on request) | Susan's push bolt: crowd her and she throws Malfoid back (9 damage, a hard shove). | `spells/Depulso.ts`; cooldown 8 s |
 
 ## Her AI (the prodigy style)
 

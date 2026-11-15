@@ -21,7 +21,7 @@ and every attack can be dodged or blocked.
 | **Expelliarmus** | Disarms Malfoid, especially when she exposes herself while casting. |
 | **Accio** | Summons Malfoid's **dropped wand** into Hermione's free hand. Malfoid must close in and land a melee hit to make her drop it, then pick it up. Accio can be interrupted, and it has a cooldown before she can try another theft. |
 | **Protego** | Blocks, and with excellent timing reflects, incoming spells. |
-| **Ventus** (added on request) | Cho's gust: when Malfoid crowds her, Hermione throws her back (with its cooldown). |
+| **Depulso** (added on request) | Susan's push bolt: when Malfoid crowds her, Hermione throws her back (with its cooldown). |
 | **Petrificus Totalus** | A bolt that binds Malfoid's body. She goes rigid, arms at her sides, and **topples backwards like a plank** (not a ragdoll). She lies immobilised for about 2 s, then gets up with a short animation. There's no button-mashing. Dodge it or block it with Protego. |
 
 ## What makes her OP (and still fair)

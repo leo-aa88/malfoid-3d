@@ -228,7 +228,7 @@ test('Hermione\'s definition and levels: Petrificus and Expelliarmus, Protego, t
   assert.equal(d.spell.id, 'petrificus');
   assert.equal(d.altSpell, EXPELLIARMUS);
   assert.ok(d.protego && d.plates && d.accio);
-  assert.equal(d.push?.id, 'ventus', 'Cho\'s Ventus throws Malfoid back when she crowds her');
+  assert.equal(d.push?.id, 'depulso', 'Susan\'s Depulso throws Malfoid back when she crowds her');
   assert.ok(!d.episkey && !d.oppugno && !d.illusio);
   assert.equal(d.arena, 'greathall');
   const [e, n, h] = (['easy', 'normal', 'hard'] as const).map((l) => HERMIONE_DIFFICULTY[l]);

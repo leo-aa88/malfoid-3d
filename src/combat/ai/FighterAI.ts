@@ -156,7 +156,7 @@ export interface ProdigyStyle {
   kiteRange: number;
   /** an attack she sees coming in reach: a quick step out of it (dodge clips) */
   dodgeClipChance: number;
-  /** crowded within pushRange (being attacked, hit, or very close): Ventus throws her back */
+  /** crowded within pushRange (being attacked, hit, or very close): Depulso throws her back */
   pushChance: number;
   pushRange: number;
   /** aim: fraction of the predicted lead she uses, and how far (m) she aims to the side the

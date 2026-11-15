@@ -249,8 +249,8 @@ her choices. Her strongest attacks need a wind-up that can be interrupted. See
   you bound she follows up once, either Expelliarmus at once or the plates timed to fly just as
   you are back on your feet.
 - **Protego:** she meets your spells with the shield, often timed to send them back.
-- **Ventus:** Cho's gust (added on request): crowd her and she throws you back (3 damage, a
-  shove; 7 s cooldown).
+- **Depulso:** Susan's push bolt (added on request): crowd her and she throws you back (9 damage,
+  a hard shove; 8 s cooldown).
 - She keeps a caster's distance, circling; holding your wand, she lets you come close.
 - She fights in the Great Hall. No voice lines yet: the duel goes straight to the fight.
 

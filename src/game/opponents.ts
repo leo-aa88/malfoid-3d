@@ -185,8 +185,9 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     spell: PETRIFICUS,
     look: PETRIFICUS_LOOK,
     altSpell: EXPELLIARMUS,
-    // Cho's Ventus (added on request): a gust that throws Malfoid back when she crowds her
-    push: VENTUS,
+    // Susan's Depulso (added on request): a bolt that throws Malfoid back when she crowds her
+    push: DEPULSO,
+    pushLook: DEPULSO_LOOK,
     protego: true,
     plates: true,
     accio: true,
