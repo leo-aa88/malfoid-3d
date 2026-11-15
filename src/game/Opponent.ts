@@ -62,6 +62,8 @@ export class Opponent {
   readonly barrage: PlateBarrage | null = null;
   private readonly plateFx: PlateFx | null = null;
   private plateCount = PLATES.plates;
+  /** her own copy of the barrage's spell (a level sets its cooldown) */
+  private readonly platesSpell = { ...PLATES_SPELL };
   /** where the barrage's plates come from (the Great Hall's tables: the nearest places, taken
    *  off the tables); null: conjured round her */
   plateSource: ((near: THREE.Vector3, count: number) => THREE.Vector3[]) | null = null;
@@ -156,7 +158,7 @@ export class Opponent {
       this.barrage = new PlateBarrage();
       this.plateFx = new PlateFx(w.scene, this.barrage);
       this.barrage.onEvent = (e) => this.spells.onEvent?.(e);
-      this.ai.plates = PLATES_SPELL;
+      this.ai.plates = this.platesSpell;
       this.ai.threatOut = () => this.barrage!.plates.some((p) => p.state === 'flying');
     }
     if (def.accio) this.ai.accio = ACCIO;
@@ -203,6 +205,9 @@ export class Opponent {
     }
     if (l.hermione) {
       this.plateCount = l.hermione.plates;
+      if (this.barrage) this.barrage.cfg.damage = l.hermione.plateDamage;
+      this.platesSpell.cooldown = l.hermione.platesCooldown;
+      if (this.spell.petrify) this.spell.cooldown = l.hermione.petrifyCooldown;
       if (this.spell.petrify) this.spell.petrify.duration = l.hermione.petrify;
     }
     if (l.luna) {

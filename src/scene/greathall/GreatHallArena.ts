@@ -311,17 +311,20 @@ export class GreatHallArena implements Arena {
     // feet past the tables
     const cx = L - cfg.cameraMargin, cz = W - cfg.cameraMargin;
     const band = cfg.benchOffset + cfg.benchWidth / 2 + 0.15;
-    const inside = (x: number, z: number) => Math.abs(x) <= cx && Math.abs(z) <= cz
+    // (the duel camera picks the side it watches from with inside(): only the walls count there;
+    // with the tables counted too it kept finding no room and swung round to the other side)
+    const inside = (x: number, z: number) => Math.abs(x) <= cx && Math.abs(z) <= cz;
+    const allowed = (x: number, z: number) => inside(x, z)
       && !(x > tx0 - 0.4 && x < tx1 + 0.4 && cfg.tables.some((t) => Math.abs(z - t) < band));
     const aisle = cfg.tables[2] - cfg.benchOffset - cfg.benchWidth / 2;
     this.cameraLimit = {
       inside,
       clamp: (c, t) => {
-        if (inside(c.x, c.z)) return;
+        if (allowed(c.x, c.z)) return;
         // the first allowed spot on the way in towards the target (the aisle beside the table
         // it stood over: bisecting jumped to the central aisle, far too close)
         const x0 = c.x, z0 = c.z;
-        const at = (m: number) => inside(x0 + (t.x - x0) * m, z0 + (t.z - z0) * m);
+        const at = (m: number) => allowed(x0 + (t.x - x0) * m, z0 + (t.z - z0) * m);
         let lo = 0, hi = 1;
         for (let i = 1; i <= 64; i++) {
           if (at(i / 64)) {

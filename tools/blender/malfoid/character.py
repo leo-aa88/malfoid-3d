@@ -267,8 +267,9 @@ PROFILES = {
         'crest': 'Hermione_Crest.png',
         # her clips (combat.EXTRA_CLIPS), in her model only: the plates' levitation and barrage,
         # Accio, Cho's flick (Petrificus), the side-step and dodges, and the Protego pose
-        'extra_clips': ('hermione_idle', 'cast_plates', 'cast_accio', 'cast_quick', 'strafe', 'dodge_left', 'dodge_right',
-                        'dodge_back', 'protego'),
+        # (and Cho's push, Ventus: cast_ventus, added on request)
+        'extra_clips': ('hermione_idle', 'cast_plates', 'cast_accio', 'cast_quick', 'cast_ventus', 'strafe', 'dodge_left',
+                        'dodge_right', 'dodge_back', 'protego'),
     },
 }
 

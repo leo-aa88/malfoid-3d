@@ -34,6 +34,7 @@
   "cast_plates": 2.75,
   "cast_accio": 0.9,
   "cast_quick": 0.45,
+  "cast_ventus": 0.7,
   "strafe": 0.5,
   "dodge_left": 0.42,
   "dodge_right": 0.42,

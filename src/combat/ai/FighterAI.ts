@@ -151,10 +151,14 @@ export interface ProdigyStyle {
   platesRange: [number, number];
   /** Accio at the opponent's wand lying within ACCIO's range */
   accioChance: number;
-  /** holding the opponent's wand: she keeps at least this far from her */
+  /** holding the opponent's wand she lets her come this close before backing off (m: the
+   *  opponent must land a strike to win it back; kiting her made that all but impossible) */
   kiteRange: number;
   /** an attack she sees coming in reach: a quick step out of it (dodge clips) */
   dodgeClipChance: number;
+  /** crowded within pushRange (being attacked, hit, or very close): Ventus throws her back */
+  pushChance: number;
+  pushRange: number;
   /** aim: fraction of the predicted lead she uses, and how far (m) she aims to the side the
    *  opponent habitually dodges to, once she has learned it */
   lead: number;
@@ -293,6 +297,8 @@ export class FighterAI {
   /** spells she has planned for a moment from now (a chain, a follow-up): cast when due */
   private plans: { spell: SpellDef; at: number; turn: number }[] = [];
   private foeWasBound = false;
+  /** where she wants to face instead of the opponent (Accio: the wand on the floor); null: the opponent */
+  private faceGoal: number | null = null;
   /** the opponent's ground velocity (smoothed, m/s) and which way she habitually dodges: -1 her
    *  left .. +1 her right, as seen from here (a prodigy's aim learns it) */
   readonly foeVel = new THREE.Vector3();
@@ -356,6 +362,7 @@ export class FighterAI {
     this.intent = null;
     this.plans.length = 0;
     this.foeWasBound = false;
+    this.faceGoal = null;
     this.foeSeen = false;
     this.foeVel.set(0, 0, 0);
     this.habit = 0;
@@ -601,11 +608,12 @@ export class FighterAI {
     const bound = this.opponent.petrified;
     if (pr && bound && !this.foeWasBound && Math.random() < pr.followUpChance) this.planFollowUp();
     this.foeWasBound = bound;
-    // planned spells, when due (turning first; given up if it takes too long)
+    // planned spells, when due (turning first; given up if it takes too long). Every plan counts
+    // down (a later one doesn't wait behind an earlier one)
+    for (const p of this.plans) p.at -= dt;
     if (this.plans.length && !me.reacting && !this.combat.busy && !this.spells.isCasting && !me.dodging
         && this.state !== 'PROTEGO') {
       const p = this.plans[0];
-      p.at -= dt;
       if (p.at <= 0) {
         if (!this.spells.canCast(p.spell) || dist > p.spell.aimRange) {
           if (p.at < -1.0) this.plans.shift();          // (its cooldown may still be running: wait a moment)
@@ -798,7 +806,7 @@ export class FighterAI {
       }
       default:
         me.stop();
-        me.lookAt(angle);
+        me.lookAt(this.faceGoal ?? angle);
     }
 
     if (this.think > 0) return;
@@ -881,7 +889,7 @@ export class FighterAI {
     }
     // crowded: Ventus (Depulso) throws the opponent back
     const ev = P.evasive;
-    const push = ev ?? df;
+    const push = ev ?? df ?? P.prodigy;
     if (push && this.pushSpell && dist <= push.pushRange && this.spells.canCast(this.pushSpell)
         && (this.opponentCombat.busy || this.selfTarget.recentHits > 0 || dist < 1.3) && Math.random() < push.pushChance) {
       if (!this.turnedTo(angle, AIM.spell)) return;
@@ -954,7 +962,7 @@ export class FighterAI {
     }
     // a prodigy keeps a caster's distance: off when crowded, in when far, circling between
     if (pr) {
-      const keep = this.holdingFoeWand ? Math.max(pr.kiteRange, pr.preferredRange[0]) : pr.preferredRange[0];
+      const keep = this.holdingFoeWand ? pr.kiteRange : pr.preferredRange[0];
       if (dist < keep) {
         if (dist < keep * 0.6 && Math.random() < 0.5 && this.dodgeClip('dodge_back')) return;
         this.go('RETREAT', rand(0.5, 0.9));
@@ -1139,21 +1147,25 @@ export class FighterAI {
     if (ac && foe.wand.state === 'dropped' && this.spells.canCast(ac)) {
       const w = foe.wand.getWorldPosition(this.tmp2);
       const wd = Math.hypot(w.x - me.position.x, w.z - me.position.z);
-      if (wd <= ac.aimRange && Math.random() < pr.accioChance) {
+      // (decided once: turning to the wand, she keeps at it)
+      if (wd <= ac.aimRange && (this.faceGoal !== null || Math.random() < pr.accioChance)) {
         const a = Math.atan2(w.x - me.position.x, w.z - me.position.z);
         if (!this.facing(a, 0.35)) {
           me.stop();
+          this.faceGoal = a;
           me.lookAt(a);
           this.go('OBSERVE');
           this.think = TURN_CHECK;
           return true;
         }
+        this.faceGoal = null;
         if (this.spells.cast(ac)) {
           this.go('CAST');
           return true;
         }
       }
     }
+    this.faceGoal = null;
     const os = this.opponentSpells;
     // Expelliarmus into the opponent's cast (early in it: there is time to beat the release)
     const alt = this.altSpell;
@@ -1168,7 +1180,9 @@ export class FighterAI {
     // Petrificus at an opponent who exposes herself
     const pt = this.petrify;
     const shieldDown = !!this.opponentShield && !this.opponentShield.up && !this.opponentShield.ready;
-    const exposed = !!foe.reacting || shieldDown || !foe.hasWand
+    // (a wandless opponent is not an opening in itself: binding her again and again while she
+    // chased her wand was a death spiral)
+    const exposed = !!foe.reacting || shieldDown
       || (!!os?.isCasting && os.castTime > (os.castingSpell?.release ?? 0.4)) || foe.moveSpeed > 1.6;
     if (pt && !foe.petrified && dist >= 1.4 && dist <= pt.aimRange && this.spells.canCast(pt) && this.lineOfSight()
         && Math.random() < pr.petrifyChance * (exposed ? 1 : 0.33)) {
@@ -1207,12 +1221,15 @@ export class FighterAI {
     return false;
   }
 
-  /** the opponent just went down bound: one follow-up, and the plates timed for her getting up */
+  /** the opponent just went down bound: one follow-up, either Expelliarmus at once (while she
+   *  has her wand) or the plates timed for her getting up (both: disarmed, she couldn't raise
+   *  Protego against the plates) */
   private planFollowUp(): void {
     const foe = this.opponent;
     const left = this.petrify?.petrify?.duration ?? 2.0;
-    if (this.altSpell && foe.hasWand) this.planCast(this.altSpell, rand(0.3, 0.5));
-    if (this.plates) {
+    if (this.altSpell && foe.hasWand && (!this.plates || Math.random() < 0.5)) {
+      this.planCast(this.altSpell, rand(0.3, 0.5));
+    } else if (this.plates) {
       // the release (the first plate) as she is back on her feet: bound, then getting up
       const up = left + foe.clipDuration('get_up');
       this.planCast(this.plates, Math.max(0.6, up - this.plates.release - 0.05));

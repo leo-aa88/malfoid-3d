@@ -14,7 +14,7 @@ export const GREATHALL_CONFIG = {
   // --- the hall
   /** half length (x) and half width (z) inside the walls (m), the walls' height (m) */
   halfLength: 22,
-  halfWidth: 12,
+  halfWidth: 15,
   wallHeight: 13,
   /** the enchanted ceiling (the night sky) this high (m) */
   ceiling: 15,
@@ -34,8 +34,9 @@ export const GREATHALL_CONFIG = {
   flagSize: [1.2, 0.8] as [number, number],
 
   // --- the house tables (along x), their benches either side
-  /** the tables' centre lines (z, m): the middle two either side of the central aisle */
-  tables: [-8.5, -4.3, 4.3, 8.5],
+  /** the tables' centre lines (z, m): the middle two either side of the central aisle (~11 m
+   *  clear between their benches: at 6.7 m there wasn't room to fight), 2.7 m between a side's two */
+  tables: [-11.2, -6.6, 6.6, 11.2],
   /** each table runs from x0 to x1 (m) */
   tableX: [-17.0, 11.0] as [number, number],
   tableWidth: 1.0,

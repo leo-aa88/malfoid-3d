@@ -228,6 +228,7 @@ test('Hermione\'s definition and levels: Petrificus and Expelliarmus, Protego, t
   assert.equal(d.spell.id, 'petrificus');
   assert.equal(d.altSpell, EXPELLIARMUS);
   assert.ok(d.protego && d.plates && d.accio);
+  assert.equal(d.push?.id, 'ventus', 'Cho\'s Ventus throws Malfoid back when she crowds her');
   assert.ok(!d.episkey && !d.oppugno && !d.illusio);
   assert.equal(d.arena, 'greathall');
   const [e, n, h] = (['easy', 'normal', 'hard'] as const).map((l) => HERMIONE_DIFFICULTY[l]);
@@ -237,4 +238,153 @@ test('Hermione\'s definition and levels: Petrificus and Expelliarmus, Protego, t
   // the hardest student: more health than Luna at every level
   assert.ok(n.hp > OPPONENTS.luna.difficulty.normal.hp);
   assert.ok(e.ai.prodigy!.parryChance < h.ai.prodigy!.parryChance);
+});
+
+// ------------------------------------------------------------------ her AI (the prodigy style)
+import { FighterAI } from '../src/combat/ai/FighterAI';
+import type { ComboSystem } from '../src/combat/ComboSystem';
+
+const PRODIGY_QUIET = { petrifyChance: 0, platesChance: 0, accioChance: 0, disarmPunish: 0, followUpChance: 0, chainChance: 0,
+  dodgeClipChance: 0, shieldChance: 0 };
+
+function aiSetup(dist: number, prodigy: Record<string, unknown> = {}, over: Record<string, unknown> = {}) {
+  const base = HERMIONE_DIFFICULTY.normal.ai;
+  const params = { ...base, reaction: [0.05, 0.05] as [number, number], castChance: 0, ...over,
+    prodigy: { ...base.prodigy!, ...PRODIGY_QUIET, ...prodigy } };
+  const self = Object.assign(fighter('Hermione', 0, 0, 0), {
+    dodging: null as string | null, moveSpeed: 0, standClip: null as string | null,
+    move() {}, stop() {}, lookAt(a: number | null) { if (a !== null) self.facingAngle = a; },
+    wand: { state: 'hand' }, dodge() { return false; }, clipDuration: () => 1.1,
+  });
+  const foeWand = { state: 'hand', at: new THREE.Vector3(2, 0, dist), getWorldPosition: (o: THREE.Vector3) => o.copy(foeWand.at) };
+  const foe = Object.assign(fighter('Malfoid', 0, dist, Math.PI), {
+    moveSpeed: 0, wand: foeWand, clipDuration: () => 1.1,
+  });
+  Object.defineProperty(foe, 'hasWand', { get: () => foeWand.state === 'hand' });
+  const casts: string[] = [];
+  const ready = new Set(['petrificus', 'expelliarmus', 'plates', 'accio']);
+  const spells = { isCasting: false, projectiles: [], canCast: (d: { id: string }) => ready.has(d.id),
+    cast: (d: { id: string }) => { casts.push(d.id); return true; }, cooldownLeft: () => 0 };
+  const combat = { busy: false, press() {} };
+  const oppCombat = { busy: false, vulnerable: false };
+  const oppSpells = { isCasting: false, castTime: -1, castingSpell: null as unknown, projectiles: [] as unknown[] };
+  const target = new FighterTarget(self as unknown as Malfoid, 220);
+  const ai = new FighterAI(self as unknown as Malfoid, target, combat as unknown as ComboSystem, spells as unknown as SpellSystem,
+    PETRIFICUS, foe as unknown as Malfoid, oppCombat as unknown as ComboSystem, () => [], params);
+  ai.startDelay = 0;
+  ai.opponentSpells = oppSpells as unknown as SpellSystem;
+  ai.altSpell = EXPELLIARMUS;
+  ai.petrify = PETRIFICUS;
+  ai.accio = ACCIO;
+  ai.plates = PLATES_SPELL;
+  return { ai, self, foe, foeWand, casts, oppSpells, ready };
+}
+
+function think(s: ReturnType<typeof aiSetup>, cond: () => boolean, n = 120, each?: () => void) {
+  for (let i = 0; i < n && !cond(); i++) {
+    each?.();
+    s.ai.update(DT);
+  }
+}
+
+function withRandom<T>(v: number, f: () => T): T {
+  const r = Math.random;
+  Math.random = () => v;
+  try {
+    return f();
+  } finally {
+    Math.random = r;
+  }
+}
+
+test('her AI: Accio at Malfoid\'s wand on the floor, turning to it first', () => {
+  withRandom(0.01, () => {
+    const s = aiSetup(5, { accioChance: 1 });
+    s.foeWand.state = 'dropped';
+    s.foeWand.at.set(4, 0, 3);
+    s.ai.setActive(true);
+    think(s, () => s.casts.length > 0);
+    assert.deepEqual(s.casts, ['accio']);
+    assert.ok(Math.abs(s.self.facingAngle - Math.atan2(4, 3)) < 0.36, 'facing the wand, not Malfoid');
+  });
+});
+
+test('her AI: Expelliarmus into Malfoid\'s cast; Petrificus at an exposed Malfoid; the plates at range, never up close', () => {
+  withRandom(0.01, () => {
+    const e = aiSetup(5, { disarmPunish: 1 });
+    e.oppSpells.isCasting = true;
+    e.oppSpells.castTime = 0.1;
+    e.oppSpells.castingSpell = { id: 'confringo', release: 0.42, projectile: { speed: 20 } };
+    e.ai.setActive(true);
+    think(e, () => e.casts.length > 0);
+    assert.deepEqual(e.casts, ['expelliarmus']);
+    const p = aiSetup(5, { petrifyChance: 1 });
+    p.foe.reacting = 'stagger';                           // reeling: exposed
+    p.ai.setActive(true);
+    think(p, () => p.casts.length > 0);
+    assert.deepEqual(p.casts, ['petrificus']);
+    const far = aiSetup(7, { platesChance: 1 });
+    far.ai.setActive(true);
+    think(far, () => far.casts.length > 0);
+    assert.deepEqual(far.casts, ['plates']);
+    const near = aiSetup(2.5, { platesChance: 1 });
+    near.ai.setActive(true);
+    think(near, () => false, 120);
+    assert.ok(!near.casts.includes('plates'), 'close enough to interrupt her: no wind-up');
+  });
+});
+
+test('her AI: Malfoid bound: one follow-up: Expelliarmus at once, or the plates timed to fly as she is back on her feet', () => {
+  const bind = (r: number) => withRandom(r, () => {
+    const s = aiSetup(6, { followUpChance: 1 });
+    s.ai.setActive(true);
+    think(s, () => false, 5);
+    s.foe.petrified = true;
+    let t = 0;
+    const at: [string, number][] = [];
+    think(s, () => false, 260, () => {
+      t += DT;
+      if (at.length < s.casts.length) at.push([s.casts[s.casts.length - 1], t]);
+    });
+    return at;
+  });
+  const e = bind(0.01);
+  assert.deepEqual(e.map((a) => a[0]), ['expelliarmus'], 'one follow-up, not both');
+  assert.ok(e[0][1] < 0.7, `at once (${e[0][1].toFixed(2)} s)`);
+  const p = bind(0.6);
+  assert.deepEqual(p.map((a) => a[0]), ['plates']);
+  // the first plate (the cast + its release) as the bind (2 s) and the get-up (1.1 s) end
+  const release = p[0][1] + PLATES_SPELL.release;
+  assert.ok(Math.abs(release - (PETRIFICUS.petrify!.duration + 1.1)) < 0.25, `the plates fly at ${release.toFixed(2)} s`);
+});
+
+test('her aim: she leads a moving Malfoid, and learns which way she dodges', () => {
+  const s = aiSetup(8);
+  s.ai.setActive(true);
+  // Malfoid running sideways (+x) at 2.5 m/s: the aim leads her
+  for (let i = 0; i < 30; i++) {
+    s.foe.root.position.x += 2.5 * DT;
+    s.ai.update(DT);
+  }
+  const from = new THREE.Vector3(0, 1.8, 0);
+  const aim = s.ai.aimAt(from, PLATES.speed, new THREE.Vector3());
+  const flight = 8 / PLATES.speed;
+  assert.ok(aim.x - s.foe.position.x > 2.5 * flight * 0.6, `leads her (${(aim.x - s.foe.position.x).toFixed(2)} m)`);
+  // her habit: while plates fly, Malfoid keeps dodging the same way; Hermione aims further that way
+  const t = aiSetup(8, { adapt: 0.6 });
+  let flying = true;
+  t.ai.threatOut = () => flying;
+  t.ai.setActive(true);
+  for (let k = 0; k < 6; k++) {
+    for (let i = 0; i < 25; i++) {
+      t.foe.root.position.x += (i < 12 ? 2.5 : 0) * DT;        // a quick dodge to +x, then still
+      t.ai.update(DT);
+    }
+  }
+  flying = false;
+  for (let i = 0; i < 60; i++) t.ai.update(DT);                 // standing still again: no lead left
+  const still = t.ai.aimAt(from, PLATES.speed, new THREE.Vector3());
+  assert.ok(Math.abs(t.ai.habit) > 0.5, `habit learned (${t.ai.habit.toFixed(2)})`);
+  assert.ok(Math.abs(still.x - t.foe.position.x) > 0.25, `aims to the side she dodges to (${(still.x - t.foe.position.x).toFixed(2)} m)`);
+  assert.ok(Math.sign(still.x - t.foe.position.x) === 1, 'the same side');
 });

@@ -17,7 +17,14 @@ const MANUAL_HOLD = 1.6;
 const FOLLOW_RATE = 1.4;
 const RUN_SPEED = 2.9;
 /** rad/s towards the side-on duel view */
-const DUEL_RATE = 2.2;
+const DUEL_RATE = 1.5;
+/**
+ * the duel view holds still while the line between the fighters turns a little (circling: it
+ * followed every step, and swung about all fight): it starts turning once it is this far (rad)
+ * from side-on, and stops once it is back within DUEL_SETTLE
+ */
+const DUEL_SLACK = 0.5;
+const DUEL_SETTLE = 0.1;
 /** speaker close-ups: camera distance (m) and height above the face (m), angle off her front (rad) */
 const CLOSE_UP = { distance: 0.85, height: 0.02, angle: 0.28 };
 /** the duel view is shifted so the pair sits right of the HUD panel (fraction of half the screen width) */
@@ -131,6 +138,8 @@ export class CameraController {
 
   /** the fraction of the screen's width the HUD panel covers on the left (the page sets it) */
   leftCover = 0;
+  /** the duel view is turning to come side-on again (see DUEL_SLACK) */
+  private duelTurning = false;
 
   /**
    * the duel's look-at point: the pair's midpoint, moved left so they show right of the HUD: at
@@ -244,6 +253,14 @@ export class CameraController {
         const room = (w: number) => this.limit!.inside(mx + Math.sin(w) * wantDist * 0.9, mz + Math.cos(w) * wantDist * 0.9);
         const other = wantYaw === a ? b : a;
         if (!room(wantYaw) && room(other)) wantYaw = other;
+      }
+      // slack: a little off side-on, it stays where it is
+      const off = Math.abs(angDiff(wantYaw, yaw));
+      if (this.duelTurning ? off < DUEL_SETTLE : off < DUEL_SLACK) {
+        this.duelTurning = false;
+        wantYaw = yaw;
+      } else {
+        this.duelTurning = true;
       }
       this.duelTarget(this.want.set(anchor.x + dx / 2, anchor.y + this.initialTargetHeight, anchor.z + dz / 2), wantYaw, wantDist, this.want,
         anchor, f.other);

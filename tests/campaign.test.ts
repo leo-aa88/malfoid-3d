@@ -89,7 +89,7 @@ test('a stored run is read safely', () => {
   c.clear();
 });
 
-test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Voldemort; Susan and Luna playable, then Hermione (not yet)', async () => {
+test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Voldemort; up to Hermione playable, then Harry (not yet)', async () => {
   const { CAMPAIGN } = await import('../src/game/campaign');
   assert.deepEqual(CAMPAIGN.map((o) => o.id), ['ginny', 'cho', 'susan', 'luna', 'hermione', 'harry', 'bellatrix', 'voldemort']);
   const c = new Campaign(new MemoryStore());
@@ -104,7 +104,11 @@ test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Vold
   const l = c.win();                                   // Luna beaten
   assert.equal(l.learned, null, 'her reward (Illusio) comes later');
   assert.equal(l.next?.name, 'Hermione Granger');
-  assert.equal(l.next?.playable, false, 'not in the game yet');
+  assert.equal(l.next?.playable, true, 'Hermione is in the game');
+  const h = c.win();                                   // Hermione beaten
+  assert.equal(h.learned, null, 'her reward (Petrificus Totalus) comes later');
+  assert.equal(h.next?.name, 'Harry Potter');
+  assert.equal(h.next?.playable, false, 'not in the game yet');
 });
 
 test("practice: the spells she has on reaching each opponent in the campaign (no Protego against Ginny)", () => {

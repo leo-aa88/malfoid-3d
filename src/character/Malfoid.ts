@@ -489,12 +489,13 @@ export class Malfoid {
   }
 
   /**
-   * Start a one-shot move (jump). Ignored while another move is playing or
-   * while crouching / blocking. Counts as activity.
+   * Start a one-shot move (jump). Ignored while another move is playing, while crouching /
+   * blocking, and in a reaction or down (bound by Petrificus, a jump restarted her animation:
+   * she stood up for a moment, then fell again). Counts as activity.
    */
   trigger(action: ActionState): void {
     this.resetIdleTimer();
-    if (this.action || this.hold || this.strike || !this.animation.has(action)) return;
+    if (this.action || this.hold || this.strike || this.reaction || this.defeated || !this.animation.has(action)) return;
     this.action = action;
     this.animation.restart(action);
   }

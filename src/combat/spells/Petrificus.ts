@@ -17,7 +17,7 @@ export const PETRIFICUS: SpellDef = {
   clip: 'cast_quick',
   castDuration: 0.45,
   release: 0.20,                                  // combat.QUICK_RELEASE
-  cooldown: 9.0,
+  cooldown: 10.0,
   projectile: { speed: 17.0, radius: 0.12, maxRange: 22.0 },
   directDamage: 4,
   splashDamage: 0,
