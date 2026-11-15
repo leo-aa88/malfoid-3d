@@ -165,7 +165,7 @@ Left: a wand knocked out past the carpet, then picked up. Right: Luna's Protego.
 
 | Check | Result |
 |---|---|
-| `npm test` | 112/112 (new `tests/luna.test.ts`: Confundo, the flock, copies, a Confringo at a copy leaving Luna untouched, her distraction, spell choice, roaming, escape, Protego) |
+| `npm test` | 113/113 (new `tests/luna.test.ts`: Confundo, the flock, copies, a Confringo at a copy leaving Luna untouched, her distraction, spell choice, roaming, escape, Protego; her voice lines in `tests/voices.test.ts`) |
 | Confundo with real keys | W moved Malfoid away from the camera (Δz −0.42); confused, towards it (+0.27); afterwards normal again |
 | Illusio | copies have no shadows; a Confringo at a copy with Luna 0.8 m away popped only it (Luna 150 → 150); hitting Luna dispelled them all |
 | Oppugno | a string of hits; GPU flat over repeated summons |
