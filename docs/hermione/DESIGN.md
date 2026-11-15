@@ -1,7 +1,8 @@
 # Hermione Granger — the Prodigy (design)
 
-Campaign stage 5, after Luna Lovegood, and the last student before Harry. **Status: in
-progress.** Her reward, Petrificus Totalus for Malfoid, is recorded here but not built yet.
+Campaign stage 5, after Luna Lovegood, and the last student before Harry. **Status: playable**
+(practice and campaign). Her reward, Petrificus Totalus for Malfoid, is recorded here but not built
+yet. What was built and how it was checked: [REPORT.md](REPORT.md).
 
 Hermione is **the hardest student by a considerable margin**. She isn't chaotic like Luna or a
 wall like Susan. She fights with precision: she reads Malfoid, exploits her cooldowns, her wand
@@ -20,6 +21,7 @@ and every attack can be dodged or blocked.
 | **Expelliarmus** | Disarms Malfoid, especially when she exposes herself while casting. |
 | **Accio** | Summons Malfoid's **dropped wand** into Hermione's free hand. Malfoid must close in and land a melee hit to make her drop it, then pick it up. Accio can be interrupted, and it has a cooldown before she can try another theft. |
 | **Protego** | Blocks, and with excellent timing reflects, incoming spells. |
+| **Ventus** (added on request) | Cho's gust: when Malfoid crowds her, Hermione throws her back (with its cooldown). |
 | **Petrificus Totalus** | A bolt that binds Malfoid's body. She goes rigid, arms at her sides, and **topples backwards like a plank** (not a ragdoll). She lies immobilised for about 2 s, then gets up with a short animation. There's no button-mashing. Dodge it or block it with Protego. |
 
 ## What makes her OP (and still fair)
@@ -35,6 +37,10 @@ and every attack can be dodged or blocked.
   both be interrupted.
 - **No instant kills:** a petrified Malfoid can't take the whole barrage. The bind opens the way
   to one follow-up, not twelve plates.
+- **No death spiral** (from playtests): after a bind she follows up once, either Expelliarmus or
+  the plates timed for Malfoid getting up, not both; a wandless Malfoid isn't an opening by
+  itself; holding Malfoid's wand she lets her come close (kiting made winning it back all but
+  impossible).
 
 ## Campaign reward
 
@@ -53,7 +59,7 @@ Luna's Illusio, it's recorded but not taught.
 
 **The Great Hall**, generated in code:
 - the four long house tables and their benches, physically present, set with plates and goblets;
-- a spacious central aisle for the duel;
+- a spacious central aisle for the duel (widened on request: about 11 m clear);
 - floating candles;
 - the enchanted ceiling.
 

@@ -82,7 +82,7 @@ Each opponent has her arena:
   - **The tables:** the four house tables and their benches run the length of the hall, set
     with plates, goblets, jugs and dishes. The plates are Hermione's ammunition: her barrage
     lifts them off the nearest places, and every plate is back for each duel or round.
-  - **The fight:** it starts in the wide central aisle. The fighters walk the whole floor round
+  - **The fight:** it starts in the wide central aisle (about 11 m clear between the benches). The fighters walk the whole floor round
     the tables, benches and dais; spells fly over the tables and burst on the walls, benches,
     dais and high table. The camera stays in the aisles (never right over a table) and high
     enough to see the fighters' feet past the tables.
@@ -249,6 +249,8 @@ her choices. Her strongest attacks need a wind-up that can be interrupted. See
   you bound she follows up once, either Expelliarmus at once or the plates timed to fly just as
   you are back on your feet.
 - **Protego:** she meets your spells with the shield, often timed to send them back.
+- **Ventus:** Cho's gust (added on request): crowd her and she throws you back (3 damage, a
+  shove; 7 s cooldown).
 - She keeps a caster's distance, circling; holding your wand, she lets you come close.
 - She fights in the Great Hall. No voice lines yet: the duel goes straight to the fight.
 
