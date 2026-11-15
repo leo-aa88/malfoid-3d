@@ -68,9 +68,12 @@ export class GreenhouseArena implements Arena {
   readonly finite = true;
   readonly group = new THREE.Group();
   readonly cameraLimit: CameraLimit;
-  /** the fighters' floor: |x| <= boundX, |z| <= boundZ (m) */
+  /** the fighters' floor: |x| <= boundX, |z| <= boundZ (m), and the path to the door:
+   *  boundX <= x <= doorX, |z| <= doorZ */
   readonly boundX: number;
   readonly boundZ: number;
+  readonly doorX: number;
+  readonly doorZ: number;
   private readonly solids: THREE.Box3[] = [];
   private readonly motes: THREE.Points;
   private readonly moteBase: Float32Array;
@@ -94,7 +97,12 @@ export class GreenhouseArena implements Arena {
     const px = L - cfg.planterDepth;                              // the planters' inner face
     const bays = Math.round((2 * L) / cfg.bay), step = (2 * L) / bays;
     for (const s of [-1, 1]) plants.bench(-px + 0.1, px - 0.1, s * front, s * (W - 0.05));
-    for (const s of [-1, 1]) plants.planter(s * (L - 0.02), s * px, W - 0.05);
+    // the planters: the west one across the gable, the east one in two beds either side of the
+    // path to the doorway
+    const D = cfg.doorPath;
+    plants.planter(-(L - 0.02), -px, -(W - 0.05), W - 0.05);
+    plants.planter(L - 0.02, px, -(W - 0.05), -D, 'z1');
+    plants.planter(L - 0.02, px, D, W - 0.05, 'z0');
     const v = { n: cfg.baskets };
     for (const s of [-1, 1]) for (let i = 0; i < v.n; i++) {
       const x = -px + 1.5 + ((2 * px - 3) * (i + 0.5 * (s > 0 ? 1 : 0))) / v.n;
@@ -174,6 +182,8 @@ export class GreenhouseArena implements Arena {
     // --- the fighters' floor and the camera's (inside the benches and the planters)
     this.boundX = px - cfg.boundaryMargin;
     this.boundZ = front - cfg.boundaryMargin;
+    this.doorX = L - cfg.boundaryMargin;
+    this.doorZ = cfg.doorPath - cfg.boundaryMargin;
     const cx = px - cfg.cameraMargin, cz = front - cfg.cameraMargin;
     const inside = (x: number, z: number) => Math.abs(x) <= cx && Math.abs(z) <= cz;
     this.cameraLimit = {
@@ -198,8 +208,12 @@ export class GreenhouseArena implements Arena {
       for (let x = -px; x < px - 1e-6; x += 4) {
         this.solids.push(new THREE.Box3(new THREE.Vector3(x, 0, Math.min(s * front, s * W)), new THREE.Vector3(Math.min(px, x + 4), H, Math.max(s * front, s * W))));
       }
-      this.solids.push(new THREE.Box3(new THREE.Vector3(Math.min(s * px, s * L), 0, -W), new THREE.Vector3(Math.max(s * px, s * L), 4, W)));
       this.solids.push(new THREE.Box3(new THREE.Vector3(-L, 0, s > 0 ? W : -W - 0.3), new THREE.Vector3(L, 8, s > 0 ? W + 0.3 : -W)));
+    }
+    // the planters (the east one in two beds either side of the path to the door) and the gables
+    this.solids.push(new THREE.Box3(new THREE.Vector3(-L, 0, -W), new THREE.Vector3(-px, 4, W)));
+    for (const s of [-1, 1]) {
+      this.solids.push(new THREE.Box3(new THREE.Vector3(px, 0, Math.min(s * D, s * W)), new THREE.Vector3(L, 4, Math.max(s * D, s * W))));
       this.solids.push(new THREE.Box3(new THREE.Vector3(s > 0 ? L : -L - 0.3, 0, -W), new THREE.Vector3(s > 0 ? L + 0.3 : -L, 8, W)));
     }
   }
@@ -222,11 +236,15 @@ export class GreenhouseArena implements Arena {
     this.group.visible = on;
   }
 
-  /** keep a fighter on the floor between the benches and the planters */
+  /** keep a fighter on the floor between the benches and the planters, or on the path to the
+   *  door (whichever is nearer when outside both) */
   resolve(pos: THREE.Vector3, r: number): void {
     const bx = this.boundX - r, bz = this.boundZ - r;
-    pos.x = Math.max(-bx, Math.min(bx, pos.x));
-    pos.z = Math.max(-bz, Math.min(bz, pos.z));
+    const fx = Math.max(-bx, Math.min(bx, pos.x)), fz = Math.max(-bz, Math.min(bz, pos.z));
+    const dz = Math.max(0, this.doorZ - r);
+    const px = Math.max(bx, Math.min(this.doorX - r, pos.x)), pz = Math.max(-dz, Math.min(dz, pos.z));
+    if ((fx - pos.x) ** 2 + (fz - pos.z) ** 2 <= (px - pos.x) ** 2 + (pz - pos.z) ** 2) pos.set(fx, pos.y, fz);
+    else pos.set(px, pos.y, pz);
   }
 
   fillSolids(out: THREE.Box3[], centres: THREE.Vector3[], range = 30): void {

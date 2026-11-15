@@ -265,24 +265,32 @@ export class Planting {
     }
   }
 
-  /** a raised brick bed at an end of the house (x from x0 to x1, z from -zw to zw), planted */
-  planter(x0: number, x1: number, zw: number): void {
+  /**
+   * a raised brick bed at an end of the house (x from x0 to x1, z from z0 to z1), planted; `path`:
+   * the end (at z0 or z1) beside the path to the door, kept clear of palms for pathClear m (from
+   * the duel camera in the corner, a palm there hides a fighter on the path)
+   */
+  planter(x0: number, x1: number, z0: number, z1: number, path?: 'z0' | 'z1'): void {
     const cfg = this.cfg, h = 0.55;
     const xc = (x0 + x1) / 2, dx = Math.abs(x1 - x0);
+    const zc = (z0 + z1) / 2, dz = z1 - z0;
     const inner = Math.sign(-xc);                                   // towards the middle of the house
-    this.solid.box(xc, h / 2, 0, dx, h, 2 * zw, jitter(cfg.brickColour, this.rand, 0.05));
-    this.solid.box(xc, h + 0.03, 0, dx + 0.08, 0.06, 2 * zw + 0.08, cfg.copingColour);
-    this.solid.box(xc, h + 0.065, 0, dx - 0.2, 0.02, 2 * zw - 0.2, '#3b2a1e');
+    this.solid.box(xc, h / 2, zc, dx, h, dz, jitter(cfg.brickColour, this.rand, 0.05));
+    this.solid.box(xc, h + 0.03, zc, dx + 0.08, 0.06, dz + 0.08, cfg.copingColour);
+    this.solid.box(xc, h + 0.065, zc, dx - 0.2, 0.02, dz - 0.2, '#3b2a1e');
     const y = h + 0.07;
-    // palms at the back, broad-leaved plants and ferns in front
-    for (let z = -zw + 1.2; z <= zw - 1.2 + 1e-6; z += (2 * zw - 2.4) / 3) {
+    // palms at the back (about one every 5.8 m), broad-leaved plants and ferns in front
+    const pa = z0 + 1.2 + (path === 'z0' ? cfg.pathClear : 0), pb = z1 - 1.2 - (path === 'z1' ? cfg.pathClear : 0);
+    const gaps = Math.max(1, Math.round((pb - pa) / 5.8));
+    for (let z = pa; z <= pb + 1e-6; z += (pb - pa) / gaps) {
       this.palm(V(xc - inner * dx * 0.2 + (this.rand() - 0.5) * 0.4, y, z + (this.rand() - 0.5) * 0.6), 2.6 + this.rand() * 1.2);
     }
-    for (let z = -zw + 0.7; z < zw - 0.5; z += 1.1 + this.rand() * 0.5) {
+    for (let z = z0 + 0.7; z < z1 - 0.5; z += 1.1 + this.rand() * 0.5) {
       const front = xc + inner * (dx / 2 - 0.55);
       if (this.rand() < 0.5) this.broadleaf(V(front, y, z), 1.1 + this.rand() * 0.4);
       else this.fern(V(front, y, z), 0.9 + this.rand() * 0.4, 14);
-      if (this.rand() < 0.6) this.flowering(V(front + inner * 0.25, y, z + 0.5), 0.45);
+      // (a flower beside the plant, kept inside the bed)
+      if (this.rand() < 0.6) this.flowering(V(front + inner * 0.25, y, Math.min(z + 0.5, z1 - 0.3)), 0.45);
     }
   }
 
