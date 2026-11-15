@@ -170,7 +170,7 @@ How it plays:
 
 | Check | Result |
 |---|---|
-| `npm test` | 128/128 (new `tests/hermione.test.ts`, 15 tests: the barrage, straight flight, the interrupt, one reflect per volley, walls, the bind and its one follow-up hit, lying hurt volume, Accio, her definition and levels, her AI's choices, the follow-up timing, the aim's lead and learned habit) |
+| `npm test` | 137/137 at the end of the branch. New: `tests/stunlock.test.ts`, `tests/evade.test.ts`, `tests/camera.test.ts`, and `tests/hermione.test.ts` (16 tests: the barrage, straight flight, the interrupt, one reflect per volley, walls, the bind and its one follow-up hit, lying hurt volume, Accio, her definition and levels, her AI's choices, the follow-up timing, the aim's lead and learned habit, no quick back-step) |
 | Mechanics in the game | All 10 plates hit a still target (4 each, before damage was set per level). Petrificus bound Malfoid, who stood up 0.55 m back. Accio stole the dropped wand, and a hit made Hermione drop it. |
 | Jump while bound | four real Space presses: she stays down (state `petrified`) |
 | GPU across repeated barrage, bind and theft cycles | flat at 95 / 40 / 43 (geometries / textures / programs) |
