@@ -148,9 +148,10 @@ export const CHO_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
  * Susan: a defensive duellist who stands her ground, guards a lot (and holds her guard), meets
  * a rush with Impedimenta and a crowding with Depulso, strikes first at someone who rushes into
  * her reach, alternates Impedimenta with Expelliarmus at range, meets a spell she sees coming
- * with Protego (or her guard), and heals with Episkey when hurt (instantaneous). Slow,
- * deliberate strikes; no dodging. Her Hufflepuff Resolve (FighterTarget.resolve)
- * makes staggers mere flinches. Levels sharpen her reactions and guard, and her healing.
+ * with Protego (or her guard). Slow, deliberate strikes; no dodging. Her Hufflepuff Resolve
+ * (FighterTarget.resolve) makes staggers mere flinches. Levels sharpen her reactions and guard.
+ * (She healed with Episkey until it was removed on request: on Hard it made her a wall; the
+ * healing values below are unused while she has no Episkey.)
  */
 const SUSAN_EASY: AIParams = {
   detectRange: 120,
@@ -190,7 +191,7 @@ const SUSAN_EASY: AIParams = {
 };
 
 export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
-  easy: { label: 'Easy', hp: 120, ai: SUSAN_EASY, heal: { amount: 20, charges: 2 } },
+  easy: { label: 'Easy', hp: 120, ai: SUSAN_EASY },
   normal: {
     label: 'Normal',
     hp: 150,
@@ -205,7 +206,6 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.6, pushChance: 0.55, healChance: 0.75, spellBlockChance: 0.55,
         shieldChance: 0.4, parryChance: 0.1, timingError: 0.08 },
     },
-    heal: { amount: 25, charges: 2 },
   },
   hard: {
     label: 'Hard',
@@ -226,7 +226,6 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.75, pushChance: 0.7, healChance: 0.85, spellBlockChance: 0.7,
         shieldChance: 0.5, parryChance: 0.18, timingError: 0.05 },
     },
-    heal: { amount: 30, charges: 3 },
   },
 };
 

@@ -139,7 +139,8 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     // she alternates Impedimenta with Expelliarmus, and meets spells with Protego
     altSpell: EXPELLIARMUS,
     protego: true,
-    episkey: true,
+    // (no Episkey: removed on request, since without the stun-lock exploit her healing made her a
+    // wall on Hard)
     resolve: HUFFLEPUFF_RESOLVE,
     // she holds her ground: the duel starts at a middle distance, Malfoid must come to her
     startDistance: 4.5,

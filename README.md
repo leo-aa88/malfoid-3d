@@ -96,7 +96,7 @@ The campaign, in order (the planned roster; see the status column for what is in
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
-| 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
+| 3 | Susan Bones | Defence, resilience | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable (Illusio not yet taught; [report](docs/luna/REPORT.md)) |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | playable (Petrificus not yet taught; [report](docs/hermione/REPORT.md)) |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
@@ -167,9 +167,8 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
 - **Depulso:** a violet bolt that throws you well back (9 damage, 7 m range, 8 s) when you crowd
   or attack her.
 - **Punishing a rush:** run straight into her reach and she may strike first.
-- **Episkey:** hurt (below 60 %), she heals at once, where she stands (a green-gold flare and a bright swell of sound). It
-  is instantaneous: no wind-up, nothing to interrupt, no opening. It is limited by a 6 s
-  cooldown and a few charges per round (see the table).
+- **No healing:** she used to heal with Episkey; it was removed (on Hard it made her a wall once
+  the stun-lock exploit was fixed).
 - **Hufflepuff Resolve:** a stagger only makes her flinch, a knockdown only knocks her back,
   and she is pushed 40 % less.
 - **More determined, not more aggressive:** below half health her face hardens and she guards
@@ -177,11 +176,11 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
 - She fights in the Herbology Greenhouse. In the campaign Malfoid opens the duel and Susan replies;
   each has a win line.
 
-| Level | Susan's HP | Episkey | How she fights |
-|---|---|---|---|
-| Easy | 120 | 2 x 20 HP | slow reactions, guards half the time, seldom answers a rush |
-| Normal | 150 | 2 x 25 HP | quicker; guards and counters more; meets most rushes and spells |
-| Hard | 190 | 3 x 30 HP | sharp reactions, a stubborn guard, real combos, heals more often |
+| Level | Susan's HP | How she fights |
+|---|---|---|
+| Easy | 120 | slow reactions, guards half the time, seldom answers a rush |
+| Normal | 150 | quicker; guards and counters more; meets most rushes and spells |
+| Hard | 190 | sharp reactions, a stubborn guard, real combos |
 
 ### Luna Lovegood
 
