@@ -27,7 +27,7 @@ const SPELL_KEYS: Record<string, number> = {
  * | Left Ctrl    | crouch (held)              |
  * | J / U        | high / low punch           |
  * | K / I        | high / low kick            |
- * | O            | block (held)               |
+ * | O or Enter   | block (held; either Enter) |
  * | 0            | cast Confringo             |
  * | 1            | cast Expelliarmus (learned)|
  * | 2            | Protego (held; learned)    |
@@ -115,7 +115,8 @@ export class CharacterController {
       return;
     }
     this.character.setHold('crouch', k.has('ControlLeft'));
-    this.character.setHold('block', k.has('KeyO'));
+    // O (beside the strike keys, for melee) or Enter (either)
+    this.character.setHold('block', k.has('KeyO') || k.has('Enter') || k.has('NumpadEnter'));
     const flip = this.confused?.() ? -1 : 1;
     const f = flip * ((k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0));
     const r = flip * ((k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0));

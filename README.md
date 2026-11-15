@@ -313,7 +313,7 @@ Tuning is in `src/combat/spells/Impedimenta.ts` (`MALFOID_IMPEDIMENTA`).
 | J / U | high / low punch (jab / body jab) |
 | K / I | high / low kick (roundhouse / shin kick) |
 | two strike keys quickly | combo (see below) |
-| O | block (hold) |
+| O or Enter | block (hold): O beside the strike keys for melee, or Enter (the main or the keypad one) |
 | 0 | cast Confringo (5 s cooldown; needs the wand). The spell keys work on the number row or the keypad |
 | 1 | cast Expelliarmus (8 s cooldown; needs the wand; learned from Ginny in the campaign) |
 | 2 | Protego (hold): a shield before her for up to 0.9 s, then 5 s before it can be raised again. It stops spells reaching its front, and one raised just as a spell arrives (within 0.2 s) sends it back at its caster; it guards strikes like a block. Needs the wand; learned from Cho in the campaign |
