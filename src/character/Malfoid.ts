@@ -8,6 +8,11 @@ import { handFrame, type SpellEmitter } from '../combat/spells/SpellEmitter';
 import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
 import { SPELL_CLIPS } from '../combat/spells/clips';
 
+/** s into the jump clip when her feet are off the floor (combat.jump: airborne 0.22-0.70 s) */
+export const JUMP_AIR: [number, number] = [0.22, 0.7];
+/** s into the crouch before she is low enough to duck a high strike (the crouch clip is 0.3 s) */
+const CROUCH_LOW = 0.12;
+
 /** m: getting up from Petrificus's fall starts this far behind where she stood (combat.GETUP_SHIFT) */
 export const GETUP_SHIFT = 0.55;
 
@@ -132,6 +137,9 @@ export class Malfoid {
   /** her wand: up her right sleeve until she casts, put away again when she punches or kicks */
   wand!: Wand;
   private wandGrip!: WandGrip;
+  /** s into the current action (the jump) and the held pose (the crouch) */
+  private actionT = 0;
+  private holdT = 0;
   /** her left hand's mount for something held in it (another fighter's wand, Accio) */
   offHand: THREE.Object3D | null = null;
   private strikeFacing: number | null = null;  // auto-facing target during a strike
@@ -497,7 +505,18 @@ export class Malfoid {
     this.resetIdleTimer();
     if (this.action || this.hold || this.strike || this.reaction || this.defeated || !this.animation.has(action)) return;
     this.action = action;
+    this.actionT = 0;
     this.animation.restart(action);
+  }
+
+  /** in the air (a jump): her feet clear a low kick */
+  get airborne(): boolean {
+    return this.action === 'jump' && this.actionT >= JUMP_AIR[0] && this.actionT <= JUMP_AIR[1];
+  }
+
+  /** crouched low: she ducks under a high strike */
+  get crouching(): boolean {
+    return this.hold === 'crouch' && this.holdT >= CROUCH_LOW;
   }
 
   /** free to start a strike (not jumping, crouching, blocking, casting, reacting or down) */
@@ -541,7 +560,10 @@ export class Malfoid {
   setHold(hold: HoldState, on: boolean): void {
     if (on) {
       this.resetIdleTimer();
-      if (!this.hold && !this.action && !this.strike && !this.reaction && !this.defeated) this.hold = hold;
+      if (!this.hold && !this.action && !this.strike && !this.reaction && !this.defeated) {
+        this.hold = hold;
+        this.holdT = 0;
+      }
     } else if (this.hold === hold) {
       this.hold = null;
     }
@@ -567,6 +589,8 @@ export class Malfoid {
   }
 
   update(dt: number): void {
+    if (this.action) this.actionT += dt;
+    if (this.hold) this.holdT += dt;
     // --- reactions: timed here, she slides with the hit
     if (this.reaction) {
       this.reaction.t += dt;

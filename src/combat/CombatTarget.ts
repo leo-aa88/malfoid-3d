@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { Height, HitEffect } from './moves';
+import type { Height, HitEffect, Move } from './moves';
 import type { Projectile } from './spells/Projectile';
 import type { SpellDef } from './spells/SpellSystem';
 
@@ -57,6 +57,8 @@ export interface CombatTarget {
   slow?(factor: number, duration: number): void;
   /** confuse it (fighters only): her directions are reversed for `duration` s */
   confuse?(duration: number): void;
+  /** does it get out of this strike's way (crouched under a high one, in the air over a low kick) */
+  evades?(move: Move): boolean;
   /** bind its body (fighters only, Petrificus Totalus): it falls rigid for `duration` s; true if it did */
   petrify?(duration: number): boolean;
   /** knock its wand away (fighters only); true if it had one */

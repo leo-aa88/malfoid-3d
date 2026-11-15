@@ -198,6 +198,10 @@ export class CombatHud {
       case 'whiff':
         this.flashStatus('MISS', 'miss');
         break;
+      case 'evaded':
+        // ducked under it / jumped over it: said over the fighter who got out of the way
+        this.popup(e.target.getAimPoint(new THREE.Vector3()).setY(1.75), 'DODGED!', 'blocked');
+        break;
       case 'combo':
         this.banner.innerHTML = `<div class="hits">${e.hits} HIT COMBO</div><div class="name">${e.combo.name}</div>`;
         this.banner.classList.remove('show');

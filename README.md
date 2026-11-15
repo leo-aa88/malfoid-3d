@@ -293,8 +293,8 @@ reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spel
 |---|---|
 | W / A / S / D | walk away from / towards the camera, left / right on screen |
 | Shift + WASD | run |
-| Space | jump |
-| Left Ctrl | crouch (hold) |
+| Space | jump: in the air she clears the low kicks (shin kick, leg sweep) |
+| Left Ctrl | crouch (hold): she ducks under the high strikes (jab, cross, roundhouse, spinning kick); an uppercut still catches her |
 | J / U | high / low punch (jab / body jab) |
 | K / I | high / low kick (roundhouse / shin kick) |
 | two strike keys quickly | combo (see below) |
@@ -340,6 +340,11 @@ Two strikes in quick succession chain into a finisher:
 - **Recovery:** whiffing a heavy finisher (uppercut, heavy body punch, sweeps, spinning or rising
   kick) slows the rest of the move: she is shown as VULNERABLE until it ends.
 - **2 HIT COMBO** appears when both strikes connect.
+- **Ducking and jumping:** a crouch ducks under the jab, the cross, the roundhouse and the
+  spinning high kick (an uppercut still catches a crouch); a jump, while her feet are off the
+  floor, clears the low shin kick and the leg sweep. The strike whiffs (a whiffed heavy finisher
+  leaves its thrower open) and DODGED! shows. Body punches must be blocked low. The same goes for
+  every fighter (`Move.avoid` in `combat/moves.ts`).
 - **No stun-lock:** a hit that lands while the target is still reeling (or just after) chains
   onto it. The third in a row knocks her back out of reach, and once she is up she has 0.7 s
   in which hits still hurt but don't stun her: time to block, counter or step away. This holds

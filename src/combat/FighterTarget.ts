@@ -5,7 +5,7 @@ import type { CombatTarget, HitBounds, HitReport, HitRequest, Reflector } from '
 import type { Protego } from './Protego';
 import type { Projectile } from './spells/Projectile';
 import type { SpellDef } from './spells/SpellSystem';
-import type { HitEffect } from './moves';
+import type { HitEffect, Move } from './moves';
 
 /** fraction of the damage that gets through a block */
 const BLOCK_CHIP = 0.2;
@@ -201,6 +201,12 @@ export class FighterTarget implements CombatTarget {
   /** how far behind her feet the middle of her lying body is (getting up, her root has moved back) */
   private lyingBack(): number {
     return this.fighter.petrified ? LYING.back : Math.max(0, LYING.back - GETUP_SHIFT);
+  }
+
+  /** crouched, she ducks under a high strike that can be ducked; in the air, she clears a low kick */
+  evades(move: Move): boolean {
+    if (this.fighter.defeated) return false;
+    return (move.avoid === 'crouch' && this.fighter.crouching) || (move.avoid === 'jump' && this.fighter.airborne);
   }
 
   /** Petrificus Totalus: she falls rigid and lies bound for `duration` s, then gets up */
