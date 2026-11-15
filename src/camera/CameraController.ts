@@ -22,6 +22,13 @@ const DUEL_RATE = 2.2;
 const CLOSE_UP = { distance: 0.85, height: 0.02, angle: 0.28 };
 /** the duel view is shifted so the pair sits right of the HUD panel (fraction of half the screen width) */
 const HUD_SHIFT = 0.16;
+/**
+ * a duel view an arena's walls keep from backing off far enough widens its field of view instead
+ * (the camera never climbs to get the distance): up to this vertical fov (deg), eased at FOV_RATE
+ * (1/s). The scene's own fov (32 deg) is the normal one.
+ */
+const MAX_FOV = 60;
+const FOV_RATE = 3.0;
 
 /**
  * Orbit / pan / zoom camera that follows the player. It adjusts on its own as she moves:
@@ -40,8 +47,13 @@ export class CameraController {
   private dragging = false;
   private sinceUser = 99;
   private clock = performance.now();
+  /** the scene's normal vertical fov (deg) */
+  private readonly baseFov: number;
+  /** the distance the duel view wants this frame (m) */
+  private duelDist = 0;
 
   constructor(private readonly camera: THREE.PerspectiveCamera, dom: HTMLElement) {
+    this.baseFov = camera.fov;
     this.controls = new OrbitControls(camera, dom);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
@@ -79,12 +91,41 @@ export class CameraController {
     this.camera.position.copy(this.controls.target).add(this.initialOffset);
     this.lastAnchor.copy(anchor);
     this.sinceUser = 99;
+    this.setFov(this.baseFov);
     this.controls.update();
+  }
+
+  private setFov(fov: number): void {
+    if (Math.abs(fov - this.camera.fov) < 1e-4) return;
+    this.camera.fov = fov;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * keep the camera inside the arena's limit, at the same pitch: the limit pulls it in towards
+   * the target, and its height comes down in proportion (keeping it put let the duel view's
+   * distance push climb it above the greenhouse roof)
+   */
+  private clampToLimit(t: THREE.Vector3): void {
+    if (!this.limit) return;
+    const p = this.camera.position;
+    const h0 = Math.hypot(p.x - t.x, p.z - t.z), y0 = p.y - t.y;
+    this.limit.clamp(p, t);
+    const h1 = Math.hypot(p.x - t.x, p.z - t.z);
+    if (h0 > 1e-6 && h1 < h0 - 1e-6) p.y = Math.max(t.y, t.y + (y0 * h1) / h0);
+  }
+
+  /** the fov that shows at the camera's distance what the normal fov would at `want` (m) */
+  private fovFor(want: number): number {
+    const have = this.camera.position.distanceTo(this.controls.target);
+    if (have >= want - 1e-3 || have < 1e-3) return this.baseFov;
+    const half = Math.atan((Math.tan(THREE.MathUtils.degToRad(this.baseFov) / 2) * want) / have);
+    return Math.min(MAX_FOV, THREE.MathUtils.radToDeg(2 * half));
   }
 
   /** the duel's look-at point: the pair's midpoint, moved left so they show right of the HUD */
   private duelTarget(mid: THREE.Vector3, yaw: number, dist: number, out: THREE.Vector3): THREE.Vector3 {
-    const halfW = dist * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) * this.camera.aspect;
+    const halfW = dist * Math.tan(THREE.MathUtils.degToRad(this.baseFov) / 2) * this.camera.aspect;
     // the camera's right on the ground, for a camera at yaw looking back at the target
     const rx = Math.cos(yaw);
     const rz = -Math.sin(yaw);
@@ -109,7 +150,8 @@ export class CameraController {
     this.duelTarget(new THREE.Vector3(a.x + dx / 2, a.y + this.initialTargetHeight, a.z + dz / 2), yaw, dist, this.controls.target);
     const h = this.initialOffset.y / this.initialOffset.length();
     this.camera.position.set(Math.sin(yaw) * dist, h * dist, Math.cos(yaw) * dist).add(this.controls.target);
-    this.limit?.clamp(this.camera.position, this.controls.target);
+    this.clampToLimit(this.controls.target);
+    this.setFov(this.fovFor(dist));
     this.lastAnchor.copy(a);
     this.sinceUser = 99;
     this.controls.update();
@@ -127,6 +169,7 @@ export class CameraController {
     this.controls.target.copy(face);
     this.camera.position.set(Math.sin(yaw) * CLOSE_UP.distance, CLOSE_UP.height, Math.cos(yaw) * CLOSE_UP.distance).add(face);
     this.sinceUser = 99;
+    this.setFov(this.baseFov);
     this.controls.update();
   }
 
@@ -142,7 +185,14 @@ export class CameraController {
       this.camera.position.add(this.delta);
       this.lastAnchor.copy(anchor);
     }
+    this.duelDist = 0;
     if (follow && !this.manual) this.adjust(anchor, follow, dt);
+    // the field of view: widened while walls hold the duel view in, normal otherwise (paused or
+    // held by the user: left as it is)
+    if (follow && !this.manual) {
+      const want = this.duelDist > 0 ? this.fovFor(this.duelDist) : this.baseFov;
+      this.setFov(this.camera.fov + (want - this.camera.fov) * (1 - Math.exp(-FOV_RATE * dt)));
+    }
     this.controls.update();
   }
 
@@ -164,6 +214,7 @@ export class CameraController {
       wantYaw = Math.abs(angDiff(a, yaw)) < Math.abs(angDiff(b, yaw)) ? a : b;
       rate = DUEL_RATE;
       const wantDist = THREE.MathUtils.clamp(sep * 1.15 + 2.6, 3.6, 16);
+      this.duelDist = wantDist;
       // near the edge of an arena: watch from the side that has room (not from inside the stands)
       if (this.limit) {
         const mx = (anchor.x + f.other.x) / 2, mz = (anchor.z + f.other.z) / 2;
@@ -197,7 +248,7 @@ export class CameraController {
       this.offset.z = Math.cos(yaw) * h;
     }
     this.camera.position.copy(t).add(this.offset);
-    this.limit?.clamp(this.camera.position, t);
+    this.clampToLimit(t);
   }
 
   /** horizontal direction from the target to the camera (rad): makes WASD camera-relative */

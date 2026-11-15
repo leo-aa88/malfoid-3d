@@ -385,7 +385,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   grip, and the tip emitter.
 - `character/ToonMaterials.ts` – cel shading and outlines (the hair is shaded as one smooth volume).
 - `camera/CameraController.ts` – the follow camera (behind her, side-on in a duel, speaker
-  close-ups); `scene/SceneManager.ts` – lights, shadows, the studio / arena lighting;
+  close-ups; where an arena's walls keep the duel view from backing off, it keeps its height
+  and widens its field of view, up to 60 deg); `scene/SceneManager.ts` – lights, shadows, the studio / arena lighting;
   `scene/arena.ts` – what the duel needs from an arena (spawn, light, collision, spell solids,
   camera limit); `scene/forest/` – the Forbidden Woods (`ForestArena.ts` adapts it);
   `scene/pitch/` – the Quidditch Pitch (`config.ts` the tunables, `structures.ts` the towers,
