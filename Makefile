@@ -35,10 +35,14 @@ LUNA_TEX     := build/textures/Luna_Head_BaseColor.png build/textures/Luna_Body_
                 build/textures/Luna_Crest.png
 LUNA_GLB     := public/models/luna.glb
 LUNA_BLEND   := build/luna.blend
+HERMIONE_TEX := build/textures/Hermione_Head_BaseColor.png build/textures/Hermione_Body_BaseColor.png \
+                build/textures/Hermione_Crest.png
+HERMIONE_GLB := public/models/hermione.glb
+HERMIONE_BLEND := build/hermione.blend
 RENDER_DIR   := docs/integration
 
 .DEFAULT_GOAL := all
-.PHONY: all help check-assets textures model ginny cho susan luna models renders install dev build preview typecheck clean clean-model distclean
+.PHONY: all help check-assets textures model ginny cho susan luna hermione models renders install dev build preview typecheck clean clean-model distclean
 
 all: models build ## Build both character models and the production viewer
 
@@ -60,7 +64,7 @@ $(TEXTURES) &: tools/textures/make_textures.py tools/textures/make_crest.py | ch
 	$(PYTHON) tools/textures/make_textures.py
 	$(PYTHON) tools/textures/make_crest.py
 
-models: model ginny cho susan luna ## Build every character
+models: model ginny cho susan luna hermione ## Build every character
 
 model: $(GLB) ## Build build/malfoid.blend and public/models/malfoid.glb
 
@@ -121,6 +125,19 @@ $(LUNA_GLB) $(LUNA_BLEND) &: $(LUNA_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-asset
 	MF_CHAR=luna "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
 		--stage 5 --save $(LUNA_BLEND) --glb $(LUNA_GLB)
 
+# Hermione: MF_CHAR=hermione (Gryffindor uniform and crest, voluminous curly chestnut half-up hair
+# with a dark clip, light freckles)
+$(HERMIONE_TEX) &: tools/textures/make_textures.py tools/textures/make_crest_gryffindor.py tools/blender/malfoid/character.py | check-assets
+	MF_CHAR=hermione $(PYTHON) tools/textures/make_textures.py
+	$(PYTHON) tools/textures/make_crest_gryffindor.py build/textures/Hermione_Crest.png
+
+hermione: $(HERMIONE_GLB) ## Build build/hermione.blend and public/models/hermione.glb
+
+$(HERMIONE_GLB) $(HERMIONE_BLEND) &: $(HERMIONE_TEX) $(TOOLS_PY) $(BASE_BLEND) | check-assets
+	@mkdir -p build public/models
+	MF_CHAR=hermione "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
+		--stage 5 --save $(HERMIONE_BLEND) --glb $(HERMIONE_GLB)
+
 renders: $(TEXTURES) | check-assets ## Render the validation set into docs/integration
 	@mkdir -p $(RENDER_DIR)
 	MF_FRAME=fixed "$(BLENDER)" -b -t 4 "$(BASE_BLEND)" -P tools/blender/build_head.py -- \
@@ -155,7 +172,8 @@ clean: ## Remove the viewer build output
 clean-model: ## Remove generated textures, .blend and .glb (checkpoints are kept)
 	rm -rf build/textures $(BLEND_OUT) $(GLB) public/models/malfoid.json $(GINNY_BLEND) $(GINNY_GLB) public/models/ginny.json \
 		$(CHO_BLEND) $(CHO_GLB) public/models/cho.json $(SUSAN_BLEND) $(SUSAN_GLB) public/models/susan.json \
-		$(LUNA_BLEND) $(LUNA_GLB) public/models/luna.json
+		$(LUNA_BLEND) $(LUNA_GLB) public/models/luna.json \
+		$(HERMIONE_BLEND) $(HERMIONE_GLB) public/models/hermione.json
 
 distclean: clean clean-model ## Also remove node_modules
 	rm -rf node_modules

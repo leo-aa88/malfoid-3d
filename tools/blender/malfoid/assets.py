@@ -268,11 +268,15 @@ def import_hair(head, parts):
         slim_hair(me)
     if PROFILE['hair']['part_shift']:
         shift_part(me, PROFILE['hair']['part_shift'])
+    if PROFILE['hair'].get('volume'):
+        volumize(me, PROFILE['hair']['volume'])
     GATHER.clear()
     if PROFILE['hair']['half_up']:
         GATHER.append(half_up(me, skull, centre))
     if PROFILE['hair'].get('frame_locks'):
         frame_locks(me)
+    if PROFILE['hair'].get('curls'):
+        curl_hair(me, PROFILE['hair']['curls'])
     HAIR_BONES[:] = [(n, slim_point(h), slim_point(t), par) for n, h, t, par in HAIR_BONES]
     _hair_clearance(ob, skull, centre)
     if parts is not None:
@@ -456,6 +460,63 @@ def frame_locks(me):
             me.vertices[i].co = Vector((x if p.x >= 0 else -x, y, p.z))
             moved += 1
     print('MF hair: %d face-framing locks eased back beside the cheeks (%d verts)' % (cards, moved))
+
+
+def volumize(me, v):
+    """Hermione's very full hair (atlases: "long, very voluminous"): below the brow line the
+    hair stands further out from the head's vertical axis, more towards the ends. The cards
+    keep their layering (every point moves out in proportion to its distance from the axis).
+    v: {'k': extra width at the ends (0.35 = 35 % wider), 'top': z where it starts, 'full': z
+    where it is complete, 'back': extra push towards the back (m) at the ends}"""
+    n = 0
+    for vert in me.vertices:
+        p = vert.co
+        w = sstep(v['top'], v['full'], p.z)
+        if w <= 0:
+            continue
+        k = 1.0 + v['k'] * w
+        y0 = 0.02                                            # the head's axis, a little behind the face
+        # wider to the sides and fuller behind; never further forward (scaled forwards too, the
+        # locks in front of the ears were carried ~2.4 cm across the cheek in profile)
+        y = y0 + (p.y - y0) * k + v.get('back', 0.0) * w if p.y > y0 else p.y
+        vert.co = Vector((p.x * k, y, p.z))
+        n += 1
+    print('MF hair: %d verts given volume (x%.2f at the ends)' % (n, 1.0 + v['k']))
+
+
+def curl_hair(me, c):
+    """Hermione's curls (atlases: "loose, defined curls", "thick, voluminous, wavy-curly"): each
+    card ripples as it falls, a spiral round its own line of fall (the radial and the sideways
+    offsets a quarter turn apart), so its edges and the silhouette break into curls. Each card
+    gets its own phase and a slightly different wavelength; nothing near the scalp moves.
+    c: {'amp': m at the ends, 'wave': wavelength (m), 'top': z where it starts, 'full': z where
+    the amplitude is complete, 'seed'}"""
+    import random as _random
+    rnd = _random.Random(c.get('seed', 5))
+    n = 0
+    for comp in _islands(me):
+        ph = rnd.uniform(0.0, 2.0 * math.pi)
+        lam = c['wave'] * rnd.uniform(0.75, 1.3)              # (0.85-1.15: the ends' zig-zag read too regular)
+        amp = c['amp'] * rnd.uniform(0.75, 1.2)
+        for i in comp:
+            p = me.vertices[i].co
+            w = sstep(c['top'], c['full'], p.z)
+            # the locks framing the face (in front of the ears) only wave: curled, their cards
+            # turned edge-on into thin zig-zag lines across the cheek
+            w *= 1.0 - 0.75 * sstep(0.0, -0.05, p.y)
+            if w <= 0:
+                continue
+            # outwards to the side or back, never forwards (in front of the ears, a radial push
+            # carried the locks across the cheek in profile)
+            r = Vector((p.x, max(p.y - 0.02, 0.0), 0.0))
+            if r.length < 1e-6:
+                continue
+            rd = r.normalized()
+            td = Vector((-rd.y, rd.x, 0.0))
+            a = 2.0 * math.pi * (c['top'] - p.z) / lam + ph
+            me.vertices[i].co = p + (rd * (0.5 + 0.5 * sin(a)) + td * cos(a) * 0.8) * amp * w
+            n += 1
+    print('MF hair: curls on %d verts (amp %.1f mm, wavelength %.0f mm)' % (n, c['amp'] * 1000, c['wave'] * 1000))
 
 
 def slim_hair(me):

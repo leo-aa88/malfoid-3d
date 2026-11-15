@@ -75,7 +75,10 @@ def main():
                 poly.use_freestyle_mark = True
             if P.get('ribbon') and assets.GATHER:
                 from malfoid import ribbon            # Cho's bow where the half-up is gathered
-                ribbon.build(hob, assets.GATHER[0], m)
+                if P['ribbon'] == 'clip':
+                    ribbon.build_clip(hob, assets.GATHER[0], m)   # Hermione's barrette
+                else:
+                    ribbon.build(hob, assets.GATHER[0], m)
         elif variant == 'old':
             hair.build(head, parts, m)
         else:

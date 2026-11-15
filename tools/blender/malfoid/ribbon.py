@@ -165,6 +165,44 @@ def build(hair, gather, mats):
     return ob
 
 
+# Hermione's hair clip (facial atlas 3/4 back-head and back hair): a dark barrette across the
+# gather, not a bow: a rounded bar following the curve of the head
+CLIP_W = 0.022            # half width (m)
+CLIP_H = 0.0058           # half height
+CLIP_D = 0.0042           # half depth
+CLIP_CURVE = 0.010        # its ends sit this much further forward (round the head)
+
+
+def build_clip(hair, gather, mats):
+    """the barrette at the gather point (world, rest pose), rigid on the head; returns it"""
+    bvh = _hair_surface(hair)
+    G = Vector(gather)
+    hit = bvh.ray_cast(Vector((G.x, G.y + 0.3, G.z)), Vector((0, -1, 0)), 0.6)
+    if hit[0] is not None:
+        G.y = hit[0].y + CLIP_D * 0.8
+    out = Vector((0.0, 1.0, 0.0))
+    rows = []
+    n = 18
+    for i in range(n + 1):
+        u = 2.0 * i / n - 1.0
+        e = max(0.0, 1.0 - abs(u) ** 6) ** 0.5               # rounded ends
+        h = CLIP_H * (0.3 + 0.7 * e)
+        d = CLIP_D * (0.3 + 0.7 * e)
+        x = G.x + CLIP_W * u
+        yc = G.y - CLIP_CURVE * u * u
+        ring = [Vector((x, yc + d * cos(2 * pi * k / SEG), G.z + h * sin(2 * pi * k / SEG))) for k in range(SEG)]
+        _lift(ring, bvh, out, CLEAR * 0.6)
+        rows.append(ring)
+    md = MeshData()
+    md.add_grid(rows, 'mf_ribbon', closed=True, cap_start=sum(rows[0], Vector()) / SEG,
+                cap_end=sum(rows[-1], Vector()) / SEG)
+    ob = md.to_object('Ribbon', mats, bone=None, rig=bpy.data.objects.get('rig'))
+    g = ob.vertex_groups.new(name='head.x')
+    g.add([v.index for v in ob.data.vertices], 1.0, 'REPLACE')
+    print('MF hair clip at %s, %d verts' % (tuple(round(c, 3) for c in G), len(md.v)))
+    return ob
+
+
 def _weights(ob, hair, rigid, G):
     """knot and loops: the head bone; tails: blend from the head (at the knot) to the skin
     weights of the nearest hair vertex"""
