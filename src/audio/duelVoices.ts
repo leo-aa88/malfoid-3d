@@ -72,6 +72,9 @@ export const LUNA_LINES: DuelLines = {
   opponentWin: 'lunaWin',
 };
 
+/** Hermione's duel: no lines recorded yet (the duel goes straight to the fight) */
+export const HERMIONE_LINES: DuelLines = { intro: [], malfoidWin: null, opponentWin: null };
+
 /** Ginny's duel: Malfoid's opening line, Ginny's reply, a line for each winner */
 export const GINNY_LINES: DuelLines = {
   intro: [{ who: 'malfoid', id: 'malfoidOpening' }, { who: 'opponent', id: 'ginnyOpening' }],

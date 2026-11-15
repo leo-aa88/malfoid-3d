@@ -72,7 +72,11 @@ const SLEEVE = 0.3;                    // m: how far up the forearm it rests whe
  * stow() slides it back (she switches to her fists); hidden while stowed. Spells leave from
  * its tip.
  */
-export type WandState = 'hand' | 'flying' | 'dropped';
+export type WandState = 'hand' | 'flying' | 'dropped' | 'summoned' | 'held';
+
+/** Accio: s for a summoned wand to fly to the caster's hand, and how high it arcs (m) */
+const SUMMON_TIME = 0.45;
+const SUMMON_ARC = 0.45;
 
 export class Wand {
   readonly group = new THREE.Group();
@@ -81,8 +85,13 @@ export class Wand {
   private readonly model = new THREE.Group();
   private out = 0;                      // 0 stowed .. 1 in the hand
   private want = 0;
-  /** in her hand (or sleeve), flying through the air, or lying on the floor */
+  /** in her hand (or sleeve), flying through the air, lying on the floor, flying to another
+   *  fighter's hand (Accio), or held there */
   state: WandState = 'hand';
+  private summonTo: THREE.Object3D | null = null;
+  private summonT = 0;
+  private readonly from = new THREE.Vector3();
+  private readonly to = new THREE.Vector3();
   private readonly mount = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), scale: new THREE.Vector3() };
   private readonly vel = new THREE.Vector3();
   private readonly spinAxis = new THREE.Vector3();
@@ -150,6 +159,33 @@ export class Wand {
     this.ring.position.set(x, this.ring.position.y, z);
   }
 
+  /**
+   * Accio: lying on the floor, it flies up in an arc into `mount` (another fighter's free hand,
+   * Malfoid.offHand) and stays there until she lets go of it. false if it isn't on the floor.
+   */
+  summon(mount: THREE.Object3D): boolean {
+    if (this.state !== 'dropped') return false;
+    this.state = 'summoned';
+    this.summonTo = mount;
+    this.summonT = 0;
+    this.from.copy(this.group.position);
+    this.ring.visible = false;
+    return true;
+  }
+
+  /** whoever summoned or held it lets go (hit): it drops from there along dir */
+  loose(scene: THREE.Scene, dir: THREE.Vector3): void {
+    if (this.state !== 'held' && this.state !== 'summoned') return;
+    scene.attach(this.group);
+    this.summonTo = null;
+    this.state = 'flying';
+    this.vel.copy(dir).setY(0).normalize().multiplyScalar(1.4);
+    this.vel.y = 2.2;
+    this.spinAxis.set(dir.z, 0, -dir.x).normalize();
+    if (this.spinAxis.lengthSq() < 1e-6) this.spinAxis.set(1, 0, 0);
+    this.spin = 10;
+  }
+
   /** back into her hand (she picked it up) */
   retrieve(): void {
     if (this.state === 'hand') return;
@@ -158,6 +194,7 @@ export class Wand {
     this.group.quaternion.copy(this.mount.quaternion);
     this.group.scale.copy(this.mount.scale);
     this.state = 'hand';
+    this.summonTo = null;
     this.out = this.want = 1;
     this.ring.visible = false;
     this.apply();
@@ -178,6 +215,7 @@ export class Wand {
 
   update(dt: number): void {
     if (this.state === 'flying') this.fly(dt);
+    if (this.state === 'summoned') this.flyToHand(dt);
     if (this.state === 'dropped') {
       this.ringTime += dt;
       (this.ring.material as THREE.MeshBasicMaterial).opacity = 0.45 + 0.25 * Math.sin(this.ringTime * 5);
@@ -185,6 +223,26 @@ export class Wand {
     if (this.state !== 'hand' || this.out === this.want) return;
     const step = dt / (this.want > this.out ? DRAW_TIME : STOW_TIME);
     this.out = this.want > this.out ? Math.min(this.want, this.out + step) : Math.max(this.want, this.out - step);
+    this.apply();
+  }
+
+  /** Accio's flight: an arc from the floor into the summoner's hand, end over end, then held */
+  private flyToHand(dt: number): void {
+    const mount = this.summonTo!;
+    this.summonT += dt;
+    const k = Math.min(1, this.summonT / SUMMON_TIME);
+    const s = k * k * (3 - 2 * k);
+    mount.getWorldPosition(this.to);
+    this.group.position.lerpVectors(this.from, this.to, s);
+    this.group.position.y += Math.sin(Math.PI * k) * SUMMON_ARC;
+    this.group.rotateX(12 * dt * (1 - k));
+    if (k < 1) return;
+    mount.add(this.group);
+    this.group.position.set(0, 0, 0);
+    this.group.quaternion.identity();
+    this.group.scale.set(1, 1, 1);
+    this.state = 'held';
+    this.out = this.want = 1;
     this.apply();
   }
 

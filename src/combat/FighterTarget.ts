@@ -13,6 +13,11 @@ const BLOCK_CHIP = 0.2;
 const RADIUS = 0.2;
 const HEIGHT = 1.62;
 const AIM_Y = 1.15;
+/** lying on the floor (Petrificus Totalus): the hurt volume lies along her body behind her feet */
+const LYING = { back: 0.75, height: 0.42, radius: 0.38, aimY: 0.22 };
+/** while bound, this many hits land (the rest find her immune until she is up): the bind opens
+ *  the way to a follow-up, not to a whole barrage */
+export const BOUND_HITS = 1;
 /** slide speed (m/s) of each reaction when the attack doesn't give one */
 const PUSH: Record<HitEffect, number> = { flinch: 0.6, stagger: 1.2, knockback: 2.2, knockdown: 2.8 };
 const REACTION: Record<HitEffect, ReactionState> = { flinch: 'hit', stagger: 'stagger', knockback: 'knockback', knockdown: 'knockback' };
@@ -60,6 +65,8 @@ export class FighterTarget implements CombatTarget {
   slowFactor = 1;
   /** confused (Confundo): her directions are reversed for confusedLeft more seconds */
   confusedLeft = 0;
+  /** hits that have landed since she was last bound (Petrificus Totalus) */
+  boundHits = 0;
 
   constructor(readonly fighter: Malfoid, public maxHp = 100) {
     this.hp = maxHp;
@@ -75,6 +82,15 @@ export class FighterTarget implements CombatTarget {
 
   getBounds(out: HitBounds): HitBounds {
     const p = this.fighter.position;
+    if (this.fighter.lying) {
+      const f = this.fighter.facingAngle;
+      out.x = p.x - Math.sin(f) * LYING.back;
+      out.z = p.z - Math.cos(f) * LYING.back;
+      out.yMin = 0;
+      out.yMax = LYING.height;
+      out.radius = LYING.radius;
+      return out;
+    }
     out.x = p.x;
     out.z = p.z;
     out.yMin = 0;
@@ -93,11 +109,27 @@ export class FighterTarget implements CombatTarget {
 
   getAimPoint(out: THREE.Vector3): THREE.Vector3 {
     const p = this.fighter.position;
+    if (this.fighter.lying) {
+      const f = this.fighter.facingAngle;
+      return out.set(p.x - Math.sin(f) * LYING.back, LYING.aimY, p.z - Math.cos(f) * LYING.back);
+    }
     return out.set(p.x, AIM_Y, p.z);
   }
 
   takeHit(hit: HitRequest): HitReport {
     if (this.fighter.defeated) return { result: 'immune', damage: 0, ko: false };
+    if (this.fighter.petrified || this.fighter.reacting === 'get_up') {
+      // rigid on the floor, or getting up: the first hit lands (no reaction: nothing moves her),
+      // the rest don't (the bind opens the way to a follow-up, not a whole barrage)
+      if (this.boundHits >= BOUND_HITS) return { result: 'immune', damage: 0, ko: false };
+      this.boundHits++;
+      this.hp = Math.max(0, this.hp - hit.damage);
+      this.onHurt?.(hit.damage, hit.effect);
+      this.sinceHit = 0;
+      const ko = this.hp === 0;
+      if (ko) this.defeat();
+      return { result: 'hit', damage: hit.damage, ko };
+    }
     if (this.fighter.blocking) {
       const chip = Math.max(1, Math.round(hit.damage * BLOCK_CHIP));
       this.hp = Math.max(0, this.hp - chip);
@@ -128,6 +160,22 @@ export class FighterTarget implements CombatTarget {
     const ok = this.fighter.disarm(dir);
     if (ok) this.fighter.setExpression('surprised', 1.0);
     return ok;
+  }
+
+  /** Petrificus Totalus: she falls rigid and lies bound for `duration` s, then gets up */
+  petrify(duration: number): boolean {
+    if (this.fighter.defeated) return false;
+    const ok = this.fighter.petrify(duration);
+    if (ok) {
+      this.boundHits = 0;
+      this.fighter.setExpression('surprised', duration);
+    }
+    return ok;
+  }
+
+  /** bound (Petrificus Totalus) */
+  get petrified(): boolean {
+    return this.fighter.petrified;
   }
 
   /** slowed: her own time runs at `factor` for `duration` s (a new slow replaces a weaker or shorter one) */
@@ -170,6 +218,7 @@ export class FighterTarget implements CombatTarget {
     this.slowLeft = 0;
     this.slowFactor = 1;
     this.confusedLeft = 0;
+    this.boundHits = 0;
     this.fighter.setDefeated(false);
   }
 

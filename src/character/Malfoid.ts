@@ -4,7 +4,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { AnimationController, AnimationState, ActionState, DodgeState, HoldState, LocomotionState, ReactionState, StrikeState } from './AnimationController';
 import { FaceFx, ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
-import type { SpellEmitter } from '../combat/spells/SpellEmitter';
+import { handFrame, type SpellEmitter } from '../combat/spells/SpellEmitter';
 import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
 import { SPELL_CLIPS } from '../combat/spells/clips';
 
@@ -39,7 +39,7 @@ export type Weights = Record<string, number>;
 export interface CharacterOptions {
   name: string;
   /** standing-still clip */
-  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle' | 'luna_idle';
+  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle' | 'luna_idle' | 'hermione_idle';
   /** her own fast gait in place of the run (Luna's skip): its clip, the speed she moves at (m/s)
    * and the speed the clip was authored for (its time scale follows) */
   run?: { clip: LocomotionState; speed: number; clipSpeed: number } | null;
@@ -129,6 +129,8 @@ export class Malfoid {
   /** her wand: up her right sleeve until she casts, put away again when she punches or kicks */
   wand!: Wand;
   private wandGrip!: WandGrip;
+  /** her left hand's mount for something held in it (another fighter's wand, Accio) */
+  offHand: THREE.Object3D | null = null;
   private strikeFacing: number | null = null;  // auto-facing target during a strike
   // reactions (hit, stagger, knockback, disarmed, pickup): timed here, push her back
   private reaction: { kind: ReactionState; t: number; dur: number } | null = null;
@@ -246,6 +248,22 @@ export class Malfoid {
       }
     });
     m.wand = new Wand(hand);
+    // the left hand's mount for something held in it (another fighter's wand, Accio): along the
+    // fingers like the wand in the right hand
+    let handL: THREE.Bone | null = null;
+    gltf.scene.traverse((o) => {
+      if ((o as THREE.Bone).isBone && o.name === 'hand_L') handL = o as THREE.Bone;
+    });
+    if (handL) {
+      const f = handFrame(handL, 'L');
+      const mount = new THREE.Object3D();
+      mount.name = 'off_hand_mount';
+      mount.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), f.fingers);
+      mount.position.copy(f.fingers).multiplyScalar(0.05 * f.unit).addScaledVector(f.palm, 0.022 * f.unit);
+      mount.scale.setScalar(f.unit);
+      (handL as THREE.Bone).add(mount);
+      m.offHand = mount;
+    }
     m.wandGrip = new WandGrip(gltf.scene, gltf.animations);
     return m;
   }
@@ -343,6 +361,7 @@ export class Malfoid {
    */
   react(kind: ReactionState, push?: THREE.Vector3): void {
     if (this.defeated && kind !== 'knockback') return;
+    if (this.petrified) return;                    // rigid: nothing moves her until the bind ends
     if (!this.animation.has(kind)) return;
     if (kind !== 'pickup') this.pickupSpot = null;
     if (this.strike) this.endStrike();
@@ -353,6 +372,39 @@ export class Malfoid {
     this.animation.restart(kind, 0.06);
     if (push) this.slide.copy(push).setY(0);
     this.resetIdleTimer();
+  }
+
+  /**
+   * Petrificus Totalus: her body binds, arms snap to her sides and she topples backwards like a
+   * plank (the 'petrified' clip, ending lying flat), lies rigid for the rest of `seconds`, then
+   * gets up (the 'get_up' clip). Nothing else moves her meanwhile. false if she can't (defeated,
+   * or her model has no such clip).
+   */
+  petrify(seconds: number): boolean {
+    if (this.defeated || !this.animation.has('petrified') || this.petrified) return false;
+    if (this.strike) this.endStrike();
+    this.castLock = false;
+    this.action = null;
+    this.hold = null;
+    this.pickupSpot = null;
+    this.moving = false;
+    this.speed = 0;
+    this.slide.set(0, 0, 0);
+    this.reaction = { kind: 'petrified', t: 0, dur: seconds };
+    this.animation.restart('petrified', 0.05);
+    this.resetIdleTimer();
+    return true;
+  }
+
+  /** bound by Petrificus Totalus (falling or lying rigid) */
+  get petrified(): boolean {
+    return this.reaction?.kind === 'petrified';
+  }
+
+  /** on the floor: bound, or still in the first half of getting up */
+  get lying(): boolean {
+    const r = this.reaction;
+    return !!r && (r.kind === 'petrified' || (r.kind === 'get_up' && r.t < r.dur * 0.5));
   }
 
   /** Expelliarmus: the wand is knocked out of her hand along dir; true if she had it */
@@ -386,7 +438,10 @@ export class Malfoid {
   /** knocked out / back on her feet (duel end / reset) */
   setDefeated(on: boolean): void {
     this.defeated = on;
-    if (on) {
+    if (on && this.petrified) {
+      this.reaction!.dur = Infinity;               // knocked out while bound: she stays down
+      this.setExpression('pain', 99);
+    } else if (on) {
       this.react('knockback');
       this.setExpression('pain', 99);
     } else {
@@ -519,7 +574,11 @@ export class Malfoid {
         this.wand.retrieve();
         this.pickupSpot = null;
       }
-      if (this.reaction.t >= this.reaction.dur) this.reaction = null;     // a defeated fighter then kneels
+      if (this.reaction.t >= this.reaction.dur) {
+        const was = this.reaction.kind;
+        this.reaction = null;                    // a defeated fighter then kneels
+        if (was === 'petrified' && !this.defeated) this.react('get_up');    // the bind wears off
+      }
     }
     if (this.slide.lengthSq() > 1e-6) {
       this.root.position.addScaledVector(this.slide, dt);

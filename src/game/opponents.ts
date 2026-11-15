@@ -1,6 +1,9 @@
 import type { CharacterOptions } from '../character/Malfoid';
-import { CHO_FACES, CHO_TALK, GINNY_FACES, GINNY_TALK, LUNA_FACES, LUNA_TALK, SUSAN_FACES, SUSAN_TALK } from '../character/faces';
-import { CHO_DIFFICULTY, DIFFICULTY, Difficulty, DifficultyLevel, LUNA_DIFFICULTY, SUSAN_DIFFICULTY } from '../combat/ai/difficulty';
+import { CHO_FACES, CHO_TALK, GINNY_FACES, GINNY_TALK, HERMIONE_FACES, HERMIONE_TALK, LUNA_FACES, LUNA_TALK, SUSAN_FACES,
+  SUSAN_TALK } from '../character/faces';
+import { CHO_DIFFICULTY, DIFFICULTY, Difficulty, DifficultyLevel, HERMIONE_DIFFICULTY, LUNA_DIFFICULTY,
+  SUSAN_DIFFICULTY } from '../combat/ai/difficulty';
+import { PETRIFICUS, PETRIFICUS_LOOK } from '../combat/spells/Petrificus';
 import { CONFUNDO, CONFUNDO_LOOK } from '../combat/spells/Confundo';
 import type { SpellDef } from '../combat/spells/SpellSystem';
 import type { SpellLook } from '../combat/spells/ConfringoFx';
@@ -10,14 +13,14 @@ import { VENTUS } from '../combat/spells/Ventus';
 import { IMPEDIMENTA, IMPEDIMENTA_LOOK } from '../combat/spells/Impedimenta';
 import { DEPULSO, DEPULSO_LOOK } from '../combat/spells/Depulso';
 import { HUFFLEPUFF_RESOLVE, Resolve } from '../combat/FighterTarget';
-import { CHO_LINES, DuelLines, GINNY_LINES, LUNA_LINES, SUSAN_LINES } from '../audio/duelVoices';
+import { CHO_LINES, DuelLines, GINNY_LINES, HERMIONE_LINES, LUNA_LINES, SUSAN_LINES } from '../audio/duelVoices';
 
 /*
  * The opponents Malfoid can duel, and everything that differs between them: model, faces,
  * spells, AI tuning per difficulty, voice lines, how far apart a duel starts. The duel code
  * reads these; nothing in it names an opponent.
  */
-export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna';
+export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna' | 'hermione';
 
 /** Luna's skip (combat.SKIP_SPEED): the speed her skip clip was authored for, m/s */
 const SKIP_CLIP_SPEED = (0.7 * (0.2 + 0.38)) / (0.35 * 0.7);
@@ -74,10 +77,14 @@ export interface OpponentDef {
   /** Luna's summons: Oppugno's birds, Illusio's copies of herself (counts per level: difficulty[level].luna) */
   oppugno?: boolean;
   illusio?: boolean;
+  /** Hermione's plate barrage (plates per level: difficulty[level].hermione) and Accio (she
+   *  summons Malfoid's dropped wand) */
+  plates?: boolean;
+  accio?: boolean;
   /** m between the fighters when a duel starts */
   startDistance: number;
   /** where she is fought */
-  arena: 'woods' | 'pitch' | 'greenhouse' | 'ravenclaw';
+  arena: 'woods' | 'pitch' | 'greenhouse' | 'ravenclaw' | 'greathall';
   lines: DuelLines;
   faces: OpponentFaces;
   /** her health bar in the HUD */
@@ -167,5 +174,27 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     faces: { start: 'dreamy', intro: 'angry', attack: 'pleased', retreat: 'surprised', disarmedFoe: 'amused', distracted: 'dreamy',
       shielded: 'curious', parried: 'amused', lowHp: 'determined', win: 'cheerful', lose: 'sad' },
     hudColour: '#9a8fc9',
+  },
+  hermione: {
+    id: 'hermione',
+    name: 'Hermione',
+    model: 'hermione',
+    character: { name: 'Hermione', idleClip: 'hermione_idle', expressions: HERMIONE_FACES, talk: HERMIONE_TALK },
+    difficulty: HERMIONE_DIFFICULTY,
+    // Petrificus Totalus is her main spell, with Expelliarmus; the plates and Accio are summons
+    spell: PETRIFICUS,
+    look: PETRIFICUS_LOOK,
+    altSpell: EXPELLIARMUS,
+    protego: true,
+    plates: true,
+    accio: true,
+    // a caster's distance: the duel starts at her preferred range
+    startDistance: 5.5,
+    // the Great Hall: the house tables (and their dinner plates)
+    arena: 'greathall',
+    lines: HERMIONE_LINES,
+    faces: { start: 'confident', attack: 'determined', retreat: 'frustrated', disarmedFoe: 'confident', shielded: 'determined',
+      parried: 'confident', lowHp: 'angry', win: 'cheerful', lose: 'frustrated' },
+    hudColour: '#a8613f',
   },
 };

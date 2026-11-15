@@ -27,7 +27,7 @@ import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
 import { ALL_SPELLS, CAMPAIGN, Campaign, spellsBefore, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
 import { MATCH, Match } from './game/match';
-import { OPPONENTS, OpponentId } from './game/opponents';
+import { OPPONENTS, OpponentDef, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
 import { SlowFx } from './combat/SlowFx';
 import { ConfusionFx } from './combat/ConfusionFx';
@@ -168,6 +168,14 @@ async function start(): Promise<void> {
       }
       if (e.type === 'hit' && e.direct && e.spell.slow && e.report.result === 'hit' && !e.report.ko) hud.announce('SLOWED!', 'disarm');
       if (e.type === 'hit' && e.direct && e.spell.confuse && e.report.result === 'hit' && !e.report.ko) hud.announce('CONFUNDED!', 'disarm');
+      if (e.type === 'hit' && e.direct && e.spell.petrify && e.report.result === 'hit' && !e.report.ko && malfoid.petrified) {
+        hud.announce('PETRIFIED!', 'disarm');
+      }
+      // Accio: Malfoid's wand flies to her
+      if (e.type === 'release' && e.spell.summon === 'accio' && malfoid.wand.state === 'summoned') {
+        hud.announce('ACCIO!', 'disarm');
+        o.char.setExpression(o.def.faces.disarmedFoe, 1.6);
+      }
     };
     o.target.onDefeated = () => { if (o === opp) finish(malfoid); };
     // Luna's copies: popping one says so
@@ -516,8 +524,9 @@ async function start(): Promise<void> {
   // the arenas (each opponent's definition names hers; training keeps the studio): the
   // Forbidden Woods, the Quidditch Pitch, the Herbology Greenhouse, the Ravenclaw common room. Built
   // once; only the current one is shown and updated.
-  const arenas: Record<'woods' | 'pitch' | 'greenhouse' | 'ravenclaw', Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene),
-    greenhouse: new GreenhouseArena(sm.scene), ravenclaw: new RavenclawArena(sm.scene) };
+  const woods = new ForestArena(sm.scene);
+  const arenas: Record<OpponentDef['arena'], Arena> = { woods, pitch: new PitchArena(sm.scene),
+    greenhouse: new GreenhouseArena(sm.scene), ravenclaw: new RavenclawArena(sm.scene), greathall: woods };
   let arena: Arena | null = null;
   // spells hit trunks and stands: every caster shares one list of solids, refilled each frame
   spells.world.solids = solids;
@@ -713,12 +722,15 @@ async function start(): Promise<void> {
   const c = opponents.cho;
   const su = opponents.susan;
   const lu = opponents.luna;
+  const he = opponents.hermione;
   Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, malfoidTarget,
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
     susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
     luna: lu.char, lunaAi: lu.ai, lunaSpells: lu.spells, lunaTarget: lu.target, lunaFlock: lu.flock, lunaIllusions: lu.illusions,
+    hermione: he.char, hermioneAi: he.ai, hermioneSpells: he.spells, hermioneTarget: he.target, hermioneBarrage: he.barrage,
+    hermioneOpp: he,
     confusionFx,
     protego, protegoFx, cameo, cameoTrigger,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,

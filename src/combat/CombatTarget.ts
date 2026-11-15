@@ -57,6 +57,8 @@ export interface CombatTarget {
   slow?(factor: number, duration: number): void;
   /** confuse it (fighters only): her directions are reversed for `duration` s */
   confuse?(duration: number): void;
+  /** bind its body (fighters only, Petrificus Totalus): it falls rigid for `duration` s; true if it did */
+  petrify?(duration: number): boolean;
   /** knock its wand away (fighters only); true if it had one */
   disarm?(dir: THREE.Vector3): boolean;
   /** a spell reaches it: a shield may stop it ('absorb') or send it back ('reflect') */

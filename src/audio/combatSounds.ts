@@ -14,7 +14,7 @@ import type { Sfx, SoundId } from './Sfx';
 /** strikes that use the heavy impact sounds */
 const HEAVY_MOVES = new Set<MoveId>(['kick_low', 'kick_high', 'leg_sweep', 'spin_kick', 'rising_kick', 'uppercut', 'heavy_body']);
 /** the same voice, pitched a touch apart for each fighter */
-const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.02, Susan: 1.0 };
+const VOICE_RATE: Record<string, number> = { Malfoid: 0.97, Ginny: 1.06, Cho: 1.02, Susan: 1.0, Hermione: 1.03 };
 /**
  * an opponent's spell sounds (by spell id): played at the release (the bolt leaves the wand) or
  * from the cast's start (it builds over the wind-up; a cast cancelled before its release cuts it)
@@ -32,6 +32,11 @@ const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume:
   oppugno: { id: 'ventus', at: 'release', volume: 0.6, rate: 1.6 },
   illusio: { id: 'impedimenta', at: 'cast', volume: 0.75, rate: 1.35 },
   depulso: { id: 'ventus', at: 'cast', volume: 0.85 },
+  // Hermione's borrow these until she has her own: Petrificus a colder, lower crack, each plate
+  // of the barrage a short whoosh as it leaves the fan, Accio a rising swell as she reaches
+  petrificus: { id: 'stupefy', at: 'release', volume: 0.8, rate: 0.8 },
+  plates: { id: 'ventus', at: 'release', volume: 0.45, rate: 1.45 },
+  accio: { id: 'impedimenta', at: 'cast', volume: 0.7, rate: 1.15 },
 };
 /** Episkey's swell as she heals (instant: played the moment it heals) */
 const EPISKEY_SOUND = { volume: 0.8 };

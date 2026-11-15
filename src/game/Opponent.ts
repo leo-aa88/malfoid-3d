@@ -7,6 +7,8 @@ import type { Difficulty } from '../combat/ai/difficulty';
 import { SpellSystem, SpellFx, SpellDef } from '../combat/spells/SpellSystem';
 import { OPPUGNO_SPELL, OppugnoFlock, OppugnoFx } from '../combat/spells/Oppugno';
 import { ILLUSIO_LOOK, ILLUSIO_SPELL, Illusions, OPPUGNO_LOOK } from '../combat/Illusio';
+import { PLATES, PLATES_SPELL, PlateBarrage, PlateFx } from '../combat/spells/Plates';
+import { ACCIO, ACCIO_LOOK } from '../combat/spells/Accio';
 import { ConfringoFx } from '../combat/spells/ConfringoFx';
 import { SpellFxSet } from '../combat/spells/SpellFxSet';
 import { VentusFx } from '../combat/spells/Ventus';
@@ -56,12 +58,23 @@ export class Opponent {
   readonly illusions: Illusions | null = null;
   private birds = 5;
   private copies = 2;
+  /** Hermione's plate barrage and how it looks; plates per barrage (per level) */
+  readonly barrage: PlateBarrage | null = null;
+  private readonly plateFx: PlateFx | null = null;
+  private plateCount = PLATES.plates;
+  /** where the barrage's plates come from (the Great Hall's tables: the nearest places, taken
+   *  off the tables); null: conjured round her */
+  plateSource: ((near: THREE.Vector3, count: number) => THREE.Vector3[]) | null = null;
+  private wasHit = false;
+  /** Malfoid (Accio takes her wand) */
+  private readonly foe: Malfoid;
   /** her own effect pools (updated by her spell system), for their view scale */
   private readonly ownFx: { setView(c: THREE.PerspectiveCamera, h: number): void }[] = [];
 
   constructor(readonly def: OpponentDef, readonly char: Malfoid, w: OpponentWorld) {
     char.scene = w.scene;
     char.root.visible = false;
+    this.foe = w.malfoid;
     this.target = new FighterTarget(char);
     this.combat = new ComboSystem(char, () => [w.malfoidTarget]);
     // her spells' effects: her main spell's pool is shared if it already exists (Ginny's
@@ -69,7 +82,8 @@ export class Opponent {
     // she reflects keeps flying in its caster's pool (that caster's system advances it).
     const bySpell: Record<string, SpellFx> = { ...w.pools };
     const updates: SpellFx[] = [];
-    this.spell = def.spell.confuse ? { ...def.spell, confuse: { ...def.spell.confuse } } : def.spell;
+    this.spell = def.spell.confuse ? { ...def.spell, confuse: { ...def.spell.confuse } }
+      : def.spell.petrify ? { ...def.spell, petrify: { ...def.spell.petrify } } : def.spell;
     const own = (id: string, look: typeof def.look) => {
       const fx = new ConfringoFx(w.scene, look, id + '_fx');
       bySpell[id] = fx;
@@ -80,6 +94,9 @@ export class Opponent {
     // summons have no bolt, only the charge at her wand: gold for the birds, silver for the copies
     if (def.oppugno) own(OPPUGNO_SPELL.id, OPPUGNO_LOOK);
     if (def.illusio) own(ILLUSIO_SPELL.id, ILLUSIO_LOOK);
+    // Hermione's summons: a gold charge at her wand for the plates and for Accio
+    if (def.plates) own(PLATES_SPELL.id, OPPUGNO_LOOK);
+    if (def.accio) own(ACCIO.id, ACCIO_LOOK);
     if (def.push) {
       // a bolt with its own look (Depulso), or Ventus's gust
       const fx = def.pushLook ? new ConfringoFx(w.scene, def.pushLook, def.push.id + '_fx') : new VentusFx(w.scene);
@@ -133,7 +150,32 @@ export class Opponent {
       this.ai.illusio = ILLUSIO_SPELL;
       this.ai.illusions = this.illusions;
     }
+    // Hermione: the plates rise with the cast, fall if it is cut short, fly at the release; Accio
+    // brings Malfoid's dropped wand to her free hand
+    if (def.plates) {
+      this.barrage = new PlateBarrage();
+      this.plateFx = new PlateFx(w.scene, this.barrage);
+      this.barrage.onEvent = (e) => this.spells.onEvent?.(e);
+      this.ai.plates = PLATES_SPELL;
+      this.ai.threatOut = () => this.barrage!.plates.some((p) => p.state === 'flying');
+    }
+    if (def.accio) this.ai.accio = ACCIO;
+    if (this.spell.petrify) this.ai.petrify = this.spell;
+    this.ai.opponentShield = w.malfoidTarget.shield;
+    this.spells.onCast = (s, phase) => {
+      if (s.summon !== 'plates' || !this.barrage) return;
+      if (phase === 'start') this.barrage.levitate(char, this.plateSource?.(char.position, this.plateCount) ?? [], this.plateCount);
+      else this.barrage.interrupt();
+    };
     this.spells.onSummon = (s, origin) => {
+      if (s.summon === 'plates' && this.barrage) {
+        this.barrage.fire(w.malfoidTarget, this.target, (from, out) => this.ai.aimAt(from, this.barrage!.cfg.speed, out));
+        return;
+      }
+      if (s.summon === 'accio') {
+        if (w.malfoid.wand.state === 'dropped' && char.offHand) w.malfoid.wand.summon(char.offHand);
+        return;
+      }
       if (s.summon === 'oppugno' && this.flock) {
         const f = char.facingAngle;
         this.flock.launch(origin, new THREE.Vector3(Math.sin(f), 0, Math.cos(f)), w.malfoidTarget, this.target, this.birds);
@@ -159,6 +201,10 @@ export class Opponent {
       this.episkey.amount = l.heal.amount;
       this.episkey.maxCharges = l.heal.charges;
     }
+    if (l.hermione) {
+      this.plateCount = l.hermione.plates;
+      if (this.spell.petrify) this.spell.petrify.duration = l.hermione.petrify;
+    }
     if (l.luna) {
       if (this.spell.confuse) this.spell.confuse.duration = l.luna.confuse;
       this.birds = l.luna.birds;
@@ -177,6 +223,14 @@ export class Opponent {
     this.episkeyFx?.reset();
     this.flockFx?.reset();
     this.illusions?.reset();
+    this.plateFx?.reset();
+    this.wasHit = false;
+  }
+
+  /** she holds Malfoid's wand (Accio) */
+  get holdingFoeWand(): boolean {
+    const s = this.foe.wand.state;
+    return s === 'held' || s === 'summoned';
   }
 
   /** after the characters moved: her shield, the shield's look, her birds and copies */
@@ -188,11 +242,24 @@ export class Opponent {
     this.flock?.update(dt, solids);
     this.flockFx?.update(dt);
     this.illusions?.update(dt);
+    // a hit that gets through: the plates still round her fall, and she lets go of Malfoid's wand
+    const hit = !!this.char.reacting && this.char.reacting !== 'pickup';
+    if (hit && !this.wasHit) {
+      this.barrage?.interrupt();
+      if (this.holdingFoeWand && this.char.scene) {
+        const d = new THREE.Vector3(this.foe.position.x - this.char.position.x, 0, this.foe.position.z - this.char.position.z);
+        this.foe.wand.loose(this.char.scene, d.lengthSq() > 1e-6 ? d.normalize() : d.set(0, 0, 1));
+      }
+    }
+    this.wasHit = hit;
+    this.barrage?.update(dt, solids);
+    this.plateFx?.update(dt);
   }
 
   setView(camera: THREE.PerspectiveCamera, viewportHeightPx: number): void {
     for (const fx of this.ownFx) fx.setView(camera, viewportHeightPx);
     this.flockFx?.setView(camera, viewportHeightPx);
     this.illusions?.setView(camera, viewportHeightPx);
+    this.plateFx?.setView(camera, viewportHeightPx);
   }
 }
