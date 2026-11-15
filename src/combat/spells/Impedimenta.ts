@@ -53,3 +53,20 @@ export const IMPEDIMENTA_LOOK: SpellLook = {
   blastLight: 0,
   lights: false,
 };
+
+/**
+ * Malfoid's Impedimenta (learned from Susan): the same bolt and slow, cast with her wand raise
+ * and thrust (her model has no quick flick: Expelliarmus's timing), on a longer cooldown than
+ * Susan's (a slow every 6 s would trivialise a fight). Key 3.
+ */
+export const MALFOID_IMPEDIMENTA_COOLDOWN = 10.0;   // s, from the release
+export const MALFOID_IMPEDIMENTA: SpellDef = {
+  ...IMPEDIMENTA,
+  key: '3',
+  clip: 'cast_confringo',
+  castDuration: 0.65,
+  release: 0.42,
+  cooldown: MALFOID_IMPEDIMENTA_COOLDOWN,
+  faceAngle: (75 * Math.PI) / 180,
+  aimAngle: (60 * Math.PI) / 180,
+};

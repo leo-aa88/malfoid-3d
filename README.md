@@ -29,7 +29,7 @@ The start screen offers three modes:
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with the spells
   Malfoid has when she reaches that opponent in the campaign (Ginny: Confringo only; Cho: and
-  Expelliarmus; Susan, Luna and Hermione: and Protego), and no voice lines.
+  Expelliarmus; Susan: and Protego; Luna and Hermione: and Impedimenta), and no voice lines.
   **G** restarts the fight. Ginny, Cho, Susan, Luna or Hermione; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
@@ -96,7 +96,7 @@ The campaign, in order (the planned roster; see the status column for what is in
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
-| 3 | Susan Bones | Defence, resilience | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
+| 3 | Susan Bones | Defence, resilience | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Impedimenta | playable ([design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable (Illusio not yet taught; [report](docs/luna/REPORT.md)) |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | playable (Petrificus not yet taught; [report](docs/hermione/REPORT.md)) |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
@@ -251,7 +251,7 @@ her choices. Her strongest attacks need a wind-up that can be interrupted. See
 - She keeps a caster's distance, circling; holding your wand, she lets you come close.
 - She fights in the Great Hall, after a longer opening exchange: three lines each, she first.
 
-## Expelliarmus (P)
+## Expelliarmus (1)
 
 Malfoid learns Ginny's Disarming Charm by beating her in the campaign. In training she always
 has it, in practice against anyone but Ginny, and never against Ginny herself. A red bolt: 4
@@ -259,6 +259,24 @@ damage, a stagger, and the target's wand knocked out of her hand. It has its own
 from Confringo's, and its own slot in the HUD. A disarmed opponent runs back to her wand and
 picks it up before casting again. A knocked-away wand always comes to rest where a fighter can
 reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spells/Expelliarmus.ts`.
+
+## Impedimenta (3)
+
+Malfoid learns Susan's Impediment Jinx by beating her in the campaign. In training she always
+has it, and in practice from Luna on. It's Susan's cold blue bolt: 4 damage, a flinch, and the
+target **slowed to 55 % for 2.5 s**. While she's slowed, everything she does runs slower: her
+movement, strikes, casts and reactions (her AI's thinking too). Two blue rings turn round her
+legs and **SLOWED!** shows.
+
+- **Against Hermione:** slowed, her plate barrage takes about 2 s to rise instead of 1 s, a
+  much wider window to hit her and drop it.
+- **Timing:** Malfoid casts it with her wand thrust, the same timing as Expelliarmus (released
+  at 0.42 s).
+- **Cooldown:** 10 s, its own (Susan's is 6 s; a slow that often would trivialise a fight).
+- **Defence against it:** a guard or Protego stops it, and a perfect parry sends it back at
+  Malfoid.
+
+Tuning is in `src/combat/spells/Impedimenta.ts` (`MALFOID_IMPEDIMENTA`).
 
 ## How a duel runs
 
@@ -296,9 +314,10 @@ reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spel
 | K / I | high / low kick (roundhouse / shin kick) |
 | two strike keys quickly | combo (see below) |
 | O | block (hold) |
-| L | cast Confringo (5 s cooldown; needs the wand) |
-| P | cast Expelliarmus (8 s cooldown; needs the wand; learned from Ginny in the campaign) |
-| H | Protego (hold): a shield before her for up to 0.9 s, then 5 s before it can be raised again. It stops spells reaching its front, and one raised just as a spell arrives (within 0.2 s) sends it back at its caster; it guards strikes like a block. Needs the wand; learned from Cho in the campaign |
+| 0 | cast Confringo (5 s cooldown; needs the wand). The spell keys work on the number row or the keypad |
+| 1 | cast Expelliarmus (8 s cooldown; needs the wand; learned from Ginny in the campaign) |
+| 2 | Protego (hold): a shield before her for up to 0.9 s, then 5 s before it can be raised again. It stops spells reaching its front, and one raised just as a spell arrives (within 0.2 s) sends it back at its caster; it guards strikes like a block. Needs the wand; learned from Cho in the campaign |
+| 3 | cast Impedimenta (10 s cooldown; needs the wand; learned from Susan in the campaign) |
 | G | restart the fight (practice) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
@@ -351,7 +370,7 @@ Two strikes in quick succession chain into a finisher:
 - Hitboxes are relative to her position and facing, with a high/low height that a matching guard
   blocks. Damage, active frames and ranges are in `src/combat/moves.ts`.
 
-## Confringo (L)
+## Confringo (0)
 
 The Blasting Curse, cast with her wand. She keeps the wand up her right sleeve. When she casts,
 it slides out into her hand. It stays there afterwards, while she walks, runs, jumps or idles,
@@ -367,9 +386,9 @@ ground. If it touches nothing, it fizzles out at 25 m.
   from the blast. Walls shield from splash, and one explosion damages a target only once.
 - **Cooldown:** 5 s, starting when the bolt is released and counted in game time, so pausing
   pauses it. A cast cancelled before the release costs nothing. The HUD shows
-  `CONFRINGO [L]` with READY or the seconds left.
+  `CONFRINGO [0]` with READY or the seconds left.
 - **Rules:** casting isn't possible while jumping, crouching, blocking, or during a punch or
-  kick. Melee is locked from the start of the cast until the release. Holding L or key repeat
+  kick. Melee is locked from the start of the cast until the release. Holding 0 or key repeat
   never casts twice.
 - **Aim assist:** the bolt aims at the torso of the target nearest her facing within 45° and
   20 m. Without one, it flies straight ahead.

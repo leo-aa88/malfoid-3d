@@ -78,7 +78,7 @@ Episkey: the bottom-middle one shows the old 1.5 s cast.
 |---|---|---|
 | **Impedimenta** | Cold blue bolt, 4 damage and a flinch. The target is **slowed to 55 % for 2.5 s**: a slowed fighter's movement, strikes, casts and bolts run on scaled game time. A block stops it. | `spells/Impedimenta.ts` (6 s cooldown, 17 m/s) |
 | **Depulso** | Violet bolt, 9 damage, a 6 m/s knockback, 7 m range | `spells/Depulso.ts` (8 s cooldown) |
-| **Episkey** | **Removed later on request:** with the stun-lock exploit fixed, her healing made her a wall on Hard. It healed at once (no cast, no opening), 6 s apart, a few charges per duel. The charm stays in the code (`Episkey.ts`) for Malfoid's reward. | – |
+| **Episkey** | **Removed later on request:** with the stun-lock exploit fixed, her healing made her a wall on Hard. It healed at once (no cast, no opening), 6 s apart, a few charges per duel. The charm stays in the code (`Episkey.ts`) for a later reward. | – |
 | **Expelliarmus** | Ginny's disarm (and Malfoid's), alternated with Impedimenta while Malfoid has her wand | `spells/Expelliarmus.ts` |
 | **Protego** | Cho's shield: it stops a spell, or sends it back when raised just as it arrives | `Protego.ts` (5 s cooldown) |
 | **Hufflepuff Resolve** | A stagger becomes a flinch, a knockdown becomes a knockback, and she takes 60 % of the push. Damage is unchanged. | `FighterTarget.ts` (`HUFFLEPUFF_RESOLVE`) |
@@ -145,8 +145,8 @@ Found and fixed while playtesting:
 
 - **Practice:** a Susan button. She fights in the Herbology Greenhouse (first on the pitch,
   until the greenhouse was built).
-- **Campaign:** she is stage 3, after Cho. Beating her teaches nothing yet, because Malfoid's
-  Episkey isn't built. After her, Luna is shown as coming soon.
+- **Campaign:** she is stage 3, after Cho. Beating her teaches Malfoid Impedimenta (added
+  later: it was to be Episkey, never built).
 - **HUD:** her bar is Hufflepuff gold. "SLOWED!" is announced when Impedimenta lands.
 
 ## Validation
@@ -193,8 +193,7 @@ guard, Episkey amount, HP.
 
 ## Known limitations
 
-- **Malfoid's Episkey** (the reward for beating her) is not built, so the campaign reward is
-  empty for now. (Cho's Protego is now taught: see the README controls.)
+- **Her reward** is now Impedimenta (see the README); Malfoid's Episkey isn't built.
 - Depulso's sound is borrowed from Ventus.
 - **Hair:**
   - she has no wispy fringe, only the pack's hairline with an off-centre part; after Cho's

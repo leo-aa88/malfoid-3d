@@ -99,6 +99,7 @@ test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Vold
   assert.equal(r.next?.name, 'Susan Bones');
   assert.equal(r.next?.playable, true, 'Susan is in the game');
   const s = c.win();                                   // Susan beaten
+  assert.equal(s.learned, 'impedimenta', 'her Impediment Jinx');
   assert.equal(s.next?.name, 'Luna Lovegood');
   assert.equal(s.next?.playable, true, 'Luna is in the game');
   const l = c.win();                                   // Luna beaten
@@ -115,10 +116,11 @@ test("practice: the spells she has on reaching each opponent in the campaign (no
   assert.deepEqual([...spellsBefore('ginny')], ['confringo']);
   assert.deepEqual([...spellsBefore('cho')], ['confringo', 'expelliarmus']);
   assert.deepEqual([...spellsBefore('susan')], ['confringo', 'expelliarmus', 'protego']);
+  assert.deepEqual([...spellsBefore('luna')], ['confringo', 'expelliarmus', 'protego', 'impedimenta']);
   // the same as a campaign run arriving there
   const c = new Campaign(new MemoryStore());
   c.start('easy');
-  for (const id of ['ginny', 'cho', 'susan']) {
+  for (const id of ['ginny', 'cho', 'susan', 'luna']) {
     assert.equal(c.opponent?.id, id);
     assert.deepEqual([...c.spells].sort(), [...spellsBefore(id)].sort());
     c.win();

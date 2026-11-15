@@ -1,6 +1,6 @@
 # Susan Bones — the Hufflepuff Bulwark (design)
 
-Campaign stage 3, after Cho Chang. **Status: playable** (practice and campaign); Malfoid's Episkey (the reward) is not built yet. What was built and how it was checked: [REPORT.md](REPORT.md).
+Campaign stage 3, after Cho Chang. **Status: playable** (practice and campaign). Beating her teaches Malfoid **Impedimenta** (key 3). What was built and how it was checked: [REPORT.md](REPORT.md).
 
 Susan is the roster's defensive specialist: not particularly fast or aggressive, but stubborn,
 disciplined and extremely hard to put down. Ginny pressures you and Cho evades you; Susan stands
@@ -32,21 +32,19 @@ the other side.
 
 The challenge is breaking her defence and stopping her from recovering.
 
-## Spell acquired: Episkey
+## Spell acquired: Impedimenta
 
-*Healing charm. Reward for defeating Susan Bones.*
+*The Impediment Jinx. Reward for defeating Susan Bones* (changed on request: it was Episkey, which was
+never built, and Susan no longer heals).
 
-Malfoid restores a modest amount of HP with a short, interruptible casting animation. Initial
-tuning:
+Malfoid casts Susan's own slowing bolt (key 3): 4 damage, and the target slowed to 55 % for 2.5 s:
+her movement, strikes, casts and reactions. Malfoid's has a 10 s cooldown (Susan's: 6 s). It's
+aimed at the fight that follows: slowed, Hermione's plate barrage takes about twice as long to
+rise, an opening to hit her and drop it. Tuning: `MALFOID_IMPEDIMENTA` in
+`src/combat/spells/Impedimenta.ts`.
 
-- 25 HP restored per successful cast.
-- A 1.5 s casting animation.
-- Two charges per duel.
-- Taking damage interrupts the cast without using a charge.
-- No healing beyond maximum HP.
-
-It gives Malfoid a new kind of tactical ability, unlike Ginny's Expelliarmus or Cho's Protego, and
-it becomes particularly valuable in the later Bellatrix and Voldemort battles.
+(The Episkey design, kept for a later reward: 25 HP per cast, a 1.5 s interruptible cast, two
+charges per duel, no healing beyond maximum HP. The charm is in `src/combat/Episkey.ts`.)
 
 ## The campaign with Susan
 
@@ -54,7 +52,7 @@ it becomes particularly valuable in the later Bellatrix and Voldemort battles.
 |---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Expelliarmus |
 | 2 | Cho Chang | Evasion, counters, precision | Protego |
-| 3 | Susan Bones | Defence, resilience, healing | Episkey |
+| 3 | Susan Bones | Defence, resilience | Impedimenta |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Confundo |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Petrificus Totalus |
 | 6 | Harry Potter | Superior duellist; scripted defeat | None |

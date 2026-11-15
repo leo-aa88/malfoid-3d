@@ -43,14 +43,15 @@ and every attack can be dodged or blocked.
 
 ## Campaign reward
 
-**Defeating Hermione unlocks Petrificus Totalus for Malfoid.** For now, like Susan's Episkey and
-Luna's Illusio, it's recorded but not taught.
+**Defeating Hermione unlocks Petrificus Totalus for Malfoid.** For now, like Luna's Illusio,
+it's recorded but not taught. (Susan's reward, Impedimenta, is taught: slowed, Hermione's
+barrage takes about twice as long to rise.)
 
 | Stage | Opponent | Spell unlocked |
 |---|---|---|
 | 1 | Ginny Weasley | Expelliarmus |
 | 2 | Cho Chang | Protego |
-| 3 | Susan Bones | Episkey |
+| 3 | Susan Bones | Impedimenta |
 | 4 | Luna Lovegood | Illusio |
 | 5 | **Hermione Granger** | **Petrificus Totalus** |
 

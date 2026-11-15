@@ -28,7 +28,7 @@ export const CONFRINGO_AIM_RANGE = 20.0;            // m
 export const CONFRINGO: SpellDef = {
   id: 'confringo',
   name: 'Confringo',
-  key: 'L',
+  key: '0',
   clip: 'cast_confringo',
   castDuration: CONFRINGO_CAST_DURATION,
   release: CONFRINGO_RELEASE,

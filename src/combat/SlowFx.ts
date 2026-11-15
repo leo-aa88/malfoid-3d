@@ -19,7 +19,8 @@ export class SlowFx {
   private shown = 0;
   private t = 0;
 
-  constructor(scene: THREE.Scene, private readonly target: FighterTarget) {
+  /** whose slow it shows (the duel's opponent changes) */
+  constructor(scene: THREE.Scene, public target: FighterTarget) {
     this.mat = new THREE.MeshBasicMaterial({ color: LOOK.colour, transparent: true, opacity: 0, depthWrite: false,
       blending: THREE.AdditiveBlending });
     for (const r of LOOK.rings) {

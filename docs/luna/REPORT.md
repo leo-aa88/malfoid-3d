@@ -193,7 +193,7 @@ she got cornered against the carpet's edge.
 
 ## Known limitations
 
-- **Her reward:** Illusio for Malfoid isn't built yet (like Susan's Episkey).
+- **Her reward:** Illusio for Malfoid isn't built yet.
 - **Hair:** the two loose braids aren't modelled.
 - **Statue:** Rowena's statue is simple shapes.
 - **Copies cost:** about 44 draw calls each while out, outlines included, so they look like her.

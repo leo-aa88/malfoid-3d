@@ -89,6 +89,11 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #hud .spell-box.protego.ready .spell-state { color: #c8e8ff; }
 #hud .spell-box.protego .cd-fill { background: linear-gradient(90deg, #1d4f8a, #4aa3e8, #d2ecff); }
 #hud .spell-box.protego.cooling .cd-fill { background: #2c4a66; }
+/* Impedimenta: an icy teal (Protego's sky blue stays distinct) */
+#hud .spell-box.impedimenta .spell-name { color: #6fe3e0; }
+#hud .spell-box.impedimenta.ready .spell-state { color: #c4f6f4; }
+#hud .spell-box.impedimenta .cd-fill { background: linear-gradient(90deg, #0b5a63, #22b8c4, #cff8f6); }
+#hud .spell-box.impedimenta.cooling .cd-fill { background: #23515a; }
 #hud .spell-box.learned { animation: slot-in 0.6s ease-out; }
 @keyframes slot-in { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: none; } }
 /* white with a thick dark outline: readable over the explosion */

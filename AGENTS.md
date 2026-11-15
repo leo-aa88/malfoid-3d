@@ -98,7 +98,7 @@ git checkout main && git pull --ff-only && git checkout -b feature/<name>
 - **Confringo:**
   - a direct hit deals 20
   - the cooldown freezes while paused
-  - holding L casts once
+  - holding 0 casts once
   - walls block it, and a miss ends at 25 m
   - effects clean up and GPU resources stay flat
 - **Malfoid's model, after any change under `tools/`:**
