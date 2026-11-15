@@ -108,7 +108,8 @@ is her choices.
 - **Plates:** at range only (3.5–12 m), never with Malfoid close enough to interrupt the wind-up,
   and more often while her Protego cools down.
 - **Distance:** she keeps a caster's distance, circling. Holding Malfoid's wand, she lets her come
-  within 2.5 m.
+  within 2.5 m. Crowded, she walks back. Her quick back-step was removed on request: chained, it
+  slid her away too fast. She still side-steps an attack she sees coming.
 
 **Fixes from the playtests:**
 - At first she kited with the stolen wand and kept binding a wandless Malfoid, a death

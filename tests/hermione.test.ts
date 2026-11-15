@@ -390,3 +390,17 @@ test('her aim: she leads a moving Malfoid, and learns which way she dodges', () 
   assert.ok(Math.abs(still.x - t.foe.position.x) > 0.25, `aims to the side she dodges to (${(still.x - t.foe.position.x).toFixed(2)} m)`);
   assert.ok(Math.sign(still.x - t.foe.position.x) === 1, 'the same side');
 });
+
+test('her AI never steps back with the quick dodge (removed on request): she walks back, or side-steps an attack', () => {
+  for (const r of [0.01, 0.3, 0.6, 0.9]) {
+    withRandom(r, () => {
+      const s = aiSetup(1.0, { dodgeClipChance: 1 }, { blockChance: 0, dodgeChance: 1 });
+      const dodges: string[] = [];
+      s.self.dodge = ((k: string) => { dodges.push(k); return true; }) as typeof s.self.dodge;
+      (s.ai as unknown as { opponentCombat: { busy: boolean } }).opponentCombat.busy = true;   // an attack coming
+      s.ai.setActive(true);
+      think(s, () => false, 200);
+      assert.ok(!dodges.includes('dodge_back'), `no back-step (random ${r}): ${dodges.join(',')}`);
+    });
+  }
+});

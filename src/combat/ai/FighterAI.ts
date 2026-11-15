@@ -961,7 +961,7 @@ export class FighterAI {
     if (pr) {
       const keep = this.holdingFoeWand ? pr.kiteRange : pr.preferredRange[0];
       if (dist < keep) {
-        if (dist < keep * 0.6 && Math.random() < 0.5 && this.dodgeClip('dodge_back')) return;
+        // (she walks back: no quick back-step, which chained into a fast slide; removed on request)
         this.go('RETREAT', rand(0.5, 0.9));
         return;
       }
@@ -1210,10 +1210,10 @@ export class FighterAI {
         return true;
       }
     }
-    // an attack she sees coming in reach: a quick step out of it
+    // an attack she sees coming in reach: a quick step out of it, to the side (never back)
     if (this.noticed && dist < 1.6 && Math.random() < pr.dodgeClipChance) {
       this.noticed = false;
-      if (this.dodgeClip(Math.random() < 0.5 ? 'dodge_back' : this.freeSide())) return true;
+      if (this.dodgeClip(this.freeSide())) return true;
     }
     return false;
   }
