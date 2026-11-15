@@ -142,6 +142,14 @@ export class Wand {
     if (!this.ring.parent) scene.add(this.ring);
   }
 
+  /** lying on the floor: moved to (x, z) (somewhere a fighter can reach it) */
+  moveDropped(x: number, z: number): void {
+    if (this.state !== 'dropped') return;
+    this.group.position.x = x;
+    this.group.position.z = z;
+    this.ring.position.set(x, this.ring.position.y, z);
+  }
+
   /** back into her hand (she picked it up) */
   retrieve(): void {
     if (this.state === 'hand') return;

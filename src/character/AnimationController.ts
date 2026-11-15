@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { MOVE_CLIPS, MoveId } from '../combat/moves';
 import { SPELL_CLIPS, SpellClip } from '../combat/spells/clips';
 
-export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident' | 'cho_idle' | 'susan_idle' | 'strafe';
+export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident' | 'cho_idle' | 'susan_idle' | 'strafe'
+  | 'luna_idle' | 'luna_skip' | 'distracted';
 /** quick evasive steps (Cho): in place clips, the character moves her through the world */
 export type DodgeState = 'dodge_left' | 'dodge_right' | 'dodge_back';
 export const DODGE_CLIPS: DodgeState[] = ['dodge_left', 'dodge_right', 'dodge_back'];
@@ -27,6 +28,9 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   cho_idle: 0.45,
   susan_idle: 0.45,
   strafe: 0.2,
+  luna_idle: 0.45,
+  luna_skip: 0.22,
+  distracted: 0.35,
   jump: 0.08,
   dodge_left: 0.05,
   dodge_right: 0.05,
@@ -38,7 +42,7 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
 };
 
 const STRIKE_FADE = 0.08;
-const LOOPS_WARP = new Set(['walk', 'run']);
+const LOOPS_WARP = new Set(['walk', 'run', 'luna_skip']);
 const ONCE = new Set<string>(['idle_annoyed_start', 'jump', 'crouch', 'block', 'wand_ready', 'protego', ...MOVE_CLIPS,
   ...SPELL_CLIPS, ...REACTION_CLIPS, ...DODGE_CLIPS]);
 const ACTIONS = new Set<string>(['jump', ...DODGE_CLIPS]);

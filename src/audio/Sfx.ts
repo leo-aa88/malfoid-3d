@@ -13,11 +13,13 @@ const BASE = import.meta.env.BASE_URL;
 type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego' | 'walking'
   | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
   | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus' | 'impedimenta' | 'episkey' | 'toasty'
-  | 'malfoid_opening3' | 'susan_opening' | 'malfoid_win3' | 'susan_win';
+  | 'malfoid_opening3' | 'susan_opening' | 'malfoid_win3' | 'susan_win'
+  | 'luna_opening' | 'malfoid_opening4' | 'malfoid_win4' | 'luna_win';
 const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
   'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
   'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus', 'impedimenta', 'episkey', 'toasty',
-  'malfoid_opening3', 'susan_opening', 'malfoid_win3', 'susan_win'];
+  'malfoid_opening3', 'susan_opening', 'malfoid_win3', 'susan_win',
+  'luna_opening', 'malfoid_opening4', 'malfoid_win4', 'luna_win'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -80,6 +82,11 @@ export const BANKS = {
   susanOpening: [slice('susan_opening', 0, 99)],
   malfoidWin3: [slice('malfoid_win3', 0, 99)],
   susanWin: [slice('susan_win', 0, 99)],
+  // the duel against Luna (she speaks first)
+  lunaOpening: [slice('luna_opening', 0, 99)],
+  malfoidOpening4: [slice('malfoid_opening4', 0, 99)],
+  malfoidWin4: [slice('malfoid_win4', 0, 99)],
+  lunaWin: [slice('luna_win', 0, 99)],
 } as const;
 export type SoundId = keyof typeof BANKS;
 

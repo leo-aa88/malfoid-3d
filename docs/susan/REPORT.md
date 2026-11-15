@@ -48,6 +48,9 @@ Blender render. Her character atlas and facial atlas stay local (`/Susan/` in `.
 
 - neutral, cheerful, thoughtful, worried, surprised, amused
 - blushing, sad, teary, determined, **comforted** (her healing face), pain
+- **serious**: held through the campaign's opening lines (added on request). Her talking mouth
+  has no smile of its own, so she speaks with the face she's making: serious there, warm in her
+  win line.
 
 `SUSAN_TALK` is her speaking mouth.
 

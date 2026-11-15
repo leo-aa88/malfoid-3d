@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { AnimationController, AnimationState, ActionState, DodgeState, HoldState, ReactionState, StrikeState } from './AnimationController';
+import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { AnimationController, AnimationState, ActionState, DodgeState, HoldState, LocomotionState, ReactionState, StrikeState } from './AnimationController';
 import { FaceFx, ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
 import type { SpellEmitter } from '../combat/spells/SpellEmitter';
@@ -38,7 +39,12 @@ export type Weights = Record<string, number>;
 export interface CharacterOptions {
   name: string;
   /** standing-still clip */
-  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle';
+  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle' | 'luna_idle';
+  /** her own fast gait in place of the run (Luna's skip): its clip, the speed she moves at (m/s)
+   * and the speed the clip was authored for (its time scale follows) */
+  run?: { clip: LocomotionState; speed: number; clipSpeed: number } | null;
+  /** keep a pristine copy of the model so copies of her can be made (makeTwin: Luna's Illusio) */
+  twins?: boolean;
   /** after IDLE_ANNOYED_TIMEOUT s without input: cross the arms, annoyed face (Malfoid) */
   annoyedIdle?: boolean;
   /** named faces (shape-key weights) for setExpression(); 'annoyed' is used by the annoyed idle */
@@ -94,7 +100,12 @@ interface ModelMeta {
 export class Malfoid {
   readonly root = new THREE.Group();
   name = 'Malfoid';
-  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE }, talk: MALFOID_TALK };
+  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE }, talk: MALFOID_TALK,
+    run: null, twins: false };
+  /** the model as loaded (before toon shading), for copies of her (CharacterOptions.twins) */
+  private pristine: { scene: THREE.Object3D; animations: THREE.AnimationClip[]; meta: ModelMeta } | null = null;
+  /** what she plays standing still in place of her idle (an AI's mood: Luna's 'distracted'); null: her idle */
+  standClip: LocomotionState | null = null;
   private animation!: AnimationController;
   private faceMeshes: THREE.Mesh[] = [];
   private meta!: ModelMeta;
@@ -165,9 +176,41 @@ export class Malfoid {
       new GLTFLoader().loadAsync(url),
       fetch(metaUrl).then((r) => r.json() as Promise<ModelMeta>),
     ]);
+    // a copy kept before anything converts or adds to the scene (geometry and textures shared)
+    const pristine = options?.twins ? { scene: cloneSkinned(gltf.scene), animations: gltf.animations, meta } : null;
+    const m = Malfoid.fromScene(gltf.scene, gltf.animations, meta, options);
+    m.pristine = pristine;
+    return m;
+  }
+
+  /**
+   * another of her, sharing her geometry and textures (its own skeleton, materials, face, wand
+   * and animation): Luna's illusory copies. Needs CharacterOptions.twins.
+   */
+  makeTwin(): Malfoid {
+    const p = this.pristine;
+    if (!p) throw new Error(`${this.name} keeps no pristine model (CharacterOptions.twins)`);
+    const scene = cloneSkinned(p.scene);
+    // the clone gives every skinned mesh its own skeleton; meshes bound to the same bones share
+    // one again (else each copy updates and uploads a bone texture per mesh every frame)
+    const shared = new Map<string, THREE.Skeleton>();
+    scene.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh) return;
+      const key = m.skeleton.bones.map((b) => b.uuid).join();
+      const sk = shared.get(key);
+      if (sk) m.bind(sk, m.bindMatrix);
+      else shared.set(key, m.skeleton);
+    });
+    return Malfoid.fromScene(scene, p.animations, p.meta, { ...this.opts, twins: false });
+  }
+
+  private static fromScene(scene: THREE.Object3D, animations: THREE.AnimationClip[], meta: ModelMeta,
+    options?: CharacterOptions): Malfoid {
+    const gltf = { scene, animations } as Pick<GLTF, 'scene' | 'animations'>;
     const m = new Malfoid();
     if (options) {
-      m.opts = { idleClip: 'idle', annoyedIdle: false, expressions: {}, talk: {}, ...options };
+      m.opts = { idleClip: 'idle', annoyedIdle: false, expressions: {}, talk: {}, run: null, twins: false, ...options };
       m.name = options.name;
     }
     m.meta = meta;
@@ -358,6 +401,11 @@ export class Malfoid {
     this.animation.snap(this.opts.idleClip);
   }
 
+  /** a clip's length (s) in her model (0 if she hasn't it) */
+  clipDuration(clip: string): number {
+    return this.animation.has(clip) ? this.animation.duration(clip) : 0;
+  }
+
   /** where her spells leave from: the tip of her wand */
   get spellEmitter(): SpellEmitter {
     return this.wand.tip;
@@ -504,7 +552,8 @@ export class Malfoid {
     // strikes, crouch, block and reactions plant her feet; a jump keeps its momentum
     const busy = this.action !== null || this.hold !== null || this.strike !== null || this.reaction !== null || this.defeated;
     const steer = this.moving && !busy;
-    let target = steer ? (this.wantRunning ? RUN_SPEED : WALK_SPEED) : 0;
+    const runSpeed = this.opts.run?.speed ?? RUN_SPEED;
+    let target = steer ? (this.wantRunning ? runSpeed : WALK_SPEED) : 0;
     if (this.action === 'jump') target = this.speed;
     let turnDiff = 0;
     let moveAngle = this.facing;
@@ -568,12 +617,14 @@ export class Malfoid {
       state = this.hold;
     } else if (this.moving && Math.abs(turnDiff) > TURN_IN_PLACE * 0.5 && this.speed < WALK_SPEED * 0.6) {
       state = 'turn';
-    } else if (this.speed > (WALK_SPEED + RUN_SPEED) * 0.5 || (this.moving && this.wantRunning && this.speed > 0.4)) {
-      state = 'run';
+    } else if (this.speed > (WALK_SPEED + runSpeed) * 0.5 || (this.moving && this.wantRunning && this.speed > 0.4)) {
+      state = this.opts.run?.clip ?? 'run';
     } else if (sideways && (this.speed > 0.15 || this.moving)) {
       state = 'strafe';
     } else if (this.speed > 0.15 || this.moving) {
       state = 'walk';
+    } else if (this.standClip) {
+      state = this.standClip;
     } else if (this.opts.annoyedIdle && this.idleSeconds >= IDLE_ANNOYED_TIMEOUT) {
       state = 'idle_annoyed';
     } else {
@@ -583,6 +634,7 @@ export class Malfoid {
     // stepping back while facing her opponent: the walk plays backwards
     if (state === 'walk') this.animation.setTimeScale((backwards ? -1 : 1) * Math.max(this.speed, 0.35) / this.meta.walk_speed);
     if (state === 'run') this.animation.setTimeScale(Math.max(this.speed, 1.2) / this.meta.run_speed);
+    if (this.opts.run && state === this.opts.run.clip) this.animation.setTimeScale(Math.max(this.speed, 1.0) / this.opts.run.clipSpeed);
     if (state === 'strafe') this.animation.setTimeScale(sideways * Math.max(this.speed, 0.3) / STRAFE_SPEED);
     for (const [b, q] of this.untwisted) b.quaternion.copy(q);
     this.untwisted.clear();

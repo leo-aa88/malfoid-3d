@@ -26,6 +26,11 @@ const SPELL_SOUND: Record<string, { id: SoundId; at: 'cast' | 'release'; volume:
   // Susan's: Impedimenta swells from the cast's start (its release is 0.2 s in); Depulso borrows
   // Ventus's gust until it has its own sound
   impedimenta: { id: 'impedimenta', at: 'cast', volume: 0.8 },
+  // Luna's borrow these until she has her own (never Expelliarmus's for anything but a disarm):
+  // Confundo a brighter crackle, Oppugno a quick fluttering rush, Illusio a shimmering swell
+  confundo: { id: 'stupefy', at: 'release', volume: 0.75, rate: 1.25 },
+  oppugno: { id: 'ventus', at: 'release', volume: 0.6, rate: 1.6 },
+  illusio: { id: 'impedimenta', at: 'cast', volume: 0.75, rate: 1.35 },
   depulso: { id: 'ventus', at: 'cast', volume: 0.85 },
 };
 /** Episkey's swell as she heals (instant: played the moment it heals) */

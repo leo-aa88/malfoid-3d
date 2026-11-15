@@ -1,6 +1,6 @@
 """Which character the build makes, and everything that differs between them.
 
-  MF_CHAR=malfoid (default) | ginny | cho | susan
+  MF_CHAR=malfoid (default) | ginny | cho | susan | luna
 
 Pure Python (no bpy): read by the Blender build and by tools/textures/*.py. Malfoid's
 profile holds exactly the values the pipeline was written with, so her model is
@@ -162,6 +162,62 @@ PROFILES = {
         # her clips (combat.EXTRA_CLIPS), built into her model only: her idle and Episkey;
         # Cho's flick (Impedimenta) and sweep (Depulso); the side-step for moving while facing
         'extra_clips': ('susan_idle', 'episkey', 'cast_quick', 'cast_ventus', 'strafe', 'protego'),
+    },
+    'luna': {
+        'name': 'Luna',
+        'prefix': 'Luna',
+        # skin #FBE7DC: fair, a soft warm undertone
+        'skin_warm': 0.45,
+        # lavender-blue (facial atlas #9A8FC9, character atlas blue-grey #8EA6BD): the pack's own
+        # blue-grey iris art turned a little towards violet and lifted (wide, pale, dreamy eyes)
+        # (toon shaded, a 1.25x saturation read a bright violet-blue: kept near the art's own)
+        'iris': {'src': 'Eyes_Color2', 'hue': 240.0 / 360.0, 'sat': 1.05, 'val': 1.06},
+        'brow': ((0xa8, 0x8a, 0x5e), (0xdc, 0xc6, 0x9c)),  # pale blonde brows: soft, light (atlas)
+        'lashes': 'brown',                   # long and natural (atlas: "long, natural")
+        'hide_nose_mark': True,
+        'scalp': (214, 190, 140),            # pale golden root tone
+        'freckles': None,                    # no freckles (on request)
+        'face_keys': (),                     # the base face as authored: soft and oval (atlas)
+        # dreamy and serene: the lids lowered a touch, the outer brows lifted a little (a far-away
+        # look), a faint soft smile
+        'rest_keys': {'vrc.blink_Straight': 0.14, 'browOuterUpLeft': 0.18, 'browOuterUpRight': 0.18,
+                      'mouthSmileLeft': 0.16, 'mouthSmileRight': 0.16},
+        'extra_keys': ('Smile1', 'Smile2', 'Shy', 'Sad', 'Teary_Eyes', 'Crying', 'Scared', 'Confused', 'Shocked',
+                       'Excited', 'jawOpen', 'mouthUpperUpLeft', 'mouthUpperUpRight', 'mouthLowerDownLeft',
+                       'mouthLowerDownRight', 'vrc.blink_Joy', 'あ', 'い', 'お', 'ワ', 'にこり', 'なごみ', 'びっくり',
+                       '照れ', '瞳大', 'eyeBlinkLeft', 'eyeBlinkRight', 'mouthFunnel', 'eyeLookInLeft', 'eyeLookInRight',
+                       'eyeLookOutLeft', 'eyeLookOutRight', 'eyeLookUpLeft', 'eyeLookUpRight', 'browInnerUp',
+                       'browOuterUpLeft', 'browOuterUpRight', 'browDownLeft', 'browDownRight'),
+        'earrings': 'radish',                # radish earrings: gold hook, leaves, pink-red root (atlases)
+        # pale golden blonde: the atlases' drawn hair is a warm peach-gold (hue ~28 deg, saturation
+        # ~0.30, light tones #EDC9A4; the #E8D7B6 swatch is paler than the art), so the ramp is
+        # built from those tones (the rendered hue follows the ramp; a first ramp at hue 40 read
+        # yellow). Twice as saturated as Malfoid's platinum, so the two never read alike. Long, voluminous and
+        # wavy (not slimmed), half-up where her two loose braids meet at the back, with a dusty
+        # blue ribbon there; a centre to slightly off-centre part.
+        # (lifted a notch after a first render measured value 0.80-0.83 against the art's 0.82-0.96)
+        'hair': {'ramp': ((0x94, 0x72, 0x56), (0xd2, 0xaa, 0x88), (0xea, 0xc6, 0xa2), (0xf3, 0xd4, 0xb0), (0xfa, 0xe8, 0xd0)),
+                 'flatten': True, 'slim': False, 'part_shift': -0.004, 'half_up': True},
+        'ribbon': True,                      # the dusty blue ribbon where the half-up is gathered
+        'tie': ((0x2f, 0x4d, 0x96), (0xc7, 0xcc, 0xda)),   # navy blue, silver (character atlas)
+        'palette': {
+            'mf_robe': ('#1d1d1f', 0.90, 0.0),
+            'mf_robe_lining': ('#2f4d96', 0.85, 0.0),
+            'mf_tie': ('#2f4d96', 0.75, 0.0),
+            'mf_tie_stripe': ('#c7ccda', 0.60, 0.0),
+            'mf_sweater': ('#6b6f79', 0.95, 0.0),          # grey vest (character atlas)
+            'mf_earring_gold': ('#d7c08a', 0.30, 0.0),     # antique gold hook (toon shaded: no metal)
+            'mf_radish': ('#d2456a', 0.55, 0.0),           # pink-red root
+            'mf_radish_tip': ('#f6eef0', 0.55, 0.0),       # its white tail
+            'mf_radish_leaf': ('#5b9a3c', 0.65, 0.0),      # leaves
+            'mf_ribbon': ('#7897d6', 0.75, 0.0),           # dusty blue (facial atlas accessory)
+        },
+        'crest': 'Luna_Crest.png',
+        # her clips (combat.EXTRA_CLIPS), built into her model only: her dreamy idle, her skip (in
+        # place of the run), distracted, Illusio and Oppugno; Cho's flick (Confundo), the
+        # side-step and quick dodges for her erratic movement, and the Protego pose
+        'extra_clips': ('luna_idle', 'luna_skip', 'distracted', 'cast_illusio', 'cast_oppugno', 'cast_quick',
+                        'strafe', 'dodge_left', 'dodge_right', 'dodge_back', 'protego'),
     },
 }
 

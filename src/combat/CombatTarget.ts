@@ -45,6 +45,8 @@ export interface CombatTarget {
   readonly name: string;
   /** can it be hit right now (e.g. not while knocked down) */
   readonly targetable: boolean;
+  /** an illusion (Luna's copies): a spell striking it only pops it, its blast harms no one */
+  readonly illusion?: boolean;
   getBounds(out: HitBounds): HitBounds;
   /** where ranged attacks aim: the torso */
   getAimPoint(out: THREE.Vector3): THREE.Vector3;
@@ -53,6 +55,8 @@ export interface CombatTarget {
   readonly blockRecoil?: number;
   /** slow it down (fighters only): its own time runs at `factor` for `duration` s */
   slow?(factor: number, duration: number): void;
+  /** confuse it (fighters only): her directions are reversed for `duration` s */
+  confuse?(duration: number): void;
   /** knock its wand away (fighters only); true if it had one */
   disarm?(dir: THREE.Vector3): boolean;
   /** a spell reaches it: a shield may stop it ('absorb') or send it back ('reflect') */

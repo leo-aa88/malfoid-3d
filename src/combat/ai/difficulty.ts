@@ -9,6 +9,9 @@ export interface DifficultyLevel {
   ai: AIParams;
   /** her Episkey at this level (Susan): HP healed per cast, casts per duel */
   heal?: { amount: number; charges: number };
+  /** Luna's kit at this level: Confundo's confusion (s), birds per Oppugno, copies per Illusio
+   *  and how long they last (s) */
+  luna?: { confuse: number; birds: number; copies: number; illusionLife: number };
 }
 
 /*
@@ -221,5 +224,100 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
         shieldChance: 0.5, parryChance: 0.18, timingError: 0.05 },
     },
     heal: { amount: 30, charges: 3 },
+  },
+};
+
+/*
+ * Luna: the most unpredictable duellist. She roams (skipping about, circling, standing and
+ * staring), thinks at irregular intervals, chains bursts of spells and then pauses for no reason,
+ * now and then drifts off altogether (distracted: a fair opening), and fights with Confundo
+ * (reversing the opponent's directions), Expelliarmus, Oppugno's birds and Illusio's copies.
+ * Light on guard, quick to sidestep. Levels sharpen her reactions and opportunism, add birds and
+ * copies, lengthen the confusion, and distract her less.
+ */
+const LUNA_EASY: AIParams = {
+  detectRange: 120,
+  meleeRange: 0.72,
+  castRange: [2.2, 10.0],
+  reaction: [0.3, 0.55],
+  attackCooldown: [1.0, 1.8],
+  comboChance: 0.3,
+  blockChance: 0.15,
+  blockTime: [0.35, 0.6],
+  castChance: 0.45,
+  retreatTime: [0.6, 1.0],
+  retreatAfterHits: 2,
+  recover: 0.35,
+  runDistance: 4.5,
+  punishChance: 0.2,
+  counterChance: 0.1,
+  dodgeChance: 0.15,
+  smartCombos: false,
+  pressure: 0,
+  guardAfterHit: 0.2,
+  chaotic: {
+    roamRange: [3.0, 6.5],
+    whim: [0.6, 2.4],
+    skipChance: 0.4,
+    distractChance: 0.16,
+    distractTime: [1.8, 2.6],
+    burstChance: 0.12,
+    burstCount: [2, 2],
+    burstGap: [0.35, 0.6],
+    pauseAfterBurst: [1.2, 2.0],
+    oppugnoChance: 0.25,
+    oppugnoRange: [2.5, 9.0],
+    illusioChance: 0.15,
+    confundoRush: 0.25,
+    disarmPunish: 0.2,
+    dodgeClipChance: 0.2,
+    escapeRange: 2.0,
+    escapeChance: 0.35,
+    shieldChance: 0.25,
+    parryChance: 0.05,
+    timingError: 0.12,
+  },
+};
+
+export const LUNA_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
+  easy: { label: 'Easy', hp: 120, ai: LUNA_EASY, luna: { confuse: 2.0, birds: 4, copies: 2, illusionLife: 8 } },
+  normal: {
+    label: 'Normal',
+    hp: 150,
+    ai: {
+      ...LUNA_EASY,
+      reaction: [0.2, 0.4],
+      blockChance: 0.25,
+      castChance: 0.65,
+      punishChance: 0.35,
+      dodgeChance: 0.3,
+      guardAfterHit: 0.3,
+      chaotic: { ...LUNA_EASY.chaotic!, distractChance: 0.11, distractTime: [1.5, 2.2], burstChance: 0.18, burstCount: [2, 3],
+        burstGap: [0.25, 0.45], pauseAfterBurst: [1.0, 1.8], oppugnoChance: 0.35, illusioChance: 0.2, confundoRush: 0.4,
+        disarmPunish: 0.35, dodgeClipChance: 0.3, escapeChance: 0.5, shieldChance: 0.35, parryChance: 0.1, timingError: 0.08 },
+    },
+    luna: { confuse: 2.5, birds: 5, copies: 2, illusionLife: 9 },
+  },
+  hard: {
+    label: 'Hard',
+    hp: 180,
+    ai: {
+      ...LUNA_EASY,
+      reaction: [0.12, 0.25],
+      attackCooldown: [0.8, 1.4],
+      comboChance: 0.4,
+      blockChance: 0.35,
+      castChance: 0.7,
+      punishChance: 0.5,
+      counterChance: 0.3,
+      dodgeChance: 0.45,
+      smartCombos: true,
+      guardAfterHit: 0.4,
+      recover: 0.3,
+      chaotic: { ...LUNA_EASY.chaotic!, distractChance: 0.07, distractTime: [1.2, 1.8], burstChance: 0.25, burstCount: [2, 4],
+        burstGap: [0.2, 0.35], pauseAfterBurst: [0.8, 1.4], oppugnoChance: 0.45, illusioChance: 0.28, confundoRush: 0.55,
+        disarmPunish: 0.5, dodgeClipChance: 0.4, escapeChance: 0.6, shieldChance: 0.45, parryChance: 0.15, timingError: 0.05 },
+    },
+    luna: { confuse: 3.0, birds: 6, copies: 3, illusionLife: 10 },
   },
 };

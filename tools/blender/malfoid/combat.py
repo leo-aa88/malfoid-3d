@@ -683,6 +683,156 @@ def strafe(sk, t):
     return spec
 
 
+# --- Luna -------------------------------------------------------------------------
+# (she also uses Cho's cast_quick for Confundo, the side-step and the dodges)
+
+def luna_idle(sk, t):
+    """looping idle: dreamy and unhurried, a slow sway of her weight, the head tilted and lifted
+    a little, gazing about at nothing in particular; the wand dangles loosely low in her right
+    hand, the left hand easy at her side, toes turned in a touch"""
+    b = sin(2 * pi * t / 8.0)                       # the sway (one cycle per loop)
+    br = sin(2 * pi * t / 4.0)                      # breathing
+    look = sin(2 * pi * t / 8.0 + 0.8)              # her gaze drifting from side to side
+    spec = base(sk, 0.0, 0.0, arms={'R': (V(-0.125, 0.085, 0.955), V(-0.195, 0.010, 1.115), 1.0, 'chest')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.18, 0.35, -0.92)          # the wand hangs, tip down and a little forward
+    arm['hand_k'] = 1.0
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(roll=2.4 * b, yaw=-3.0 + 1.5 * b)
+    D['spine'] = E(roll=-1.2 * b, pitch=0.2 + 0.3 * br)
+    D['chest'] = E(roll=-0.9 * b, pitch=-1.6 - 0.5 * br, yaw=2.0)
+    D['neck'] = E(pitch=-1.5, yaw=3.0 * look)
+    D['head'] = E(pitch=-5.0 + 1.5 * sin(2 * pi * t / 8.0 + 2.1) + 0.3 * br, yaw=7.0 * look, roll=5.0 + 1.5 * b)
+    D['shoulder_L'] = qy(-0.6 * br)
+    D['shoulder_R'] = qy(0.6 * br)
+    spec['t'] = spec['t'] + Vector((0.016 * b, 0.0, -0.004))
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(-0.006, 0.030, 0.0)   # left foot a little forward
+    spec['leg_L']['foot'] = qz(-5.0)                # toes turned in a touch
+    spec['leg_R']['foot'] = qz(2.0)
+    spec['curl'] = 20.0                             # a loose grip
+    return spec
+
+
+def distracted(sk, t):
+    """looping: distracted mid-duel. The wand drops to her side, she looks up and follows
+    something drifting through the air (a Wrackspurt?) from her right to her left and back,
+    her left hand lifted halfway, fingers reaching for it"""
+    T = CLIPS['distracted']
+    ph = 2 * pi * t / T
+    follow = sin(ph)                                # the thing she watches, side to side
+    reach = 0.75 + 0.25 * sin(ph + 0.9)
+    # (the left hand up and out in front of her, above her eyes: lower and closer it read as a
+    # hand to her mouth)
+    spec = base(sk, 0.0, 0.0, arms={'R': (V(-0.135, 0.060, 0.930), V(-0.190, 0.000, 1.110), 1.0, 'chest'),
+                                    'L': (V(0.230 - 0.06 * follow, 0.400, 1.560), V(0.250, 0.160, 1.300), reach, 'world')})
+    spec['arm_L']['hand_dir'] = V(0.10, 0.55, 0.85)  # fingers up and forward, reaching
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.10, 0.10, -1.0)           # the wand hangs, forgotten
+    arm['hand_k'] = 1.0
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(roll=1.2 * follow, yaw=3.0 * follow)
+    D['spine'] = E(pitch=-2.0, yaw=4.0 * follow)
+    D['chest'] = E(pitch=-4.0, yaw=6.0 * follow)    # leaning back a little to look up
+    D['neck'] = E(pitch=-5.0, yaw=8.0 * follow)
+    D['head'] = E(pitch=-14.0 + 3.0 * cos(ph), yaw=14.0 * follow, roll=6.0 * follow)
+    spec['t'] = spec['t'] + Vector((0.008 * follow, -0.010, -0.002))
+    spec['leg_L']['foot'] = qz(-4.0)
+    spec['curl'] = 12.0                             # open hands (the wand still held)
+    return spec
+
+
+ILLUSIO_RELEASE = 0.55  # s: her copies appear (viewer: ILLUSIO.release)
+
+
+def cast_illusio(sk, t):
+    """Illusio: the wand draws a circle above her head, then both arms sweep open wide at
+    the release (ILLUSIO_RELEASE) as her copies appear, and she gathers back into her stance"""
+    T = CLIPS['cast_illusio']
+    up = env(t, 0.0, 0.14, 0.50, 0.62)              # the wand raised and circling
+    spread = env(t, 0.48, ILLUSIO_RELEASE + 0.04, 0.74, T)
+    a = 2 * pi * sstep(0.12, 0.50, t)               # once round the circle
+    circ = V(-0.05 + 0.12 * cos(a + pi), 0.10 + 0.08 * sin(a + pi), 1.70 + 0.04 * sin(a))
+    # opened wide, down and forward at ~45 deg, a presenting gesture (at shoulder height, or just
+    # below it, the straight arms read as a T-pose)
+    wide_r, wide_l = V(-0.42, 0.32, 1.02), V(0.42, 0.32, 1.02)
+    k_r = max(up, spread)
+    wrist_r = _vl(circ, wide_r, spread / max(k_r, 1e-4))
+    elbow_r = _vl(V(-0.22, 0.04, 1.47), V(-0.28, 0.14, 1.20), spread / max(k_r, 1e-4))
+    spec = base(sk, 0.3 * k_r, k_r, arms={'R': (wrist_r, elbow_r, k_r, 'world'),
+                                          'L': (wide_l, V(0.28, 0.14, 1.20), spread, 'world')})
+    spec['arm_L']['hand_dir'] = V(0.55, 0.65, 0.30)  # palm open, fingers out
+    arm = spec['arm_R']
+    arm['hand_dir'] = _vl(V(0.05, 0.25, 1.0), V(-0.6, 0.6, 0.35), spread / max(k_r, 1e-4))
+    arm['hand_k'] = k_r
+    D = spec['D']
+    D['chest'] = E(pitch=-4.0 * up + 2.0 * spread)
+    D['head'] = E(pitch=-8.0 * up + 3.0 * spread, roll=4.0 * up)
+    spec['t'] = spec['t'] + Vector((0.0, 0.0, 0.012 * up - 0.025 * spread))
+    spec['curl'] = lerp(20.0, 10.0, spread)
+    return spec
+
+
+OPPUGNO_RELEASE = 0.42  # s: the birds leave (viewer: OPPUGNO.release)
+
+
+def cast_oppugno(sk, t):
+    """Oppugno: the wand lifted high above her head, tip up, calling the birds (the left hand
+    rising open beside it), then flung forward at the target as they leave (OPPUGNO_RELEASE)"""
+    T = CLIPS['cast_oppugno']
+    g = env(t, 0.0, 0.10, 0.52, T)
+    rise = env(t, 0.0, 0.18, 0.30, 0.44)
+    fling = env(t, 0.30, OPPUGNO_RELEASE, 0.52, T - 0.05)
+    k = max(rise, fling)
+    f = fling / max(k, 1e-4)
+    wrist = _vl(V(-0.10, 0.10, 1.74), V(-0.05, 0.50, 1.30), f)
+    elbow = _vl(V(-0.20, 0.02, 1.48), V(-0.19, 0.25, 1.26), f)
+    spec = base(sk, 0.3 * g, g, arms={'R': (wrist, elbow, k, 'world'),
+                                      'L': (V(0.20, 0.20, 1.52), V(0.25, 0.08, 1.28), rise, 'world')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = _vl(V(0.0, 0.15, 1.0), V(0.02, 1.0, -0.05), f)
+    arm['hand_k'] = k
+    _twist(spec['D'], k, 6.0 + 18.0 * fling, pitch=-6.0 * rise + 4.0 * fling)
+    spec['t'] = spec['t'] + Vector((0.0, -0.025 * fling, 0.010 * rise - 0.015 * fling))
+    spec['leg_R']['foot'] = spec['leg_R']['foot'] @ qx(10.0 * fling)
+    spec['curl'] = lerp(16.0, 26.0, rise)
+    return spec
+
+
+# --- Luna's skip: a light, bouncy skipping gait in place of the run (the run cycle's foot paths
+# with a shorter stride on a slower loop, a higher knee lift, two bounces per cycle, upright, arms
+# swinging loose and a little out). In place: the game moves her at SKIP_SPEED = the stance travel
+# / its duration. (At the run's full stride it read as a lunge.)
+SKIP_T = 0.70
+SKIP_STRIDE = 0.70                               # of the run's foot travel
+SKIP_SPEED = SKIP_STRIDE * (0.200 + 0.380) / (0.35 * SKIP_T)   # 1.66 m/s
+
+
+def luna_skip(sk, t):
+    ph = (t / SKIP_T) % 1.0
+    c, s = cos(2 * pi * ph), sin(2 * pi * (ph - 0.04))
+    hop = max(0.0, sin(4 * pi * (ph - 0.10)))       # up off the ground twice per cycle
+    spec = {'D': {}, 't': Vector((0.012 * s, 0.0, -0.040 + 0.045 * hop - 0.012 * cos(4 * pi * ph)))}
+    D = spec['D']
+    D['hips'] = E(pitch=2.0, yaw=-7.0 * c, roll=-3.0 * s)
+    D['spine'] = E(pitch=1.0, yaw=5.0 * c, roll=2.0 * s)
+    D['chest'] = E(pitch=-1.0, yaw=8.0 * c, roll=1.5 * s)
+    D['neck'] = E(pitch=-2.0, yaw=-3.0 * c)
+    D['head'] = E(pitch=-4.0 + 2.0 * hop, yaw=-3.0 * c, roll=4.0)
+    sw_l = -c
+    # loose arms: a wide, easy swing a little out from the body, elbows soft
+    A.arms_down(spec, swing_l=30.0 * sw_l + 4.0, swing_r=-30.0 * sw_l + 4.0, add=24.0 + 6.0 * hop, elbow=30.0)
+    D['hand_L'] = qx(-6.0)
+    D['hand_R'] = qx(-6.0)
+    for side, sgn, off in (('L', 1.0, 0.0), ('R', -1.0, 0.5)):
+        y, z, pitch = A._run_foot(ph + off)
+        y *= SKIP_STRIDE
+        z = 0.085 + (z - 0.085) * 1.15              # knees up: a higher lift than the run
+        spec['leg_' + side] = {'ankle': V(sgn * 0.060, y, z + rig.DZ), 'foot': qz(sgn * 4.0) @ qx(pitch)}
+        php = (ph + off) % 1.0
+        D['toe_' + side] = qx(-A.clamp(pitch, 0.0, 45.0) * (1 - sstep(0.35, 0.47, php)))
+    return spec
+
+
 QUICK_RELEASE = 0.20    # s: Stupefy leaves the wand tip (viewer: STUPEFY.release)
 VENTUS_RELEASE = 0.34   # s: the gust leaves (viewer: VENTUS.release)
 EPISKEY_TIME = 1.5      # s: Episkey's cast (viewer: EPISKEY.castTime)
@@ -697,6 +847,11 @@ EXTRA_CLIPS = {
     'strafe': STRAFE_T,    # looping side-step to her left (reversed: to her right)
     'susan_idle': 6.0,     # looping idle: planted, the wand ready low
     'episkey': EPISKEY_TIME,   # healing herself (the game heals at the end)
+    'luna_idle': 8.0,      # looping idle: dreamy, swaying, gazing about
+    'luna_skip': SKIP_T,   # looping skip (in place of the run; the game moves her at SKIP_SPEED)
+    'distracted': 3.0,     # looping: gazing up, following something drifting by
+    'cast_illusio': 0.95,  # the wand circles overhead, arms sweep open (copies at ILLUSIO_RELEASE)
+    'cast_oppugno': 0.75,  # the wand raised high, then flung forward (birds at OPPUGNO_RELEASE)
 }
 from .character import P as _P  # noqa: E402
 for _n in _P.get('extra_clips', ()):
@@ -707,6 +862,9 @@ if 'strafe' in CLIPS:
     LOOPING = LOOPING + ('strafe',)
 if 'susan_idle' in CLIPS:
     LOOPING = LOOPING + ('susan_idle',)
+for _n in ('luna_idle', 'luna_skip', 'distracted'):
+    if _n in CLIPS:
+        LOOPING = LOOPING + (_n,)
 if 'protego' in CLIPS:
     HELD = HELD + ('protego',)
 

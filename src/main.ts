@@ -4,6 +4,7 @@ import { SceneManager, STUDIO_LOOK } from './scene/SceneManager';
 import { ForestArena } from './scene/forest/ForestArena';
 import { PitchArena } from './scene/pitch';
 import { GreenhouseArena } from './scene/greenhouse';
+import { RavenclawArena } from './scene/ravenclaw';
 import type { Arena } from './scene/arena';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
@@ -29,6 +30,7 @@ import { MATCH, Match } from './game/match';
 import { OPPONENTS, OpponentId } from './game/opponents';
 import { Opponent } from './game/Opponent';
 import { SlowFx } from './combat/SlowFx';
+import { ConfusionFx } from './combat/ConfusionFx';
 import { PROTEGO, Protego } from './combat/Protego';
 import { ProtegoFx } from './combat/ProtegoFx';
 import type { SpellDef, SpellFx } from './combat/spells/SpellSystem';
@@ -90,6 +92,7 @@ async function start(): Promise<void> {
   // who can be hit: the dummy and the fighters
   const malfoidTarget = new FighterTarget(malfoid);
   const slowFx = new SlowFx(sm.scene, malfoidTarget);   // Impedimenta's rings round her legs while she is slowed
+  const confusionFx = new ConfusionFx(sm.scene, malfoidTarget);   // Confundo's stars round her head while she is confused
   // her Protego (learned from Cho): spells reaching its front are stopped, or sent back by a
   // shield raised just as they arrive; strikes are guarded like a block
   const protego = new Protego(malfoid);
@@ -102,7 +105,8 @@ async function start(): Promise<void> {
   let mode: Mode = 'training';
   const isDuel = () => mode !== 'training';
   let opp: Opponent;                                  // whom Malfoid duels (set below)
-  const malfoidTargets = () => (isDuel() ? [opp.target] : [dummy]);
+  // (Luna's copies are always listed: a copy that isn't showing is not targetable)
+  const malfoidTargets = () => (isDuel() ? [opp.target, ...(opp.illusions?.targets ?? [])] : [dummy]);
   const combat = new ComboSystem(malfoid, malfoidTargets);
   const hud = new CombatHud(sm.camera, document.getElementById('hud')!);
   combat.onEvent = (e) => hud.handle(e);
@@ -163,8 +167,11 @@ async function start(): Promise<void> {
         o.char.setExpression(o.def.faces.disarmedFoe, 1.6);
       }
       if (e.type === 'hit' && e.direct && e.spell.slow && e.report.result === 'hit' && !e.report.ko) hud.announce('SLOWED!', 'disarm');
+      if (e.type === 'hit' && e.direct && e.spell.confuse && e.report.result === 'hit' && !e.report.ko) hud.announce('CONFUNDED!', 'disarm');
     };
     o.target.onDefeated = () => { if (o === opp) finish(malfoid); };
+    // Luna's copies: popping one says so
+    if (o.illusions) o.illusions.onEvent = (e) => { if (e === 'pop') hud.flashStatusText('ILLUSION!', 'miss'); };
   });
   opp = opponents.ginny;
   let level: Difficulty = 'easy';
@@ -238,7 +245,10 @@ async function start(): Promise<void> {
       malfoid.setFacing(Math.PI / 2);
       opp.char.setFacing(-Math.PI / 2);
       cam.frame(malfoid.position, opp.char.position);
-      opp.char.setExpression(opp.def.faces.start, 5);
+      // her face through the opening lines (held to their end when she has one of her own: Susan's
+      // serious face), else her start face for a few seconds
+      const introFace = intro() ? opp.def.faces.intro : undefined;
+      opp.char.setExpression(introFace ?? opp.def.faces.start, introFace ? 60 : 5);
       malfoid.resetIdleTimer();                       // she starts in her stance, not the bored arms-crossed idle
       malfoid.snapToStance();                         // on their feet at once (no rising out of a knockout)
       opp.char.snapToStance();
@@ -259,6 +269,7 @@ async function start(): Promise<void> {
     if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
     closeUpOn = null;
     roundIntro = ROUND_INTRO;
+    if (opp.def.faces.intro) opp.char.setExpression(opp.def.faces.start, 2.5);   // the opening lines are over
     hud.announce(match.final ? 'FINAL ROUND' : `ROUND ${match.round}`, 'duel');
   };
   const intro = () => mode === 'campaign' && match.round === 1;
@@ -296,6 +307,7 @@ async function start(): Promise<void> {
 
   const input = new CharacterController(malfoid, combat);
   input.viewYaw = () => cam.getYaw();
+  input.confused = () => malfoidTarget.confused;          // Confundo: her directions reversed
   // H: Protego while held (learned from Cho). Raised over a held block or crouch; not while
   // striking, casting, reacting or disarmed; letting go (or its time running out) lowers it
   input.onShield = (on) => {
@@ -502,9 +514,10 @@ async function start(): Promise<void> {
   input.onDuel = () => { if (mode === 'practice') setDuel(true); };
   hud.onDuelButton = () => { if (mode === 'practice') setDuel(true); };
   // the arenas (each opponent's definition names hers; training keeps the studio): the
-  // Forbidden Woods, the Quidditch Pitch. Built once; only the current one is shown and updated.
-  const arenas: Record<'woods' | 'pitch' | 'greenhouse', Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene),
-    greenhouse: new GreenhouseArena(sm.scene) };
+  // Forbidden Woods, the Quidditch Pitch, the Herbology Greenhouse, the Ravenclaw common room. Built
+  // once; only the current one is shown and updated.
+  const arenas: Record<'woods' | 'pitch' | 'greenhouse' | 'ravenclaw', Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene),
+    greenhouse: new GreenhouseArena(sm.scene), ravenclaw: new RavenclawArena(sm.scene) };
   let arena: Arena | null = null;
   // spells hit trunks and stands: every caster shares one list of solids, refilled each frame
   spells.world.solids = solids;
@@ -575,6 +588,20 @@ async function start(): Promise<void> {
   let fpsTime = 0;
   let lastState = '';
 
+  // the duel camera frames Malfoid and her opponent; while Luna's copies are out, the middle of
+  // them all (framing her alone would give her away)
+  const focus = new THREE.Vector3();
+  const keepIn = (p: THREE.Vector3) => arena?.resolve(p, 0.8);
+  const wandAt = new THREE.Vector3();
+  const duelFocus = (): THREE.Vector3 => {
+    focus.copy(opp.char.position);
+    let n = 1;
+    for (const c of opp.illusions?.shown() ?? []) {
+      focus.add(c.position);
+      n++;
+    }
+    return focus.divideScalar(n);
+  };
   sm.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.1);
     if (!input.paused) {
@@ -602,18 +629,29 @@ async function start(): Promise<void> {
       protegoFx.update(dt);
       if (duelMode) {
         opp.spells.update(fdt);
-        opp.update(fdt);                    // her shield, her healing charm
+        if (opp.illusions) opp.illusions.world = arena;   // her copies keep out of walls and furniture
+        opp.ai.keepIn = keepIn;                           // where she heads for stays in the arena
+        opp.update(fdt, solids);            // her shield, her healing charm, her birds and copies
       }
       combatSounds.update(dt);              // footsteps follow the poses just updated
       malfoidTarget.update(dt);
       opp.target.update(dt);
       slowFx.update(dt);
+      confusionFx.update(dt);
       if (duelMode) {
         keepApart(malfoid.position, foe.position, FIGHTER_GAP, 0.5);
         const ar = arena!;
         ar.resolve(malfoid.position, 0.28);               // trunks, the stands' barrier, hoop posts
         ar.resolve(foe.position, 0.28);
         ar.fillSolids(solids, [malfoid.position, foe.position]);
+        // a wand knocked away always lies where a fighter can reach it (not on a bench or a table)
+        for (const c of [malfoid, foe]) {
+          if (c.wand.state !== 'dropped') continue;
+          const w = c.wand.getWorldPosition(wandAt);
+          const x = w.x, z = w.z;
+          ar.resolve(w, 0.35);
+          if (Math.abs(w.x - x) + Math.abs(w.z - z) > 1e-4) c.wand.moveDropped(w.x, w.z);
+        }
         ar.update(dt, malfoid.position, [malfoid.position, foe.position], sm.camera, sm.renderer.domElement.height);
       }
       else if (!dummy.down) keepApart(malfoid.position, dummy.position, DUMMY_RADIUS + 0.22);
@@ -653,7 +691,7 @@ async function start(): Promise<void> {
     }
     cam.update(malfoid.position, input.paused || closeUpOn ? undefined : {
       heading: malfoid.facingAngle, speed: malfoid.moveSpeed,
-      other: isDuel() && !menuOpen ? opp.char.position : null,
+      other: isDuel() && !menuOpen ? duelFocus() : null,
     });
     sm.followShadow(malfoid.position);
     sm.render();
@@ -674,11 +712,14 @@ async function start(): Promise<void> {
   const g = opponents.ginny;
   const c = opponents.cho;
   const su = opponents.susan;
+  const lu = opponents.luna;
   Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, malfoidTarget,
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
     susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
+    luna: lu.char, lunaAi: lu.ai, lunaSpells: lu.spells, lunaTarget: lu.target, lunaFlock: lu.flock, lunaIllusions: lu.illusions,
+    confusionFx,
     protego, protegoFx, cameo, cameoTrigger,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, match, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
