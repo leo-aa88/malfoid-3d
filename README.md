@@ -340,6 +340,10 @@ Two strikes in quick succession chain into a finisher:
 - **Recovery:** whiffing a heavy finisher (uppercut, heavy body punch, sweeps, spinning or rising
   kick) slows the rest of the move: she is shown as VULNERABLE until it ends.
 - **2 HIT COMBO** appears when both strikes connect.
+- **No stun-lock:** a hit that lands while the target is still reeling (or just after) chains
+  onto it. The third in a row knocks her back out of reach, and once she is up she has 0.7 s
+  in which hits still hurt but don't stun her: time to block, counter or step away. This holds
+  for Malfoid and for every opponent (`CHAIN` in `combat/FighterTarget.ts`).
 - **Facing and spacing:** a strike turns her towards the opponent if it is within 60° either side
   (and 1.6 m), and she steps in or back (up to 35 cm) to that strike's range during the wind-up.
 - Hitboxes are relative to her position and facing, with a high/low height that a matching guard

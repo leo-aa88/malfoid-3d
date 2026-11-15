@@ -18,6 +18,14 @@ const LYING = { back: 0.75, height: 0.42, radius: 0.38, aimY: 0.22 };
 /** while bound, this many hits land (the rest find her immune until she is up): the bind opens
  *  the way to a follow-up, not to a whole barrage */
 export const BOUND_HITS = 1;
+/**
+ * no stun-lock: a reaction that starts while she is still reacting (or within `gap` s of it
+ * ending) is chained. The `max`-th in a row knocks her back out of reach instead, and once she is
+ * up again she has `armour` s in which hits still hurt but don't stun her: time to block, counter
+ * or step away. (Held down, a jab-cross restarted the cross's stagger before it ended: the target
+ * never acted again.)
+ */
+export const CHAIN = { gap: 0.3, max: 3, armour: 0.7 };
 /** slide speed (m/s) of each reaction when the attack doesn't give one */
 const PUSH: Record<HitEffect, number> = { flinch: 0.6, stagger: 1.2, knockback: 2.2, knockdown: 2.8 };
 const REACTION: Record<HitEffect, ReactionState> = { flinch: 'hit', stagger: 'stagger', knockback: 'knockback', knockdown: 'knockback' };
@@ -67,6 +75,12 @@ export class FighterTarget implements CombatTarget {
   confusedLeft = 0;
   /** hits that have landed since she was last bound (Petrificus Totalus) */
   boundHits = 0;
+  /** reactions in the current chain, s since her last one ended, and her armour after a chain */
+  private chain = 0;
+  private sinceReacted = 99;
+  private wasReacting = false;
+  private armourPending = false;
+  armourLeft = 0;
 
   constructor(readonly fighter: Malfoid, public maxHp = 100) {
     this.hp = maxHp;
@@ -147,9 +161,23 @@ export class FighterTarget implements CombatTarget {
     const ko = this.hp === 0;
     if (ko) {
       this.defeat(hit.dir);
+    } else if (this.armourLeft > 0 || this.armourPending) {
+      // it hurt, but she isn't stunned (nor is the knockback that broke the chain restarted:
+      // hits landing in it kept her down for good)
+      this.fighter.setExpression('pain', 0.5);
     } else {
-      const effect = this.resolve?.effect[hit.effect] ?? hit.effect;
-      const push = hit.dir.clone().setY(0).normalize().multiplyScalar((hit.knockback ?? PUSH[hit.effect]) * (this.resolve?.push ?? 1));
+      let effect = this.resolve?.effect[hit.effect] ?? hit.effect;
+      let knock = hit.knockback ?? PUSH[hit.effect];
+      const chained = this.stunned || this.sinceReacted < CHAIN.gap;
+      this.chain = chained ? this.chain + 1 : 1;
+      if (this.chain >= CHAIN.max) {
+        // the chain is broken: knocked back out of reach, then a moment's armour
+        effect = 'knockback';
+        knock = Math.max(knock, PUSH.knockback);
+        this.chain = 0;
+        this.armourPending = true;
+      }
+      const push = hit.dir.clone().setY(0).normalize().multiplyScalar(knock * (this.resolve?.push ?? 1));
       this.fighter.react(REACTION[effect], push);
       this.fighter.setExpression('pain', 0.7);
       this.onReaction?.(effect);
@@ -162,6 +190,12 @@ export class FighterTarget implements CombatTarget {
     const ok = this.fighter.disarm(dir);
     if (ok) this.fighter.setExpression('surprised', 1.0);
     return ok;
+  }
+
+  /** in a hit reaction (picking her wand up is not one) */
+  private get stunned(): boolean {
+    const r = this.fighter.reacting;
+    return !!r && r !== 'pickup';
   }
 
   /** how far behind her feet the middle of her lying body is (getting up, her root has moved back) */
@@ -215,6 +249,16 @@ export class FighterTarget implements CombatTarget {
       if (this.slowLeft === 0) this.slowFactor = 1;
     }
     if (this.confusedLeft > 0) this.confusedLeft = Math.max(0, this.confusedLeft - dt);
+    // the chain: when her reaction ends, the gap starts; after a broken chain, her armour
+    const reacting = this.stunned;
+    if (reacting) this.sinceReacted = 0;
+    else this.sinceReacted += dt;
+    if (this.wasReacting && !reacting && this.armourPending) {
+      this.armourPending = false;
+      this.armourLeft = CHAIN.armour;
+    }
+    this.wasReacting = reacting;
+    if (this.armourLeft > 0) this.armourLeft = Math.max(0, this.armourLeft - dt);
   }
 
   /** back to full health and on her feet */
@@ -226,6 +270,10 @@ export class FighterTarget implements CombatTarget {
     this.slowFactor = 1;
     this.confusedLeft = 0;
     this.boundHits = 0;
+    this.chain = 0;
+    this.sinceReacted = 99;
+    this.armourPending = false;
+    this.armourLeft = 0;
     this.fighter.setDefeated(false);
   }
 
