@@ -186,9 +186,7 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     spell: PETRIFICUS,
     look: PETRIFICUS_LOOK,
     altSpell: EXPELLIARMUS,
-    // Susan's Depulso (added on request): a bolt that throws Malfoid back when she crowds her
-    push: DEPULSO,
-    pushLook: DEPULSO_LOOK,
+    // no push spell (Ventus, then Depulso, were tried and removed on request)
     protego: true,
     plates: true,
     accio: true,

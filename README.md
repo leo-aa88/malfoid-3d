@@ -248,10 +248,8 @@ her choices. Her strongest attacks need a wind-up that can be interrupted. See
   you bound she follows up once, either Expelliarmus at once or the plates timed to fly just as
   you are back on your feet.
 - **Protego:** she meets your spells with the shield, often timed to send them back.
-- **Depulso:** Susan's push bolt (added on request): crowd her and she throws you back (9 damage,
-  a hard shove; 8 s cooldown).
 - She keeps a caster's distance, circling; holding your wand, she lets you come close.
-- She fights in the Great Hall. No voice lines yet: the duel goes straight to the fight.
+- She fights in the Great Hall, after a longer opening exchange: three lines each, she first.
 
 ## Expelliarmus (P)
 
@@ -265,8 +263,8 @@ reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spel
 ## How a duel runs
 
 - **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
-  speaks first, against Cho, Cho does, against Susan, Malfoid does, against Luna, Luna does
-  (Hermione has no lines yet).
+  speaks first, against Cho, Cho does, against Susan, Malfoid does, against Luna, Luna does;
+  against Hermione they exchange three lines each, she first, each line with its speaker's face.
   Then **ROUND 1** shows; nobody can move or attack until **DUEL!** appears. Practice goes
   straight to the fight.
 - **Rounds (campaign):** a round lost or won short of the match is announced (**GINNY WINS

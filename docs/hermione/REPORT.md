@@ -47,8 +47,8 @@ SwiftShader), not a Blender render. Her character and facial atlases stay local 
 - thinking, frustrated, angry, embarrassed, sad, pain.
 
 Her brows hide under her hair, so determined and angry are carried by the eyes and mouth (the
-first passes read near neutral). She has no voice lines yet; `HERMIONE_LINES` is empty, so the
-duel goes straight to the fight.
+first passes read near neutral). Her opening exchange is six lines, three each, she first, each
+setting its speaker's face (`HERMIONE_LINES` in `src/audio/duelVoices.ts`).
 
 ## Animation
 
@@ -64,8 +64,9 @@ Top: Malfoid's new clips, from the side. Bottom: Hermione's.
 | `cast_plates` | Hermione | The wand high and the left hand out over the rising plates (the wind-up, to 1.1 s), then the wand conducting them at the target. |
 | `cast_accio` | Hermione | The wand at the wand on the floor, the left hand reaching, then closing on the catch. |
 
-She also has Cho's `cast_quick` (Petrificus), `cast_ventus` (Depulso), the side-step, the dodges
-and the `protego` pose.
+She also has Cho's `cast_quick` (Petrificus), the side-step, the dodges and the `protego` pose.
+(A push spell, Ventus and then Depulso, was added and removed on request; her model is back to
+these 37 clips.)
 
 **Fixes from the first passes:**
 - the plates' raised left hand read as a wave;
@@ -91,7 +92,6 @@ Hard, her real AI, frozen at each moment. From top left:
 | **Petrificus Totalus** | A pale blue bolt: 4 damage. It binds Malfoid for 1.7 / 2.0 / 2.2 s, then she gets up. While she's down or getting up, only one more hit lands. A guard or Protego stops it. | `spells/Petrificus.ts`; cooldown 15 / 12 / 9 s |
 | **Expelliarmus + Accio** | She disarms into Malfoid's casts, then turns to the dropped wand and summons it into her left hand (ACCIO!). A hit that gets through makes her let go. Accio can be interrupted and has a 10 s cooldown. | `spells/Accio.ts`, `Wand.summon` / `loose` |
 | **Protego** | Often timed to reflect. | `Protego.ts` |
-| **Depulso** (added on request) | Susan's push bolt: crowd her and she throws Malfoid back (9 damage, a hard shove). | `spells/Depulso.ts`; cooldown 8 s |
 
 ## Her AI (the prodigy style)
 
@@ -191,7 +191,6 @@ What the numbers say:
 
 - **Her reward:** Petrificus Totalus for Malfoid isn't built yet (like Susan's Episkey and Luna's
   Illusio).
-- **No voice lines yet:** the duel goes straight to the fight.
 - **The plates' sounds** borrow Ventus's whoosh, and plates shattering have no sound of their own.
 - **Lying, Malfoid's body extends behind her feet.** In a small window her upper body can sit under
   the HUD panel; the framing keeps her feet clear, not her whole lying body.

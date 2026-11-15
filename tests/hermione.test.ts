@@ -228,7 +228,7 @@ test('Hermione\'s definition and levels: Petrificus and Expelliarmus, Protego, t
   assert.equal(d.spell.id, 'petrificus');
   assert.equal(d.altSpell, EXPELLIARMUS);
   assert.ok(d.protego && d.plates && d.accio);
-  assert.equal(d.push?.id, 'depulso', 'Susan\'s Depulso throws Malfoid back when she crowds her');
+  assert.equal(d.push, undefined, 'no push spell (removed on request)');
   assert.ok(!d.episkey && !d.oppugno && !d.illusio);
   assert.equal(d.arena, 'greathall');
   assert.equal(d.faces.intro, 'serious', 'serious through the opening exchange');

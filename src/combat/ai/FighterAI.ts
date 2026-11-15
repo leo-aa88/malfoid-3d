@@ -156,9 +156,6 @@ export interface ProdigyStyle {
   kiteRange: number;
   /** an attack she sees coming in reach: a quick step out of it (dodge clips) */
   dodgeClipChance: number;
-  /** crowded within pushRange (being attacked, hit, or very close): Depulso throws her back */
-  pushChance: number;
-  pushRange: number;
   /** aim: fraction of the predicted lead she uses, and how far (m) she aims to the side the
    *  opponent habitually dodges to, once she has learned it */
   lead: number;
@@ -889,7 +886,7 @@ export class FighterAI {
     }
     // crowded: Ventus (Depulso) throws the opponent back
     const ev = P.evasive;
-    const push = ev ?? df ?? P.prodigy;
+    const push = ev ?? df;
     if (push && this.pushSpell && dist <= push.pushRange && this.spells.canCast(this.pushSpell)
         && (this.opponentCombat.busy || this.selfTarget.recentHits > 0 || dist < 1.3) && Math.random() < push.pushChance) {
       if (!this.turnedTo(angle, AIM.spell)) return;
