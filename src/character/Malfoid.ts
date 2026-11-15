@@ -8,6 +8,9 @@ import { handFrame, type SpellEmitter } from '../combat/spells/SpellEmitter';
 import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
 import { SPELL_CLIPS } from '../combat/spells/clips';
 
+/** m: getting up from Petrificus's fall starts this far behind where she stood (combat.GETUP_SHIFT) */
+export const GETUP_SHIFT = 0.55;
+
 /** Seconds without movement before she gets annoyed. */
 export const IDLE_ANNOYED_TIMEOUT = 10;
 
@@ -577,7 +580,13 @@ export class Malfoid {
       if (this.reaction.t >= this.reaction.dur) {
         const was = this.reaction.kind;
         this.reaction = null;                    // a defeated fighter then kneels
-        if (was === 'petrified' && !this.defeated) this.react('get_up');    // the bind wears off
+        if (was === 'petrified' && !this.defeated) {
+          // the bind wears off: she gets up from where she lies (the clip starts from a root
+          // GETUP_SHIFT m further back, along where she fell: nothing jumps)
+          this.root.position.x -= Math.sin(this.facing) * GETUP_SHIFT;
+          this.root.position.z -= Math.cos(this.facing) * GETUP_SHIFT;
+          this.react('get_up');
+        }
       }
     }
     if (this.slide.lengthSq() > 1e-6) {

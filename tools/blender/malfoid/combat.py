@@ -836,6 +836,188 @@ def luna_skip(sk, t):
 QUICK_RELEASE = 0.20    # s: Stupefy leaves the wand tip (viewer: STUPEFY.release)
 VENTUS_RELEASE = 0.34   # s: the gust leaves (viewer: VENTUS.release)
 EPISKEY_TIME = 1.5      # s: Episkey's cast (viewer: EPISKEY.castTime)
+# --- Petrificus Totalus (Malfoid's, when Hermione binds her): she goes rigid and topples
+# backwards like a plank (accelerating, like a falling board), lies flat (the clip ends lying;
+# the game holds her down), then gets up. Getting up from where she fell leaves her about
+# half a metre back: the get-up is authored from a root GETUP_SHIFT m further back, and the game
+# moves her root there as it starts (Malfoid.GETUP_SHIFT), so nothing jumps.
+PETRIFY_FALL = 0.55       # s: from the bind's snap to the floor
+GETUP_SHIFT = 0.55        # m (viewer: GETUP_SHIFT)
+LIE_LIFT = 0.11           # m: the hips lifted off the floor by the back's thickness when flat
+
+
+def _plank(sk, spec, th, lift):
+    """the whole body rotated rigidly backwards by th degrees about the heels, lifted `lift` m"""
+    R = qx(-th)
+    P0 = Vector((0.0, rig.ANKLE_L.y + 0.05, 0.0))
+    up = Vector((0.0, 0.0, lift))
+    hips = sk.head['hips']
+    spec['t'] = (P0 + R @ (hips + spec['t'] - P0)) - hips + up
+    spec['D']['hips'] = R @ spec['D'].get('hips', IDENT)
+    for side in ('L', 'R'):
+        leg = spec['leg_' + side]
+        leg['ankle'] = P0 + R @ (leg['ankle'] - P0) + up
+        leg['foot'] = R @ leg.get('foot', IDENT)
+
+
+def _bound(spec, k):
+    """rigid: arms snapped to her sides, hands stiff, legs together, chin up a little"""
+    D = spec['D']
+    for b in ('spine', 'chest', 'neck'):
+        D[b] = IDENT.slerp(D.get(b, IDENT), 1.0 - k)
+    D['head'] = IDENT.slerp(D.get('head', IDENT), 1.0 - k) @ E(pitch=-5.0 * k)
+    A.arms_down(spec, swing_l=-1.5 * (1 - k), swing_r=-1.5 * (1 - k), elbow=lerp(11.0, 3.0, k), add=lerp(17.0, 5.0, k))
+    D['hand_L'] = qx(-4.0 * (1 - k))
+    D['hand_R'] = qx(-4.0 * (1 - k))
+    spec['leg_L']['ankle'] = rig.ANKLE_L + V(-0.035 * k, 0.0, 0.0)
+    spec['leg_R']['ankle'] = mirx(rig.ANKLE_L) + V(0.035 * k, 0.0, 0.0)
+    spec['curl'] = lerp(16.0, 4.0, k)
+
+
+def petrified(sk, t):
+    """the bind takes her (snap rigid, a sway), she topples backwards like a plank and lands
+    flat with a small bounce; ends lying"""
+    k = sstep(0.0, 0.08, t)
+    u = min(1.0, max(0.0, (t - 0.12) / PETRIFY_FALL))
+    th = 90.0 * u * u                                   # slowly, then fast
+    land = min(1.0, max(0.0, (t - 0.12 - PETRIFY_FALL) / 0.2))
+    th -= 4.0 * sin(pi * land)                          # a small bounce off the floor
+    spec = A.idle_pose(0.0)
+    _bound(spec, k)
+    spec['D']['hips'] = E(pitch=-1.5 * sin(pi * min(1.0, t / 0.12)))   # the sway as she locks up
+    _plank(sk, spec, th, LIE_LIFT * sin(radians(th)))
+    return spec
+
+
+def get_up(sk, t):
+    """from lying flat (the petrified clip's end, seen from the shifted root): she sits up
+    pushing on the floor behind her, draws her feet in under her, rocks forward over them into a
+    crouch and stands"""
+    T = CLIPS['get_up']
+    a = sstep(0.0, 0.40, t)                 # sitting up, feet drawn in
+    b = sstep(0.34, 0.74, t)                # rocking forward over the feet
+    c = sstep(0.70, T, t)                   # standing up
+    hips = sk.head['hips']
+    # lying (the petrified clip's last pose, the root GETUP_SHIFT further back)
+    lie = A.idle_pose(0.0)
+    _bound(lie, 1.0)
+    _plank(sk, lie, 90.0, LIE_LIFT)
+    back = Vector((0.0, -GETUP_SHIFT, 0.0))             # (+Y is behind her: the body is that much nearer the root)
+    lie_h = hips + lie['t'] + back
+    stand = A.idle_pose(0.0)
+    sit_h = Vector((0.0, lie_h.y - 0.02, 0.17))         # sitting on the floor where she lay
+    crouch_h = Vector((0.0, rig.ANKLE_L.y - 0.10, 0.50))  # her weight over her feet
+    stand_h = hips + stand['t']
+    h = lie_h.lerp(sit_h, a).lerp(crouch_h, b).lerp(stand_h, c)
+    spec = A.idle_pose(0.0)
+    _bound(spec, 1.0 - max(a, c))
+    D = spec['D']
+    # the trunk: flat on her back, sitting up (leaning back on her hands), forward over her
+    # feet, upright
+    pitch = lerp(lerp(lerp(-90.0, -28.0, a), 32.0, b), 0.0, c)
+    D['hips'] = qx(pitch)
+    D['spine'] = E(pitch=8.0 * a * (1 - c))
+    D['head'] = E(pitch=-5.0 * (1 - a) + 10.0 * b * (1 - c))
+    spec['t'] = h - hips
+    # the feet: from where they lay to planted under her (dragged, a little off the floor)
+    for side, rest in (('L', rig.ANKLE_L), ('R', mirx(rig.ANKLE_L))):
+        la = lie['leg_' + side]['ankle'] + back
+        ank = la.lerp(rest + V(0.03 if side == 'L' else -0.03, 0.0, 0.0), a)
+        ank = ank + Vector((0.0, 0.0, 0.05 * sin(pi * a)))
+        spec['leg_' + side] = {'ankle': ank, 'foot': lie['leg_' + side]['foot'].slerp(IDENT, a),
+                               'knee_out': 0.12 * a * (1 - c)}
+    # the arms: pushing on the floor behind her, then forward for balance, then down
+    sw = -48.0 * a * (1 - b) + 34.0 * b * (1 - c)
+    A.arms_down(spec, swing_l=sw, swing_r=sw, elbow=lerp(3.0, 18.0, a) * (1 - c) + 11.0 * c,
+                add=lerp(5.0, 26.0, a) * (1 - c) + 17.0 * c)
+    spec['curl'] = lerp(4.0, 16.0, max(a, c))
+    return spec
+
+
+# --- Hermione: composed and alert at rest, the wand held ready; the plates (a long wind-up and
+# a conducted barrage) and Accio (a reach for a wand on the floor, a catch)
+PLATES_RELEASE = 1.10     # s: the first plate flies (viewer: PLATES_RELEASE)
+ACCIO_RELEASE = 0.50      # s: the wand leaves the floor (viewer: ACCIO_RELEASE)
+
+
+def hermione_idle(sk, t):
+    """looping idle: upright and alert, the wand held ready across her front at the waist
+    (tip up and forward), the left hand easy at her side, a small shift of weight, a slight
+    tilt of the head as she studies her opponent"""
+    b = sin(2 * pi * t / 6.0)
+    br = sin(2 * pi * t / 4.0 + 0.4)
+    spec = base(sk, 0.0, 0.0, arms={'R': (V(-0.095, 0.195, 1.035), V(-0.205, 0.045, 1.115), 1.0, 'chest')})
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.30, 0.70, 0.45)           # tip forward, a little up and in: ready
+    arm['hand_k'] = 1.0
+    D = spec['D']
+    D['hips'] = D.get('hips', IDENT) @ E(roll=1.0 * b, yaw=-3.0)
+    D['spine'] = E(roll=-0.5 * b, pitch=0.2 + 0.3 * br)
+    D['chest'] = E(roll=-0.4 * b, pitch=-1.5 - 0.5 * br, yaw=3.0)
+    D['neck'] = E(pitch=0.4)
+    D['head'] = E(pitch=1.5 + 0.3 * br, yaw=-3.0 + 1.5 * sin(2 * pi * t / 6.0 + 1.2), roll=-3.0 + 1.0 * b)
+    D['shoulder_L'] = qy(-0.6 * br)
+    D['shoulder_R'] = qy(0.6 * br)
+    spec['t'] = spec['t'] + Vector((0.008 * b, 0.0, -0.006))
+    spec['leg_L']['ankle'] = spec['leg_L']['ankle'] + V(0.015, 0.05, 0.0)    # left foot a little forward
+    spec['leg_R']['ankle'] = spec['leg_R']['ankle'] + V(-0.012, -0.02, 0.0)
+    spec['leg_L']['foot'] = qz(9.0)
+    spec['leg_R']['foot'] = qz(-11.0)
+    spec['curl'] = 36.0
+    return spec
+
+
+def cast_plates(sk, t):
+    """the plate barrage: both arms rise, the wand high and the left hand open, lifting the
+    plates off the tables (the wind-up: PLATES_RELEASE), then the wand conducts them at the
+    target, sweep after sweep, the left hand still raised over the ones to come"""
+    T = CLIPS['cast_plates']
+    rise = env(t, 0.0, 0.28, T - 0.3, T)                      # the arms up (left) / wand high
+    lift = sstep(0.3, PLATES_RELEASE, t) * (1 - sstep(PLATES_RELEASE, PLATES_RELEASE + 0.2, t))
+    cond = env(t, PLATES_RELEASE - 0.08, PLATES_RELEASE + 0.04, T - 0.32, T - 0.1)
+    beat = 0.5 + 0.5 * sin(2 * pi * 2.8 * (t - PLATES_RELEASE))   # the sweeps (~3 a second)
+    hi_w, hi_e = V(-0.13, 0.10, 1.70 + 0.04 * lift), V(-0.22, 0.02, 1.46)
+    # (topping out at 1.52 m the forearm crossed her face from the front)
+    sw_w = _vl(V(-0.13, 0.33, 1.40), V(-0.05, 0.50, 1.24), beat)
+    sw_e = V(-0.21, 0.18, 1.30)
+    k = max(rise, cond)
+    f = cond / max(k, 1e-4)
+    wrist = _vl(hi_w, sw_w, f)
+    elbow = _vl(hi_e, sw_e, f)
+    # the left hand held out to her side a little above the shoulder, open, fingers out (lifting
+    # the plates; fingers up, it read as a wave)
+    spec = base(sk, 0.3 * k, k, arms={'R': (wrist, elbow, k, 'world'),
+                                      'L': (V(0.44, 0.20, 1.30 + 0.05 * lift), V(0.30, 0.05, 1.20), rise, 'world')})
+    spec['arm_L']['hand_dir'] = V(0.75, 0.55, 0.25)
+    arm = spec['arm_R']
+    arm['hand_dir'] = _vl(V(0.0, 0.2, 1.0), _vl(V(0.02, 0.75, 0.35), V(0.0, 1.0, -0.25), beat), f)
+    arm['hand_k'] = k
+    _twist(spec['D'], k, 6.0 + 12.0 * cond, pitch=-5.0 * rise * (1 - cond) + 3.0 * cond)
+    spec['D']['head'] = E(pitch=-6.0 * rise * (1 - cond) + 2.0 * cond)
+    spec['t'] = spec['t'] + Vector((0.0, -0.015 * cond, 0.01 * lift))
+    spec['curl'] = lerp(16.0, 8.0, rise)
+    return spec
+
+
+def cast_accio(sk, t):
+    """Accio: the wand points at the wand on the floor ahead, the left hand reaching open
+    towards it; at the release it flies to her and her left hand closes on it and draws it in"""
+    T = CLIPS['cast_accio']
+    k = env(t, 0.0, 0.18, T - 0.18, T)
+    catch = sstep(ACCIO_RELEASE + 0.25, ACCIO_RELEASE + 0.42, t)
+    spec = base(sk, 0.3 * k, k, arms={'R': (V(-0.10, 0.42, 1.18), V(-0.21, 0.18, 1.18), k, 'world'),
+                                      'L': (_vl(V(0.14, 0.46, 1.10), V(0.12, 0.22, 1.16), catch),
+                                            _vl(V(0.22, 0.18, 1.22), V(0.22, 0.04, 1.10), catch), k, 'world')})
+    spec['arm_L']['hand_dir'] = _vl(V(0.1, 0.9, 0.1), V(0.3, 0.6, 0.6), catch)
+    arm = spec['arm_R']
+    arm['hand_dir'] = V(0.02, 1.0, -0.45)            # at the floor ahead
+    arm['hand_k'] = k
+    _twist(spec['D'], k, 8.0, pitch=4.0 * k)
+    spec['t'] = spec['t'] + Vector((0.0, -0.02 * k, -0.01 * k))
+    spec['curl'] = lerp(10.0, 50.0, catch)
+    return spec
+
+
 EXTRA_CLIPS = {
     'cho_idle': 8.0,       # looping idle: composed, the wand held low
     'dodge_left': 0.42,    # quick sidestep to her left (the game slides her)
@@ -852,6 +1034,11 @@ EXTRA_CLIPS = {
     'distracted': 3.0,     # looping: gazing up, following something drifting by
     'cast_illusio': 0.95,  # the wand circles overhead, arms sweep open (copies at ILLUSIO_RELEASE)
     'cast_oppugno': 0.75,  # the wand raised high, then flung forward (birds at OPPUGNO_RELEASE)
+    'petrified': 0.95,     # Malfoid bound by Petrificus: falls like a plank, ends lying (held)
+    'get_up': 1.10,        # ... and back on her feet (from a root GETUP_SHIFT m further back)
+    'hermione_idle': 6.0,  # looping idle: alert, the wand held ready
+    'cast_plates': 2.75,   # the plates: lifted (to PLATES_RELEASE), then conducted at the target
+    'cast_accio': 0.90,    # Accio: a reach for the wand on the floor, a catch
 }
 from .character import P as _P  # noqa: E402
 for _n in _P.get('extra_clips', ()):
@@ -862,7 +1049,7 @@ if 'strafe' in CLIPS:
     LOOPING = LOOPING + ('strafe',)
 if 'susan_idle' in CLIPS:
     LOOPING = LOOPING + ('susan_idle',)
-for _n in ('luna_idle', 'luna_skip', 'distracted'):
+for _n in ('luna_idle', 'luna_skip', 'distracted', 'hermione_idle'):
     if _n in CLIPS:
         LOOPING = LOOPING + (_n,)
 if 'protego' in CLIPS:

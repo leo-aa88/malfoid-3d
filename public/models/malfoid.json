@@ -30,7 +30,9 @@
   "jump": 0.95,
   "block": 0.22,
   "crouch": 0.3,
-  "protego": 0.22
+  "protego": 0.22,
+  "petrified": 0.95,
+  "get_up": 1.1
  },
  "rest_expression": {
   "vrc.blink": 0.0,

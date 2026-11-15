@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Malfoid } from '../character/Malfoid';
+import { GETUP_SHIFT, type Malfoid } from '../character/Malfoid';
 import type { ReactionState } from '../character/AnimationController';
 import type { CombatTarget, HitBounds, HitReport, HitRequest, Reflector } from './CombatTarget';
 import type { Protego } from './Protego';
@@ -84,8 +84,9 @@ export class FighterTarget implements CombatTarget {
     const p = this.fighter.position;
     if (this.fighter.lying) {
       const f = this.fighter.facingAngle;
-      out.x = p.x - Math.sin(f) * LYING.back;
-      out.z = p.z - Math.cos(f) * LYING.back;
+      const back = this.lyingBack();
+      out.x = p.x - Math.sin(f) * back;
+      out.z = p.z - Math.cos(f) * back;
       out.yMin = 0;
       out.yMax = LYING.height;
       out.radius = LYING.radius;
@@ -111,7 +112,8 @@ export class FighterTarget implements CombatTarget {
     const p = this.fighter.position;
     if (this.fighter.lying) {
       const f = this.fighter.facingAngle;
-      return out.set(p.x - Math.sin(f) * LYING.back, LYING.aimY, p.z - Math.cos(f) * LYING.back);
+      const back = this.lyingBack();
+      return out.set(p.x - Math.sin(f) * back, LYING.aimY, p.z - Math.cos(f) * back);
     }
     return out.set(p.x, AIM_Y, p.z);
   }
@@ -160,6 +162,11 @@ export class FighterTarget implements CombatTarget {
     const ok = this.fighter.disarm(dir);
     if (ok) this.fighter.setExpression('surprised', 1.0);
     return ok;
+  }
+
+  /** how far behind her feet the middle of her lying body is (getting up, her root has moved back) */
+  private lyingBack(): number {
+    return this.fighter.petrified ? LYING.back : Math.max(0, LYING.back - GETUP_SHIFT);
   }
 
   /** Petrificus Totalus: she falls rigid and lies bound for `duration` s, then gets up */

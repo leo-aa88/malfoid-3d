@@ -1,7 +1,7 @@
 """Robe fold check: how much of the lower robe turns over (shows its lining) in each
 clip that moves the legs, and whether the lining ever crosses the outer shell.
 
-  blender -b -t 4 build/malfoid.blend -P tools/qa/robe_folds.py      (or build/ginny.blend, build/cho.blend, build/susan.blend, build/luna.blend)
+  blender -b -t 4 build/malfoid.blend -P tools/qa/robe_folds.py      (or build/ginny.blend, build/cho.blend, build/susan.blend, build/luna.blend, build/hermione.blend)
 
 Prints ROBEFOLDS {clip: {fold_area_%, at_frame, crossed_verts}}; all zeros is clean.
 """
@@ -9,7 +9,7 @@ import bpy, sys, json
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "blender"))
 from malfoid import anim2
-arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and o.name in ('Malfoid', 'Ginny', 'Cho', 'Susan', 'Luna'))
+arm = next(o for o in bpy.data.objects if o.type == 'ARMATURE' and o.name in ('Malfoid', 'Ginny', 'Cho', 'Susan', 'Luna', 'Hermione'))
 ob = bpy.data.objects['RobeLower']
 me = ob.data
 N = len(me.vertices) // 2
@@ -26,7 +26,8 @@ CLIPS = ['kick_high', 'kick_low', 'rising_kick', 'spin_kick', 'leg_sweep', 'walk
          'idle_annoyed_start']
 # a character's own movement clips, when her model has them (Cho's dodges and Ventus)
 CLIPS += [c for c in ('dodge_left', 'dodge_right', 'dodge_back', 'cast_ventus', 'cho_idle', 'strafe', 'susan_idle', 'episkey',
-          'luna_idle', 'luna_skip', 'distracted', 'cast_illusio', 'cast_oppugno', 'cast_quick') if c in bpy.data.actions]
+          'luna_idle', 'luna_skip', 'distracted', 'cast_illusio', 'cast_oppugno', 'cast_quick', 'hermione_idle',
+          'cast_plates', 'cast_accio', 'petrified', 'get_up') if c in bpy.data.actions]
 out = {'twin_gap_mm': round(gap * 1000, 2)}
 worst = {}
 for name in CLIPS:

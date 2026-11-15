@@ -32,8 +32,9 @@ PROFILES = {
         'tie': ((0x1f, 0x5c, 0x40), (0xc6, 0xc6, 0xc9)),   # base, stripe
         'palette': {},                       # mats.PALETTE overrides
         'crest': 'Malfoid_Crest.png',
-        # her Protego (learned from Cho): the held shield pose. Clips only add to her model
-        'extra_clips': ('protego',),
+        # her Protego (learned from Cho): the held shield pose; Petrificus Totalus's fall and her
+        # getting up (Hermione binds her). Clips only add to her model
+        'extra_clips': ('protego', 'petrified', 'get_up'),
     },
     'ginny': {
         'name': 'Ginny',
@@ -266,7 +267,8 @@ PROFILES = {
         'crest': 'Hermione_Crest.png',
         # her clips (combat.EXTRA_CLIPS), in her model only: the plates' levitation and barrage,
         # Accio, Cho's flick (Petrificus), the side-step and dodges, and the Protego pose
-        'extra_clips': ('cast_quick', 'strafe', 'dodge_left', 'dodge_right', 'dodge_back', 'protego'),
+        'extra_clips': ('hermione_idle', 'cast_plates', 'cast_accio', 'cast_quick', 'strafe', 'dodge_left', 'dodge_right',
+                        'dodge_back', 'protego'),
     },
 }
 
