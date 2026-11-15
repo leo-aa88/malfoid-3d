@@ -57,6 +57,14 @@ The duel camera's view. Behind the fighters:
   glass walls are solid too.
 - **Camera:** it stays on the floor too, never behind the plants. Near a bench it watches from
   the open side.
+- **Far apart (fixed later):** the house is narrower than the distance the duel view wants once
+  the fighters are more than about 6 m apart. The camera used to make up the distance by
+  climbing, to 9-16 m, looking down through the roof. Now it keeps its height and widens its
+  field of view instead (43 deg at 8 m apart, the 60 deg cap at 13 m), in every arena with walls.
+
+  ![camera](camera.png)
+
+  The same spot, 10.8 m apart: before (from 13 m up) and after.
 
 ## How it was checked
 
