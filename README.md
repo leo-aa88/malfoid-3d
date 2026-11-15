@@ -29,8 +29,8 @@ The start screen offers three modes:
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with the spells
   Malfoid has when she reaches that opponent in the campaign (Ginny: Confringo only; Cho: and
-  Expelliarmus; Susan and Luna: and Protego), and no voice lines.
-  **G** restarts the fight. Ginny, Cho, Susan or Luna; a Malfoid mirror match is listed as coming soon.
+  Expelliarmus; Susan, Luna and Hermione: and Protego), and no voice lines.
+  **G** restarts the fight. Ginny, Cho, Susan, Luna or Hermione; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
   win two rounds takes it (win–win, win–lose–win and lose–win–win are victories; lose–lose,
@@ -75,6 +75,18 @@ Each opponent has her arena:
     bronze stars. The fighters walk round the tables, armchairs and statue up to the bookcases at
     the wall, and spells burst on the furniture and the walls.
   - All values are in `src/scene/ravenclaw/config.ts`.
+- **The Great Hall** (Hermione): a finite, long stone hall generated in code, at night.
+  - **The hall:** tall pointed windows down both walls, house banners between them, the
+    entrance doors at one end and the staff's high table on its dais at the other, with the
+    golden owl lectern; 140 candles float overhead under the enchanted ceiling (the night sky).
+  - **The tables:** the four house tables and their benches run the length of the hall, set
+    with plates, goblets, jugs and dishes. The plates are Hermione's ammunition: her barrage
+    lifts them off the nearest places, and every plate is back for each duel or round.
+  - **The fight:** it starts in the wide central aisle (about 11 m clear between the benches). The fighters walk the whole floor round
+    the tables, benches and dais; spells fly over the tables and burst on the walls, benches,
+    dais and high table. The camera rises over the tables (high enough that their plates and
+    goblets don't fill the view, and to see the fighters' feet past them).
+  - All values are in `src/scene/greathall/config.ts`.
 
 ## Opponents
 
@@ -84,15 +96,15 @@ The campaign, in order (the planned roster; see the status column for what is in
 |---|---|---|---|---|---|
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
-| 3 | Susan Bones | Defence, resilience, healing | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
+| 3 | Susan Bones | Defence, resilience | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Episkey | playable (Episkey not yet taught; [design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable (Illusio not yet taught; [report](docs/luna/REPORT.md)) |
-| 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | planned |
+| 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | playable (Petrificus not yet taught; [report](docs/hermione/REPORT.md)) |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
 | 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |
 
-The game follows this order (`src/game/campaign.ts`): after Luna, the campaign shows Hermione
-Granger as the next duel (coming soon).
+The game follows this order (`src/game/campaign.ts`): after Hermione, the campaign shows Harry
+Potter as the next duel (coming soon).
 
 Each opponent is built by the same character pipeline as Malfoid (their own profile in
 `tools/blender/malfoid/character.py`), with their own expressions, voice lines, signature
@@ -155,9 +167,8 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
 - **Depulso:** a violet bolt that throws you well back (9 damage, 7 m range, 8 s) when you crowd
   or attack her.
 - **Punishing a rush:** run straight into her reach and she may strike first.
-- **Episkey:** hurt (below 60 %), she heals at once, where she stands (a green-gold flare and a bright swell of sound). It
-  is instantaneous: no wind-up, nothing to interrupt, no opening. It is limited by a 6 s
-  cooldown and a few charges per round (see the table).
+- **No healing:** she used to heal with Episkey; it was removed (on Hard it made her a wall once
+  the stun-lock exploit was fixed).
 - **Hufflepuff Resolve:** a stagger only makes her flinch, a knockdown only knocks her back,
   and she is pushed 40 % less.
 - **More determined, not more aggressive:** below half health her face hardens and she guards
@@ -165,11 +176,11 @@ to put down. She stands her ground and makes you work for every hit. See `docs/s
 - She fights in the Herbology Greenhouse. In the campaign Malfoid opens the duel and Susan replies;
   each has a win line.
 
-| Level | Susan's HP | Episkey | How she fights |
-|---|---|---|---|
-| Easy | 120 | 2 x 20 HP | slow reactions, guards half the time, seldom answers a rush |
-| Normal | 150 | 2 x 25 HP | quicker; guards and counters more; meets most rushes and spells |
-| Hard | 190 | 3 x 30 HP | sharp reactions, a stubborn guard, real combos, heals more often |
+| Level | Susan's HP | How she fights |
+|---|---|---|
+| Easy | 120 | slow reactions, guards half the time, seldom answers a rush |
+| Normal | 150 | quicker; guards and counters more; meets most rushes and spells |
+| Hard | 190 | sharp reactions, a stubborn guard, real combos |
 
 ### Luna Lovegood
 
@@ -210,6 +221,36 @@ own wind-up and wand glow, so it can be read and answered. See `docs/luna/REPORT
 | Normal | 150 | 2.5 s | 5 | 2 (9 s) | quicker; more opportunism and bursts, distracted now and then |
 | Hard | 180 | 3.0 s | 6 | 3 (10 s) | sharp reactions, frequent bursts, rarely distracted, real combos |
 
+### Hermione Granger
+
+The hardest student by a considerable margin: precise, not random. She reads you, punishes your
+casts, steals your wand and chains her spells; her reactions keep human timing, so her edge is
+her choices. Her strongest attacks need a wind-up that can be interrupted. See
+`docs/hermione/DESIGN.md` and `docs/hermione/REPORT.md`.
+
+- **Plate Barrage (Oppugno):** she raises her wand and her left hand, and 8-12 dinner plates
+  rise off the nearest places on the house tables into a fan round her (the wind-up, about a
+  second). **Hit her then and they all drop and shatter.** Then she conducts them at you one
+  after another, fast and straight (no homing once thrown), aimed where you will be: she leads
+  your movement and learns which way you like to dodge. Each plate is a small hit (a flinch);
+  your guard takes each as chip damage, Protego stops them while it lasts (0.9 s: not a whole
+  volley), and a perfect Protego sends one plate back at her (only one). They shatter on
+  whatever they hit.
+- **Petrificus Totalus:** a pale blue bolt. A hit binds you: you go rigid, topple backwards like
+  a plank and lie bound for about 2 s, then get up. While you are down (and getting up) only one
+  more hit lands. A guard or Protego stops it; it can be dodged. She fires it when you expose
+  yourself: reeling, just after your cast, your Protego cooling down, sprinting about.
+- **Expelliarmus and Accio:** she disarms into your casts, and when your wand is on the floor she
+  turns to it and summons it into her left hand (ACCIO!). Land a strike on her (a hit that gets
+  through) and she lets go of it: pick it up. Hit her during the cast and nothing comes; it has
+  a cooldown before she can steal it again.
+- **Chains:** after her shield stops (or reflects) your spell she answers with Petrificus; with
+  you bound she follows up once, either Expelliarmus at once or the plates timed to fly just as
+  you are back on your feet.
+- **Protego:** she meets your spells with the shield, often timed to send them back.
+- She keeps a caster's distance, circling; holding your wand, she lets you come close.
+- She fights in the Great Hall, after a longer opening exchange: three lines each, she first.
+
 ## Expelliarmus (P)
 
 Malfoid learns Ginny's Disarming Charm by beating her in the campaign. In training she always
@@ -222,7 +263,8 @@ reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spel
 ## How a duel runs
 
 - **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
-  speaks first, against Cho, Cho does, against Susan, Malfoid does, against Luna, Luna does.
+  speaks first, against Cho, Cho does, against Susan, Malfoid does, against Luna, Luna does;
+  against Hermione they exchange three lines each, she first, each line with its speaker's face.
   Then **ROUND 1** shows; nobody can move or attack until **DUEL!** appears. Practice goes
   straight to the fight.
 - **Rounds (campaign):** a round lost or won short of the match is announced (**GINNY WINS
@@ -248,8 +290,8 @@ reach it (never on a bench, a table or in a wall). Tuning is in `src/combat/spel
 |---|---|
 | W / A / S / D | walk away from / towards the camera, left / right on screen |
 | Shift + WASD | run |
-| Space | jump |
-| Left Ctrl | crouch (hold) |
+| Space | jump: in the air she clears the low kicks (shin kick, leg sweep) |
+| Left Ctrl | crouch (hold): she ducks under the high strikes (jab, cross, roundhouse, spinning kick); an uppercut still catches her |
 | J / U | high / low punch (jab / body jab) |
 | K / I | high / low kick (roundhouse / shin kick) |
 | two strike keys quickly | combo (see below) |
@@ -295,6 +337,15 @@ Two strikes in quick succession chain into a finisher:
 - **Recovery:** whiffing a heavy finisher (uppercut, heavy body punch, sweeps, spinning or rising
   kick) slows the rest of the move: she is shown as VULNERABLE until it ends.
 - **2 HIT COMBO** appears when both strikes connect.
+- **Ducking and jumping:** a crouch ducks under the jab, the cross, the roundhouse and the
+  spinning high kick (an uppercut still catches a crouch); a jump, while her feet are off the
+  floor, clears the low shin kick and the leg sweep. The strike whiffs (a whiffed heavy finisher
+  leaves its thrower open) and DODGED! shows. Body punches must be blocked low. The same goes for
+  every fighter (`Move.avoid` in `combat/moves.ts`).
+- **No stun-lock:** a hit that lands while the target is still reeling (or just after) chains
+  onto it. The third in a row knocks her back out of reach, and once she is up she has 0.7 s
+  in which hits still hurt but don't stun her: time to block, counter or step away. This holds
+  for Malfoid and for every opponent (`CHAIN` in `combat/FighterTarget.ts`).
 - **Facing and spacing:** a strike turns her towards the opponent if it is within 60° either side
   (and 1.6 m), and she steps in or back (up to 35 cm) to that strike's range during the wind-up.
 - Hitboxes are relative to her position and facing, with a high/low height that a matching guard
@@ -341,13 +392,18 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `combat/ai/FighterAI.ts` – the opponent's behaviour (observe, approach, retreat, block, strike,
   cast, retrieve her wand; with an evasive style also circle, shield, dodge, counter, push;
   with a defensive style hold ground, guard against spells, meet a rush, heal; with a chaotic
-  style roam, skip, get distracted, burst and pause, summon birds and copies);
+  style roam, skip, get distracted, burst and pause, summon birds and copies; with a prodigy
+  style read every cast, chain spells, steal a dropped wand, bind and follow up, and aim the
+  plates where the opponent will be, learning her dodges);
   `combat/ai/difficulty.ts` – the Easy / Normal / Hard tuning of each opponent.
 - `combat/spells/Expelliarmus.ts` – the disarming spell (Ginny's, and Malfoid's once learned);
   `Stupefy.ts`, `Ventus.ts` (+ its gust effect) – Cho's spells; `Impedimenta.ts` (the slow),
   `Depulso.ts` – Susan's; `Confundo.ts` (the confusion) and `Oppugno.ts` (the birds: the flock's
-  homing and hits, and their look) – Luna's. A summoning spell (`SpellDef.summon`) has no bolt:
-  `SpellSystem.onSummon` hands its release to the caster.
+  homing and hits, and their look) – Luna's; `Petrificus.ts` (the body-bind), `Accio.ts` (a
+  dropped wand to her hand: `Wand.summon`) and `Plates.ts` (the barrage: the wind-up, the
+  straight launches, the shards) – Hermione's. A summoning spell (`SpellDef.summon`) has no bolt:
+  `SpellSystem.onSummon` hands its release to the caster, `SpellSystem.onCast` its start and an
+  interruption.
 - `combat/Episkey.ts` – the healing charm (instant heal, cooldown, charges); `EpiskeyFx.ts` – its look;
   `SlowFx.ts` – the rings of a slow; `ConfusionFx.ts` – the stars of a confusion.
   `FighterTarget` carries the slow (`timeScale`), the confusion (`confused`; the controller
@@ -399,7 +455,11 @@ Screenshots from the viewer are in `docs/confringo/`.
   the grounds outside and the drifting motes); `scene/ravenclaw/` – the Ravenclaw Common Room
   (`config.ts` the tunables, `textures.ts` the carpet, floorboards, painted dome and the night
   outside, `RavenclawArena.ts` the walls and windows, silks, bookcases, furniture, the statue,
-  floating candles, collision, camera limit and light).
+  floating candles, collision, camera limit and light); `scene/greathall/` – the Great Hall
+  (`config.ts` the tunables, `textures.ts` the flagstones and the night-sky ceiling,
+  `GreatHallArena.ts` the walls and windows, the tables and their places (the plates:
+  `takePlates` / `restock`), the dais and high table, the owl lectern, banners, candles,
+  collision, the camera limit with its height over the tables, and light).
 
 ## Tests
 
@@ -425,6 +485,8 @@ make model        # textures + build/malfoid.blend + public/models/malfoid.glb
 make ginny        # Ginny: build/ginny.blend + public/models/ginny.glb (MF_CHAR=ginny)
 make cho          # Cho: build/cho.blend + public/models/cho.glb (MF_CHAR=cho)
 make susan        # Susan: build/susan.blend + public/models/susan.glb (MF_CHAR=susan)
+make luna         # Luna: build/luna.blend + public/models/luna.glb (MF_CHAR=luna)
+make hermione     # Hermione: build/hermione.blend + public/models/hermione.glb (MF_CHAR=hermione)
 make help         # all targets (renders, dev, build, clean, ...)
 ```
 

@@ -3,7 +3,7 @@ import { MOVE_CLIPS, MoveId } from '../combat/moves';
 import { SPELL_CLIPS, SpellClip } from '../combat/spells/clips';
 
 export type LocomotionState = 'idle' | 'walk' | 'run' | 'turn' | 'idle_annoyed' | 'confident' | 'cho_idle' | 'susan_idle' | 'strafe'
-  | 'luna_idle' | 'luna_skip' | 'distracted';
+  | 'luna_idle' | 'luna_skip' | 'distracted' | 'hermione_idle';
 /** quick evasive steps (Cho): in place clips, the character moves her through the world */
 export type DodgeState = 'dodge_left' | 'dodge_right' | 'dodge_back';
 export const DODGE_CLIPS: DodgeState[] = ['dodge_left', 'dodge_right', 'dodge_back'];
@@ -12,8 +12,9 @@ export type ActionState = 'jump' | DodgeState;
 /** held poses: play once and stay in the last frame while the key is down */
 export type HoldState = 'crouch' | 'block' | 'wand_ready' | 'protego';
 /** reactions: one-shot, timed by the character (hit, disarmed, picking the wand up) */
-export type ReactionState = 'hit' | 'stagger' | 'knockback' | 'disarmed' | 'pickup';
-export const REACTION_CLIPS: ReactionState[] = ['hit', 'stagger', 'knockback', 'disarmed', 'pickup'];
+export type ReactionState = 'hit' | 'stagger' | 'knockback' | 'disarmed' | 'pickup' | 'petrified' | 'get_up';
+/** (petrified: Petrificus Totalus's fall, ending lying flat; get_up: back on her feet. Malfoid's model only) */
+export const REACTION_CLIPS: ReactionState[] = ['hit', 'stagger', 'knockback', 'disarmed', 'pickup', 'petrified', 'get_up'];
 /** strikes (driven by the combo system) */
 export type StrikeState = MoveId | SpellClip;
 export type AnimationState = LocomotionState | ActionState | HoldState | StrikeState | ReactionState;
@@ -31,6 +32,7 @@ const FADE: Record<LocomotionState | ActionState | HoldState, number> = {
   luna_idle: 0.45,
   luna_skip: 0.22,
   distracted: 0.35,
+  hermione_idle: 0.45,
   jump: 0.08,
   dodge_left: 0.05,
   dodge_right: 0.05,

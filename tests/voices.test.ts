@@ -1,7 +1,7 @@
 // Logic tests for the duel's voice lines and lip movement (no Web Audio): `npm test`
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHO_LINES, DuelVoices, LUNA_LINES, SUSAN_LINES, VOICE, mouthOpen } from '../src/audio/duelVoices';
+import { CHO_LINES, DuelVoices, HERMIONE_LINES, LUNA_LINES, SUSAN_LINES, VOICE, mouthOpen } from '../src/audio/duelVoices';
 import { ENVELOPE_RATE, loudnessEnvelope } from '../src/audio/envelope';
 import type { SoundHandle, SoundId } from '../src/audio/Sfx';
 
@@ -28,6 +28,10 @@ class FakePlayer {
 class FakeSpeaker {
   talk = 0;
   maxTalk = 0;
+  faces: string[] = [];
+  setExpression(name: string | null) {
+    if (name) this.faces.push(name);
+  }
   setTalk(v: number) {
     this.talk = v;
     this.maxTalk = Math.max(this.maxTalk, v);
@@ -201,4 +205,25 @@ test("Luna's duel: Luna speaks first, Malfoid replies, then the fight; each winn
   voices.win(luna);
   run(VOICE.winDelay + 0.1);
   assert.equal(sfx.played.at(-1)!.id, 'lunaWin');
+});
+
+test("Hermione's duel: a longer exchange, three lines each, she first; each line sets its speaker's face", () => {
+  const { sfx, malfoid, ginny: hermione, voices, run, done } = setup();
+  voices.setOpponent(hermione, HERMIONE_LINES);
+  voices.startIntro();
+  run(VOICE.introDelay + 0.1);
+  for (let i = 0; i < 5; i++) run(1 + VOICE.replyGap);
+  assert.deepEqual(sfx.played.map((p) => p.id), ['hermioneOpening1', 'malfoidHermioneOpening1', 'hermioneOpening2',
+    'malfoidHermioneOpening2', 'hermioneOpening3', 'malfoidHermioneOpening3']);
+  assert.equal(done(), 0, 'the fight waits for Malfoid\'s last line');
+  run(1.1);
+  assert.equal(done(), 1);
+  assert.deepEqual(hermione.faces, ['serious', 'serious', 'serious']);
+  assert.deepEqual(malfoid.faces, ['teasing', 'smug', 'annoyed']);
+  voices.win(malfoid);
+  run(VOICE.winDelay + 0.1);
+  assert.equal(sfx.played.at(-1)!.id, 'malfoidWin5');
+  voices.win(hermione);
+  run(VOICE.winDelay + 0.1);
+  assert.equal(sfx.played.at(-1)!.id, 'hermioneWin');
 });

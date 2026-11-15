@@ -4,9 +4,17 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { AnimationController, AnimationState, ActionState, DodgeState, HoldState, LocomotionState, ReactionState, StrikeState } from './AnimationController';
 import { FaceFx, ToonMaterials } from './ToonMaterials';
 import { HairSway } from './HairSway';
-import type { SpellEmitter } from '../combat/spells/SpellEmitter';
+import { handFrame, type SpellEmitter } from '../combat/spells/SpellEmitter';
 import { Wand, WandGrip, WAND_PICKUP_RADIUS } from './Wand';
 import { SPELL_CLIPS } from '../combat/spells/clips';
+
+/** s into the jump clip when her feet are off the floor (combat.jump: airborne 0.22-0.70 s) */
+export const JUMP_AIR: [number, number] = [0.22, 0.7];
+/** s into the crouch before she is low enough to duck a high strike (the crouch clip is 0.3 s) */
+const CROUCH_LOW = 0.12;
+
+/** m: getting up from Petrificus's fall starts this far behind where she stood (combat.GETUP_SHIFT) */
+export const GETUP_SHIFT = 0.55;
 
 /** Seconds without movement before she gets annoyed. */
 export const IDLE_ANNOYED_TIMEOUT = 10;
@@ -39,7 +47,7 @@ export type Weights = Record<string, number>;
 export interface CharacterOptions {
   name: string;
   /** standing-still clip */
-  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle' | 'luna_idle';
+  idleClip?: 'idle' | 'confident' | 'cho_idle' | 'susan_idle' | 'luna_idle' | 'hermione_idle';
   /** her own fast gait in place of the run (Luna's skip): its clip, the speed she moves at (m/s)
    * and the speed the clip was authored for (its time scale follows) */
   run?: { clip: LocomotionState; speed: number; clipSpeed: number } | null;
@@ -66,6 +74,19 @@ export const FACE_FX_KEYS = ['blush', 'tears'] as const;
  * atlas's "Slightly Open (speaking)": a small oval, not a shout.
  */
 export const MALFOID_TALK: Weights = { 'あ': 0.42, jawOpen: 0.08, mouthPressLeft: 0, mouthPressRight: 0 };
+
+/** Malfoid teasing (the opening lines against Hermione): a one-sided smirk, one brow up, a
+ *  narrowed, amused look */
+export const TEASING_FACE: Weights = {
+  Smirk: 0.65, 'にやり': 0.3, mouthSmileLeft: 0.5, mouthSmileRight: 0.12, browOuterUpLeft: 0.6, browDownRight: 0.3,
+  eyeSquintLeft: 0.15, eyeSquintRight: 0.3, mouthPressLeft: 0, mouthPressRight: 0,
+};
+
+/** Malfoid smug: a self-satisfied closed smile, half-lowered lids, chin up */
+export const SMUG_FACE: Weights = {
+  Confident: 0.6, 'にやり': 0.45, mouthSmileLeft: 0.35, mouthSmileRight: 0.35, 'vrc.blink_Straight': 0.35,
+  browOuterUpLeft: 0.25, browOuterUpRight: 0.25, mouthPressLeft: 0, mouthPressRight: 0,
+};
 
 /** Malfoid's face while annoyed (existing shape keys of the base mesh). */
 export const ANNOYED_FACE: Weights = {
@@ -100,7 +121,8 @@ interface ModelMeta {
 export class Malfoid {
   readonly root = new THREE.Group();
   name = 'Malfoid';
-  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true, expressions: { annoyed: ANNOYED_FACE }, talk: MALFOID_TALK,
+  private opts: Required<CharacterOptions> = { name: 'Malfoid', idleClip: 'idle', annoyedIdle: true,
+    expressions: { annoyed: ANNOYED_FACE, teasing: TEASING_FACE, smug: SMUG_FACE }, talk: MALFOID_TALK,
     run: null, twins: false };
   /** the model as loaded (before toon shading), for copies of her (CharacterOptions.twins) */
   private pristine: { scene: THREE.Object3D; animations: THREE.AnimationClip[]; meta: ModelMeta } | null = null;
@@ -129,6 +151,11 @@ export class Malfoid {
   /** her wand: up her right sleeve until she casts, put away again when she punches or kicks */
   wand!: Wand;
   private wandGrip!: WandGrip;
+  /** s into the current action (the jump) and the held pose (the crouch) */
+  private actionT = 0;
+  private holdT = 0;
+  /** her left hand's mount for something held in it (another fighter's wand, Accio) */
+  offHand: THREE.Object3D | null = null;
   private strikeFacing: number | null = null;  // auto-facing target during a strike
   // reactions (hit, stagger, knockback, disarmed, pickup): timed here, push her back
   private reaction: { kind: ReactionState; t: number; dur: number } | null = null;
@@ -246,6 +273,22 @@ export class Malfoid {
       }
     });
     m.wand = new Wand(hand);
+    // the left hand's mount for something held in it (another fighter's wand, Accio): along the
+    // fingers like the wand in the right hand
+    let handL: THREE.Bone | null = null;
+    gltf.scene.traverse((o) => {
+      if ((o as THREE.Bone).isBone && o.name === 'hand_L') handL = o as THREE.Bone;
+    });
+    if (handL) {
+      const f = handFrame(handL, 'L');
+      const mount = new THREE.Object3D();
+      mount.name = 'off_hand_mount';
+      mount.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), f.fingers);
+      mount.position.copy(f.fingers).multiplyScalar(0.05 * f.unit).addScaledVector(f.palm, 0.022 * f.unit);
+      mount.scale.setScalar(f.unit);
+      (handL as THREE.Bone).add(mount);
+      m.offHand = mount;
+    }
     m.wandGrip = new WandGrip(gltf.scene, gltf.animations);
     return m;
   }
@@ -343,6 +386,7 @@ export class Malfoid {
    */
   react(kind: ReactionState, push?: THREE.Vector3): void {
     if (this.defeated && kind !== 'knockback') return;
+    if (this.petrified) return;                    // rigid: nothing moves her until the bind ends
     if (!this.animation.has(kind)) return;
     if (kind !== 'pickup') this.pickupSpot = null;
     if (this.strike) this.endStrike();
@@ -353,6 +397,39 @@ export class Malfoid {
     this.animation.restart(kind, 0.06);
     if (push) this.slide.copy(push).setY(0);
     this.resetIdleTimer();
+  }
+
+  /**
+   * Petrificus Totalus: her body binds, arms snap to her sides and she topples backwards like a
+   * plank (the 'petrified' clip, ending lying flat), lies rigid for the rest of `seconds`, then
+   * gets up (the 'get_up' clip). Nothing else moves her meanwhile. false if she can't (defeated,
+   * or her model has no such clip).
+   */
+  petrify(seconds: number): boolean {
+    if (this.defeated || !this.animation.has('petrified') || this.petrified) return false;
+    if (this.strike) this.endStrike();
+    this.castLock = false;
+    this.action = null;
+    this.hold = null;
+    this.pickupSpot = null;
+    this.moving = false;
+    this.speed = 0;
+    this.slide.set(0, 0, 0);
+    this.reaction = { kind: 'petrified', t: 0, dur: seconds };
+    this.animation.restart('petrified', 0.05);
+    this.resetIdleTimer();
+    return true;
+  }
+
+  /** bound by Petrificus Totalus (falling or lying rigid) */
+  get petrified(): boolean {
+    return this.reaction?.kind === 'petrified';
+  }
+
+  /** on the floor: bound, or still in the first half of getting up */
+  get lying(): boolean {
+    const r = this.reaction;
+    return !!r && (r.kind === 'petrified' || (r.kind === 'get_up' && r.t < r.dur * 0.5));
   }
 
   /** Expelliarmus: the wand is knocked out of her hand along dir; true if she had it */
@@ -386,7 +463,10 @@ export class Malfoid {
   /** knocked out / back on her feet (duel end / reset) */
   setDefeated(on: boolean): void {
     this.defeated = on;
-    if (on) {
+    if (on && this.petrified) {
+      this.reaction!.dur = Infinity;               // knocked out while bound: she stays down
+      this.setExpression('pain', 99);
+    } else if (on) {
       this.react('knockback');
       this.setExpression('pain', 99);
     } else {
@@ -431,14 +511,26 @@ export class Malfoid {
   }
 
   /**
-   * Start a one-shot move (jump). Ignored while another move is playing or
-   * while crouching / blocking. Counts as activity.
+   * Start a one-shot move (jump). Ignored while another move is playing, while crouching /
+   * blocking, and in a reaction or down (bound by Petrificus, a jump restarted her animation:
+   * she stood up for a moment, then fell again). Counts as activity.
    */
   trigger(action: ActionState): void {
     this.resetIdleTimer();
-    if (this.action || this.hold || this.strike || !this.animation.has(action)) return;
+    if (this.action || this.hold || this.strike || this.reaction || this.defeated || !this.animation.has(action)) return;
     this.action = action;
+    this.actionT = 0;
     this.animation.restart(action);
+  }
+
+  /** in the air (a jump): her feet clear a low kick */
+  get airborne(): boolean {
+    return this.action === 'jump' && this.actionT >= JUMP_AIR[0] && this.actionT <= JUMP_AIR[1];
+  }
+
+  /** crouched low: she ducks under a high strike */
+  get crouching(): boolean {
+    return this.hold === 'crouch' && this.holdT >= CROUCH_LOW;
   }
 
   /** free to start a strike (not jumping, crouching, blocking, casting, reacting or down) */
@@ -482,7 +574,10 @@ export class Malfoid {
   setHold(hold: HoldState, on: boolean): void {
     if (on) {
       this.resetIdleTimer();
-      if (!this.hold && !this.action && !this.strike && !this.reaction && !this.defeated) this.hold = hold;
+      if (!this.hold && !this.action && !this.strike && !this.reaction && !this.defeated) {
+        this.hold = hold;
+        this.holdT = 0;
+      }
     } else if (this.hold === hold) {
       this.hold = null;
     }
@@ -508,6 +603,8 @@ export class Malfoid {
   }
 
   update(dt: number): void {
+    if (this.action) this.actionT += dt;
+    if (this.hold) this.holdT += dt;
     // --- reactions: timed here, she slides with the hit
     if (this.reaction) {
       this.reaction.t += dt;
@@ -519,7 +616,17 @@ export class Malfoid {
         this.wand.retrieve();
         this.pickupSpot = null;
       }
-      if (this.reaction.t >= this.reaction.dur) this.reaction = null;     // a defeated fighter then kneels
+      if (this.reaction.t >= this.reaction.dur) {
+        const was = this.reaction.kind;
+        this.reaction = null;                    // a defeated fighter then kneels
+        if (was === 'petrified' && !this.defeated) {
+          // the bind wears off: she gets up from where she lies (the clip starts from a root
+          // GETUP_SHIFT m further back, along where she fell: nothing jumps)
+          this.root.position.x -= Math.sin(this.facing) * GETUP_SHIFT;
+          this.root.position.z -= Math.cos(this.facing) * GETUP_SHIFT;
+          this.react('get_up');
+        }
+      }
     }
     if (this.slide.lengthSq() > 1e-6) {
       this.root.position.addScaledVector(this.slide, dt);

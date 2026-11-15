@@ -172,3 +172,49 @@ export const LUNA_FACES: Record<string, Weights> = {
 /** Luna's speaking mouth (atlas "Speaking: light, open"): the "a" viseme. No smile of its own: the
  *  corners come from her face (angry in the opening lines, cheerful in her win line) */
 export const LUNA_TALK: Weights = { 'あ': 0.42, jawOpen: 0.07 };
+
+/*
+ * Hermione's expressions (the same keys and face channels, after her atlases): composed and
+ * clever at rest (a faint, self-assured smile), sharp and intense in a fight.
+ */
+const noSmileHermione = { mouthSmileLeft: 0, mouthSmileRight: 0 };
+
+export const HERMIONE_FACES: Record<string, Weights> = {
+  neutral: {},
+  // serious: her face through the opening exchange (warning Malfoid): no smile, brows drawn a
+  // little down and in, a level, steady gaze, lips set
+  serious: { ...noSmileHermione, browDownLeft: 0.6, browDownRight: 0.6, browInnerUp: 0.2, eyeSquintLeft: 0.2,
+    eyeSquintRight: 0.2, '真面目': 0.7, mouthPressLeft: 0.2, mouthPressRight: 0.2, mouthFrownLeft: 0.15, mouthFrownRight: 0.15 },
+  // "Happy / Cheerful (bright)": eyes closed in happy arcs, an open smile
+  cheerful: { Smile2: 1.0, 'ワ': 0.45, jawOpen: 0.1, 'vrc.blink_Straight': 0, blush: 0.15 },
+  // "Confident (smug, self-assured, clever)": a closed one-sided smile, one brow up, lids lowered a little
+  confident: { Smirk: 0.6, 'にやり': 0.35, Confident: 0.3, mouthSmileLeft: 0.35, mouthSmileRight: 0.1, browOuterUpLeft: 0.4,
+    'vrc.blink_Straight': 0.2 },
+  // "Determined (focused, resolute)": brows lowered and angled, a steady narrowed gaze, lips pressed
+  // (her brows hide under her hair: the eyes carry it; a first pass read neutral)
+  determined: { ...noSmileHermione, browDownLeft: 0.95, browDownRight: 0.95, eyeSquintLeft: 0.55, eyeSquintRight: 0.55,
+    'vrc.blink_Straight': 0.18, mouthPressLeft: 0.65, mouthPressRight: 0.65, '真面目': 0.85 },
+  // "Surprised (eyes widened, open)"
+  surprised: { ...noSmileHermione, 'びっくり': 1.0, 'お': 0.35, jawOpen: 0.3, mouthFunnel: 0.45, browInnerUp: 0.7, browOuterUpLeft: 0.8,
+    browOuterUpRight: 0.8, eyeWideLeft: 0.65, eyeWideRight: 0.65, 'vrc.blink_Straight': 0 },
+  // "Amused (teasing, soft laugh)": eyes eased shut, an open smile, a touch of colour
+  amused: { 'なごみ': 0.8, 'ワ': 0.3, mouthSmileLeft: 0.55, mouthSmileRight: 0.55, 'vrc.blink_Straight': 0, blush: 0.2 },
+  // "Thinking (contemplative)": the eyes up and aside, a brow raised, the mouth pressed
+  thinking: { ...noSmileHermione, eyeLookUpLeft: 0.9, eyeLookUpRight: 0.9, browOuterUpRight: 0.7, browInnerUp: 0.35,
+    mouthPressLeft: 0.45, mouthPressRight: 0.45, mouthLeft: 0.4 },
+  // "Frustrated (annoyed, exasperated)": brows drawn down and in, the mouth tight
+  frustrated: { ...noSmileHermione, browDownLeft: 0.7, browDownRight: 0.7, '困る': 0.35, eyeSquintLeft: 0.3, eyeSquintRight: 0.3,
+    mouthPressLeft: 0.6, mouthPressRight: 0.6, mouthFrownLeft: 0.25, mouthFrownRight: 0.25 },
+  // "Angry (fierce, heated)": brows down hard, eyes narrowed, the mouth open and forceful
+  angry: { ...noSmileHermione, Angry: 0.85, '怒り': 0.7, browDownLeft: 1.0, browDownRight: 1.0, eyeSquintLeft: 0.6,
+    eyeSquintRight: 0.6, 'vrc.blink_Straight': 0.28, mouthFrownLeft: 0.5, mouthFrownRight: 0.5, 'あ': 0.22, jawOpen: 0.12 },
+  // "Embarrassed (flustered)": the gaze down and away, raised inner brows, a flush
+  embarrassed: { Shy: 0.7, '照れ': 0.4, eyeLookDownLeft: 0.4, eyeLookDownRight: 0.4, browInnerUp: 0.5, blush: 0.9 },
+  sad: { ...noSmileHermione, Sad: 0.4, '困る': 0.55, browInnerUp: 0.8, eyeLookDownLeft: 0.5, eyeLookDownRight: 0.5,
+    mouthFrownLeft: 0.4, mouthFrownRight: 0.4, 'vrc.blink_Straight': 0.3 },
+  pain: { ...noSmileHermione, eyeBlinkLeft: 0.65, eyeBlinkRight: 0.65, browDownLeft: 0.7, browDownRight: 0.7, browInnerUp: 0.7,
+    mouthStretchLeft: 0.6, mouthStretchRight: 0.6, jawOpen: 0.12 },
+};
+
+/** Hermione's speaking mouth (atlas "Speaking: open, natural"): the "a" viseme, no smile of its own */
+export const HERMIONE_TALK: Weights = { 'あ': 0.42, jawOpen: 0.07 };

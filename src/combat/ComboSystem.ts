@@ -10,6 +10,8 @@ import {
 export type CombatEvent =
   | { type: 'strike'; move: Move; result: HitResult; damage: number; ko: boolean; at: THREE.Vector3; target: CombatTarget }
   | { type: 'whiff'; move: Move }
+  /** the target ducked under it / jumped over it */
+  | { type: 'evaded'; move: Move; target: CombatTarget }
   | { type: 'combo'; hits: number; combo: Combo }
   | { type: 'broken'; reason: 'blocked' | 'missed' }
   | { type: 'vulnerable'; on: boolean };
@@ -50,6 +52,8 @@ interface Running {
  *   AUTO_FACE_ANGLE either side and AUTO_FACE_RANGE away.
  */
 export class ComboSystem {
+  /** the target in the hitbox that got out of the way (this strike's last check) */
+  private dodger: CombatTarget | null = null;
   private running: Running | null = null;
   private buffered: AttackButton | null = null;
   /** after an opener hit and its clip ended: until this time a press can still link */
@@ -173,6 +177,7 @@ export class ComboSystem {
     const f = this.malfoid.facingAngle;
     let best: CombatTarget | null = null;
     let bestFwd = Infinity;
+    this.dodger = null;
     for (const t of this.targets()) {
       if (!t.targetable) continue;
       t.getBounds(this.b);
@@ -181,6 +186,11 @@ export class ComboSystem {
       const fwd = dx * Math.sin(f) + dz * Math.cos(f);
       const side = dx * Math.cos(f) - dz * Math.sin(f);
       if (fwd > 0 && fwd - this.b.radius <= move.reach && Math.abs(side) <= move.width + this.b.radius && fwd < bestFwd) {
+        // ducking under it / in the air over it: it passes her by (while she stays out of its way)
+        if (t.evades?.(move)) {
+          this.dodger = t;
+          continue;
+        }
         bestFwd = fwd;
         best = t;
       }
@@ -237,6 +247,7 @@ export class ComboSystem {
         if (r.combo && r.openerHit && r.outcome === 'hit') this.emit({ type: 'combo', hits: 2, combo: r.combo });
       } else if (r.t >= m.active[1]) {
         r.outcome = 'missed';
+        if (this.dodger) this.emit({ type: 'evaded', move: m, target: this.dodger });
         this.emit({ type: 'whiff', move: m });
         if (m.heavy) {
           // whiffed heavy finisher: the rest of the move plays out slowly

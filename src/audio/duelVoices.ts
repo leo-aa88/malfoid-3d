@@ -25,9 +25,10 @@ export const VOICE = {
   mouthRelease: 0.06,
 };
 
-/** what a speaker needs: a mouth */
+/** what a speaker needs: a mouth (and a face, for lines that set one) */
 export interface Speaker {
   setTalk(level: number): void;
+  setExpression?(name: string | null, seconds?: number): void;
 }
 
 /** the parts of the sound player the voices use */
@@ -41,12 +42,14 @@ interface Line {
   who: Speaker;
   id: SoundId;
   delay: number;   // game time (s) after the previous line ends
+  /** the speaker's face for this line, held until her next one (or the end of the exchange) */
+  face?: string;
 }
 
 /** an opponent's voice lines (null / empty: none recorded; the duel goes on without them) */
 export interface DuelLines {
-  /** the opening exchange, in order */
-  intro: { who: 'malfoid' | 'opponent'; id: SoundId }[];
+  /** the opening exchange, in order; a line may set its speaker's face (held until her next line) */
+  intro: { who: 'malfoid' | 'opponent'; id: SoundId; face?: string }[];
   malfoidWin: SoundId | null;
   opponentWin: SoundId | null;
 }
@@ -70,6 +73,23 @@ export const LUNA_LINES: DuelLines = {
   intro: [{ who: 'opponent', id: 'lunaOpening' }, { who: 'malfoid', id: 'malfoidOpening4' }],
   malfoidWin: 'malfoidWin4',
   opponentWin: 'lunaWin',
+};
+
+/**
+ * Hermione's duel: a longer exchange, three lines each, Hermione first and serious throughout,
+ * Malfoid teasing, then smug, then annoyed; a line for each winner
+ */
+export const HERMIONE_LINES: DuelLines = {
+  intro: [
+    { who: 'opponent', id: 'hermioneOpening1', face: 'serious' },     // "Your obsession with Harry is driving you insane..."
+    { who: 'malfoid', id: 'malfoidHermioneOpening1', face: 'teasing' },  // "You want Potter all to yourself, huh?"
+    { who: 'opponent', id: 'hermioneOpening2', face: 'serious' },     // "No, I'm trying to warn you..."
+    { who: 'malfoid', id: 'malfoidHermioneOpening2', face: 'smug' },  // "Oh? Is this a threat?"
+    { who: 'opponent', id: 'hermioneOpening3', face: 'serious' },     // "No. I'm giving you helpful advice."
+    { who: 'malfoid', id: 'malfoidHermioneOpening3', face: 'annoyed' },  // "I don't take advice from filth like you."
+  ],
+  malfoidWin: 'malfoidWin5',
+  opponentWin: 'hermioneWin',
 };
 
 /** Ginny's duel: Malfoid's opening line, Ginny's reply, a line for each winner */
@@ -110,6 +130,7 @@ export class DuelVoices {
     this.intro = true;
     this.queue = this.lines.intro.map((l, i) => ({
       who: l.who === 'malfoid' ? this.malfoid : this.opponent, id: l.id, delay: i === 0 ? VOICE.introDelay : VOICE.replyGap,
+      face: l.face,
     }));
     this.wait = this.queue[0]?.delay ?? 0;
   }
@@ -163,6 +184,7 @@ export class DuelVoices {
           const line = this.queue.shift()!;
           const handle = this.sfx.play(line.id, { volume: VOICE.volume });
           if (handle) this.current = { line, handle, env: this.sfx.envelope(line.id) };
+          if (line.face) line.who.setExpression?.(line.face, 60);       // (the exchange's end sets her face after)
           this.wait = 0;                             // a line that couldn't play: straight on to the next
         }
       }

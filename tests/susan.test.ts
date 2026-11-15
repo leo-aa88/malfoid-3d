@@ -268,15 +268,16 @@ test('hurt, she heals with Episkey where she stands, close or far, and keeps fig
   }
 });
 
-test("Susan's definition: her spells, Episkey per level, Resolve, the greenhouse", () => {
+test("Susan's definition: her spells, Resolve, the greenhouse; no healing (removed on request)", () => {
   assert.equal(OPPONENTS.susan.arena, 'greenhouse');
   const s = OPPONENTS.susan;
   assert.equal(s.spell.id, 'impedimenta');
   assert.equal(s.push?.id, 'depulso');
-  assert.ok(s.episkey && s.resolve);
+  assert.ok(s.resolve);
+  assert.ok(!s.episkey, 'she no longer heals');
   assert.equal(s.altSpell?.id, 'expelliarmus', 'she alternates Impedimenta with Expelliarmus');
   assert.ok(s.protego, 'and meets spells with Protego');
-  assert.deepEqual(Object.values(s.difficulty).map((l) => l.heal?.amount), [20, 25, 30]);
+  assert.deepEqual(Object.values(s.difficulty).map((l) => l.heal), [undefined, undefined, undefined]);
   assert.ok(s.difficulty.easy.hp < s.difficulty.normal.hp && s.difficulty.normal.hp < s.difficulty.hard.hp);
 });
 

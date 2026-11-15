@@ -18,7 +18,7 @@ the other side.
 |---|---|
 | **Impedimenta** | Slows Malfoid's movement and attacks briefly, making reckless aggression dangerous. |
 | **Depulso** | A powerful knockback spell that creates distance and interrupts combos. |
-| **Episkey** | Susan heals a portion of her HP. Instantaneous: it leaves no opening. A cooldown keeps her from spamming it. |
+| **Episkey** | **Removed** (on request, after the stun-lock fix: on Hard her healing made her a wall). It was: Susan heals a portion of her HP, instantaneously, with a cooldown. |
 | **Hufflepuff Resolve** | Passive: greater resistance to staggering and knockdown. |
 
 ## Fighting style
@@ -27,7 +27,7 @@ the other side.
 - Blocks frequently. She also uses Protego against spells, though she parries less than Cho (changed on request).
 - Punishes Malfoid for blindly rushing into melee.
 - Uses Impedimenta to interrupt aggression, and alternates it with Expelliarmus at range (added on request).
-- Heals with Episkey when injured, where she stands (changed from retreating to cast it).
+- ~~Heals with Episkey when injured~~: removed on request (she no longer heals).
 - Becomes more determined as her health drops, not more aggressive.
 
 The challenge is breaking her defence and stopping her from recovering.
@@ -65,4 +65,4 @@ it becomes particularly valuable in the later Bellatrix and Voldemort battles.
 
 - **Spell rewards:** Ginny teaches Expelliarmus and Cho teaches Protego. Susan teaches nothing yet, because Malfoid's Episkey is not built.
 - **Campaign order:** the game follows the order above (`src/game/campaign.ts`). Susan is stage 3; after her the campaign shows Luna Lovegood as the next duel, marked coming soon.
-- **Susan's reward:** beating her teaches nothing yet, because Malfoid's Episkey is not built (Susan's own Episkey is).
+- **Susan's reward:** beating her teaches nothing yet, because Malfoid's Episkey is not built. Susan herself no longer heals (removed on request).

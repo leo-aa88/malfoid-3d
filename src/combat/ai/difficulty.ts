@@ -12,6 +12,9 @@ export interface DifficultyLevel {
   /** Luna's kit at this level: Confundo's confusion (s), birds per Oppugno, copies per Illusio
    *  and how long they last (s) */
   luna?: { confuse: number; birds: number; copies: number; illusionLife: number };
+  /** Hermione's kit at this level: plates per barrage and each one's damage, the barrage's
+   *  cooldown (s), Petrificus Totalus's bind and its cooldown (s) */
+  hermione?: { plates: number; plateDamage: number; platesCooldown: number; petrify: number; petrifyCooldown: number };
 }
 
 /*
@@ -145,9 +148,10 @@ export const CHO_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
  * Susan: a defensive duellist who stands her ground, guards a lot (and holds her guard), meets
  * a rush with Impedimenta and a crowding with Depulso, strikes first at someone who rushes into
  * her reach, alternates Impedimenta with Expelliarmus at range, meets a spell she sees coming
- * with Protego (or her guard), and heals with Episkey when hurt (instantaneous). Slow,
- * deliberate strikes; no dodging. Her Hufflepuff Resolve (FighterTarget.resolve)
- * makes staggers mere flinches. Levels sharpen her reactions and guard, and her healing.
+ * with Protego (or her guard). Slow, deliberate strikes; no dodging. Her Hufflepuff Resolve
+ * (FighterTarget.resolve) makes staggers mere flinches. Levels sharpen her reactions and guard.
+ * (She healed with Episkey until it was removed on request: on Hard it made her a wall; the
+ * healing values below are unused while she has no Episkey.)
  */
 const SUSAN_EASY: AIParams = {
   detectRange: 120,
@@ -187,7 +191,7 @@ const SUSAN_EASY: AIParams = {
 };
 
 export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
-  easy: { label: 'Easy', hp: 120, ai: SUSAN_EASY, heal: { amount: 20, charges: 2 } },
+  easy: { label: 'Easy', hp: 120, ai: SUSAN_EASY },
   normal: {
     label: 'Normal',
     hp: 150,
@@ -202,7 +206,6 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.6, pushChance: 0.55, healChance: 0.75, spellBlockChance: 0.55,
         shieldChance: 0.4, parryChance: 0.1, timingError: 0.08 },
     },
-    heal: { amount: 25, charges: 2 },
   },
   hard: {
     label: 'Hard',
@@ -223,7 +226,6 @@ export const SUSAN_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       defensive: { ...SUSAN_EASY.defensive!, rushChance: 0.75, pushChance: 0.7, healChance: 0.85, spellBlockChance: 0.7,
         shieldChance: 0.5, parryChance: 0.18, timingError: 0.05 },
     },
-    heal: { amount: 30, charges: 3 },
   },
 };
 
@@ -319,5 +321,97 @@ export const LUNA_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
         disarmPunish: 0.5, dodgeClipChance: 0.4, escapeChance: 0.6, shieldChance: 0.45, parryChance: 0.15, timingError: 0.05 },
     },
     luna: { confuse: 3.0, birds: 6, copies: 3, illusionLife: 10 },
+  },
+};
+
+/*
+ * Hermione: the hardest student by a considerable margin. Precise, not random: she reads casts
+ * (Protego, often timed to reflect), disarms into them, steals a dropped wand (Accio), binds an
+ * opponent who exposes herself and follows it up, and fires her plate barrage where Malfoid
+ * will be. Her reactions keep human timing (no input reading); her edge is her choices. Her
+ * strongest attacks need a wind-up that can be interrupted. Harder levels: more plates, a longer
+ * bind, faster reads, better parries, more health.
+ */
+const HERMIONE_EASY: AIParams = {
+  detectRange: 120,
+  meleeRange: 0.72,
+  castRange: [2.4, 11.0],
+  reaction: [0.24, 0.45],
+  attackCooldown: [0.9, 1.5],
+  comboChance: 0.4,
+  blockChance: 0.35,
+  blockTime: [0.4, 0.7],
+  castChance: 0.55,
+  retreatTime: [0.6, 1.0],
+  retreatAfterHits: 2,
+  recover: 0.3,
+  runDistance: 4.5,
+  punishChance: 0.3,
+  counterChance: 0.25,
+  dodgeChance: 0.3,
+  smartCombos: true,
+  pressure: 0,
+  guardAfterHit: 0.35,
+  prodigy: {
+    preferredRange: [4.0, 7.5],
+    circleSwitch: [0.8, 1.6],
+    shieldChance: 0.4,
+    parryChance: 0.15,
+    timingError: 0.08,
+    chainChance: 0.35,
+    disarmPunish: 0.3,
+    petrifyChance: 0.18,
+    followUpChance: 0.6,
+    platesChance: 0.3,
+    platesRange: [3.5, 12.0],
+    accioChance: 0.5,
+    kiteRange: 2.5,
+    dodgeClipChance: 0.3,
+    lead: 0.6,
+    adapt: 0.3,
+  },
+};
+
+export const HERMIONE_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
+  easy: { label: 'Easy', hp: 170, ai: HERMIONE_EASY,
+    hermione: { plates: 8, plateDamage: 3, platesCooldown: 15, petrify: 1.7, petrifyCooldown: 15 } },
+  normal: {
+    label: 'Normal',
+    hp: 220,
+    ai: {
+      ...HERMIONE_EASY,
+      reaction: [0.17, 0.32],
+      blockChance: 0.5,
+      castChance: 0.7,
+      punishChance: 0.5,
+      counterChance: 0.4,
+      dodgeChance: 0.45,
+      guardAfterHit: 0.5,
+      prodigy: { ...HERMIONE_EASY.prodigy!, shieldChance: 0.55, parryChance: 0.25, timingError: 0.06, chainChance: 0.55,
+        disarmPunish: 0.45, petrifyChance: 0.3, followUpChance: 0.8, platesChance: 0.4, accioChance: 0.7,
+        dodgeClipChance: 0.4, lead: 0.85, adapt: 0.5 },
+    },
+    hermione: { plates: 10, plateDamage: 3, platesCooldown: 12, petrify: 2.0, petrifyCooldown: 12 },
+  },
+  hard: {
+    label: 'Hard',
+    hp: 260,
+    ai: {
+      ...HERMIONE_EASY,
+      reaction: [0.12, 0.24],
+      attackCooldown: [0.6, 1.1],
+      comboChance: 0.6,
+      blockChance: 0.6,
+      castChance: 0.8,
+      punishChance: 0.65,
+      counterChance: 0.55,
+      dodgeChance: 0.55,
+      guardAfterHit: 0.6,
+      recover: 0.22,
+      prodigy: { ...HERMIONE_EASY.prodigy!, shieldChance: 0.65, parryChance: 0.35, timingError: 0.04, chainChance: 0.7,
+        disarmPunish: 0.6, petrifyChance: 0.45, followUpChance: 1.0, platesChance: 0.5, accioChance: 0.9,
+        dodgeClipChance: 0.5, lead: 1.0, adapt: 0.7 },
+    },
+    hermione: { plates: 12, plateDamage: 4, platesCooldown: 10, petrify: 2.2, petrifyCooldown: 9 },
   },
 };

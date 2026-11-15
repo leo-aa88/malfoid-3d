@@ -121,6 +121,48 @@ export interface ChaoticStyle {
 }
 
 /**
+ * A prodigy's habits (Hermione), on top of the shared ones: the hardest student, precise rather
+ * than random. She keeps a caster's distance, reads every cast (Protego, often timed to send it
+ * back), disarms into casts, summons a dropped wand (Accio), binds an opponent who exposes
+ * herself (Petrificus Totalus) and follows it up, and fires her plate barrage, aimed where the
+ * opponent will be. Her reactions keep human timing: her edge is her choices. Chances are per
+ * opportunity, times in s, distances in m.
+ */
+export interface ProdigyStyle {
+  /** she keeps the opponent this far away, circling inside it */
+  preferredRange: [number, number];
+  circleSwitch: [number, number];
+  /** a spell she sees cast at her, with Protego ready: the shield (well ahead, or timed to reflect) */
+  shieldChance: number;
+  parryChance: number;
+  timingError: number;
+  /** after her shield stopped / reflected a spell: Petrificus straight back (a chain) */
+  chainChance: number;
+  /** Expelliarmus into the opponent's cast (early in it) */
+  disarmPunish: number;
+  /** Petrificus at an opponent who exposes herself (recovering, just cast, her shield cooling
+   *  down, repositioning fast); its base chance per decision otherwise is a third of this */
+  petrifyChance: number;
+  /** while the opponent is bound: one follow-up (Expelliarmus while she has her wand), and the
+   *  plates' wind-up timed so they fly as she is back on her feet */
+  followUpChance: number;
+  /** the plate barrage, at range (never with the opponent close enough to interrupt it) */
+  platesChance: number;
+  platesRange: [number, number];
+  /** Accio at the opponent's wand lying within ACCIO's range */
+  accioChance: number;
+  /** holding the opponent's wand she lets her come this close before backing off (m: the
+   *  opponent must land a strike to win it back; kiting her made that all but impossible) */
+  kiteRange: number;
+  /** an attack she sees coming in reach: a quick step out of it (dodge clips) */
+  dodgeClipChance: number;
+  /** aim: fraction of the predicted lead she uses, and how far (m) she aims to the side the
+   *  opponent habitually dodges to, once she has learned it */
+  lead: number;
+  adapt: number;
+}
+
+/**
  * how close to facing the opponent she must be before she attacks (rad); further off, she turns
  * first (after picking up her wand she faces where it lay: casting at once sent the spell there).
  * A spell's own start turns her the rest of the way; melee auto-faces within 60 degrees.
@@ -173,6 +215,8 @@ export interface AIParams {
   defensive?: DefensiveStyle;
   /** a chaotic duellist's extra habits (Luna) */
   chaotic?: ChaoticStyle;
+  /** a prodigy's extra habits (Hermione) */
+  prodigy?: ProdigyStyle;
 }
 
 export const GINNY_AI: AIParams = {
@@ -241,6 +285,26 @@ export class FighterAI {
   illusions: { readonly active: boolean } | null = null;
   /** keeps a point she heads for inside the arena (its own boundary; null: anywhere) */
   keepIn: ((p: THREE.Vector3) => void) | null = null;
+  /** a prodigy's spells (Hermione's): the body-bind, the Summoning Charm, the plate barrage */
+  petrify: SpellDef | null = null;
+  accio: SpellDef | null = null;
+  plates: SpellDef | null = null;
+  /** the opponent's Protego (a prodigy presses while it cools down) */
+  opponentShield: Protego | null = null;
+  /** spells she has planned for a moment from now (a chain, a follow-up): cast when due */
+  private plans: { spell: SpellDef; at: number; turn: number }[] = [];
+  private foeWasBound = false;
+  /** where she wants to face instead of the opponent (Accio: the wand on the floor); null: the opponent */
+  private faceGoal: number | null = null;
+  /** the opponent's ground velocity (smoothed, m/s) and which way she habitually dodges: -1 her
+   *  left .. +1 her right, as seen from here (a prodigy's aim learns it) */
+  readonly foeVel = new THREE.Vector3();
+  private readonly foePrev = new THREE.Vector3();
+  private foeSeen = false;
+  habit = 0;
+  private habitClock = 0;
+  /** something of hers is flying at the opponent (her plates): dodges then teach her aim */
+  threatOut: (() => boolean) | null = null;
   private burstLeft = 0;                          // quick actions left in a burst (chaotic)
   /** a spell she chose but first had to turn for (chaotic): she sees it through, not rerolls it */
   private intent: SpellDef | null = null;
@@ -293,6 +357,12 @@ export class FighterAI {
     this.guardAt = -1;
     this.burstLeft = 0;
     this.intent = null;
+    this.plans.length = 0;
+    this.foeWasBound = false;
+    this.faceGoal = null;
+    this.foeSeen = false;
+    this.foeVel.set(0, 0, 0);
+    this.habit = 0;
     this.self.standClip = null;
     if (!on) {
       this.self.stop();
@@ -301,8 +371,13 @@ export class FighterAI {
     }
   }
 
-  /** her shield stopped (or reflected) a spell: an evasive duellist may answer at once */
+  /** her shield stopped (or reflected) a spell: an evasive duellist may answer at once, a prodigy
+   *  chains Petrificus onto it */
   shieldResult(result: 'reflect' | 'absorb'): void {
+    const pr = this.params.prodigy;
+    if (pr && this.active && this.petrify && Math.random() < pr.chainChance * (result === 'reflect' ? 1 : 0.6)) {
+      this.planCast(this.petrify, rand(0.3, 0.5));
+    }
     const ev = this.params.evasive;
     if (!ev || !this.active) return;
     if (Math.random() < ev.counterChance + (result === 'reflect' ? 0.2 : 0)) this.counterAt = rand(ev.counterDelay[0], ev.counterDelay[1]);
@@ -328,6 +403,7 @@ export class FighterAI {
       this.closing += (v - this.closing) * (1 - Math.exp(-8 * dt));
     }
     this.prevDist = dist;
+    this.track(dt);
     const df = P.defensive;
     if (df && this.closing > df.rushSpeed && dist >= df.rushRange[0] * 0.5 && dist <= df.rushRange[1]) this.rushAt = this.clock;
 
@@ -344,6 +420,7 @@ export class FighterAI {
       this.shieldAt = -1;                            // a hit breaks her concentration
       me.standClip = null;                           // (and snaps her out of a daydream)
       this.burstLeft = 0;
+      this.plans.length = 0;
       this.shield?.lower();
       if (this.state !== 'STAGGER') {
         me.stop();
@@ -415,10 +492,11 @@ export class FighterAI {
           } else if (Math.random() < df.spellBlockChance) {
             this.guardAt = Math.max(0, arrive - rand(0.18, 0.3));
           }
-        } else if (P.chaotic && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting
-            && this.shield?.ready && this.state !== 'PROTEGO' && Math.random() < P.chaotic.shieldChance) {
-          // a chaotic duellist with Protego (Luna): the shield, well ahead or (now and then) timed
-          const ch = P.chaotic;
+        } else if ((P.chaotic || P.prodigy) && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting
+            && this.shield?.ready && this.state !== 'PROTEGO' && Math.random() < (P.chaotic ?? P.prodigy)!.shieldChance) {
+          // a chaotic duellist (Luna) or a prodigy (Hermione) with Protego: the shield, well ahead
+          // or timed to send it back
+          const ch = (P.chaotic ?? P.prodigy)!;
           const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           const parry = Math.random() < ch.parryChance;
           if (parry || arrive > PROTEGO.perfectWindow + 0.05) {
@@ -522,6 +600,34 @@ export class FighterAI {
       }
     }
 
+    // a prodigy: the opponent just went down bound: a follow-up and the plates (once per bind)
+    const pr = P.prodigy;
+    const bound = this.opponent.petrified;
+    if (pr && bound && !this.foeWasBound && Math.random() < pr.followUpChance) this.planFollowUp();
+    this.foeWasBound = bound;
+    // planned spells, when due (turning first; given up if it takes too long). Every plan counts
+    // down (a later one doesn't wait behind an earlier one)
+    for (const p of this.plans) p.at -= dt;
+    if (this.plans.length && !me.reacting && !this.combat.busy && !this.spells.isCasting && !me.dodging
+        && this.state !== 'PROTEGO') {
+      const p = this.plans[0];
+      if (p.at <= 0) {
+        if (!this.spells.canCast(p.spell) || dist > p.spell.aimRange) {
+          if (p.at < -1.0) this.plans.shift();          // (its cooldown may still be running: wait a moment)
+        } else if (!this.facing(angle, AIM.spell)) {
+          me.stop();
+          me.lookAt(angle);
+          if ((p.turn += dt) > COUNTER_TURN) this.plans.shift();
+        } else {
+          this.plans.shift();
+          if (this.spells.cast(p.spell)) {
+            this.go('CAST');
+            return;
+          }
+        }
+      }
+    }
+
     // second press of a combo
     if (this.pendingSecond) {
       this.pendingSecond.at -= dt;
@@ -618,7 +724,7 @@ export class FighterAI {
       }
       case 'CIRCLE': {
         // round the opponent, keeping her preferred distance; a trunk ahead turns her back
-        const range = P.evasive?.preferredRange ?? P.chaotic!.roamRange;
+        const range = P.evasive?.preferredRange ?? P.prodigy?.preferredRange ?? P.chaotic!.roamRange;
         const to = this.dirToOpponent();
         const mid = (range[0] + range[1]) / 2;
         const radial = Math.max(-0.7, Math.min(0.7, (dist - mid) * 0.5));
@@ -688,7 +794,8 @@ export class FighterAI {
           }
           me.move(back, false, angle);
         }
-        if (this.timer <= 0 || dist > P.castRange[1] || (ev && dist > ev.preferredRange[0] + 0.5)) {
+        if (this.timer <= 0 || dist > P.castRange[1] || (ev && dist > ev.preferredRange[0] + 0.5)
+            || (P.prodigy && !this.holdingFoeWand && dist > P.prodigy.preferredRange[0] + 0.5)) {
           me.stop();
           this.go('OBSERVE');
         }
@@ -696,7 +803,7 @@ export class FighterAI {
       }
       default:
         me.stop();
-        me.lookAt(angle);
+        me.lookAt(this.faceGoal ?? angle);
     }
 
     if (this.think > 0) return;
@@ -812,9 +919,14 @@ export class FighterAI {
       const caught = this.chaotic(ch, dist, angle);
       if (caught) return;
     }
+    const pr = P.prodigy;
+    if (pr) {
+      const acted = this.prodigy(pr, dist, angle);
+      if (acted) return;
+    }
     // her spell: only while the opponent still has a wand (an evasive duellist's Stupefy
     // isn't about the wand), from a distance, in clear sight
-    const ranged = ch ? null : this.rangedSpell(dist);              // (a chaotic duellist chose hers above)
+    const ranged = ch || pr ? null : this.rangedSpell(dist);        // (a chaotic duellist / a prodigy chose hers above)
     if (ranged && (this.opponent.hasWand || ev || df) && dist >= P.castRange[0] && dist <= P.castRange[1]
         && this.lineOfSight() && Math.random() < P.castChance) {
       if (!this.turnedTo(angle, AIM.spell)) return;
@@ -843,6 +955,22 @@ export class FighterAI {
       } else {
         this.go('OBSERVE');
       }
+      return;
+    }
+    // a prodigy keeps a caster's distance: off when crowded, in when far, circling between
+    if (pr) {
+      const keep = this.holdingFoeWand ? pr.kiteRange : pr.preferredRange[0];
+      if (dist < keep) {
+        // (she walks back: no quick back-step, which chained into a fast slide; removed on request)
+        this.go('RETREAT', rand(0.5, 0.9));
+        return;
+      }
+      if (dist > pr.preferredRange[1]) {
+        this.go('APPROACH', 1.2);
+        return;
+      }
+      if (this.state !== 'CIRCLE' || Math.random() < 0.3) this.circleSide = Math.random() < 0.5 ? -1 : 1;
+      this.go('CIRCLE', rand(pr.circleSwitch[0], pr.circleSwitch[1]));
       return;
     }
     // a chaotic duellist roams: skipping about her ring, circling, standing and staring
@@ -989,6 +1117,185 @@ export class FighterAI {
       if (this.dodgeClip(Math.random() < 0.4 ? 'dodge_back' : this.freeSide())) return true;
     }
     return false;
+  }
+
+  /**
+   * a prodigy's own choices, before the usual ones (true: she has acted): the wand on the floor,
+   * a cast to disarm, an opponent to bind, the plates
+   */
+  private prodigy(pr: ProdigyStyle, dist: number, angle: number): boolean {
+    const me = this.self;
+    const foe = this.opponent;
+    // a spell she already chose (and turned for): cast it now if she still can
+    const intent = this.intent;
+    this.intent = null;
+    if (intent && this.spells.canCast(intent) && dist <= intent.aimRange && this.lineOfSight()) {
+      if (!this.turnedTo(angle, AIM.spell)) {
+        this.intent = intent;
+        return true;
+      }
+      if (this.spells.cast(intent)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // Accio: the opponent's wand is on the floor, in range: summon it (turned to it first)
+    const ac = this.accio;
+    if (ac && foe.wand.state === 'dropped' && this.spells.canCast(ac)) {
+      const w = foe.wand.getWorldPosition(this.tmp2);
+      const wd = Math.hypot(w.x - me.position.x, w.z - me.position.z);
+      // (decided once: turning to the wand, she keeps at it)
+      if (wd <= ac.aimRange && (this.faceGoal !== null || Math.random() < pr.accioChance)) {
+        const a = Math.atan2(w.x - me.position.x, w.z - me.position.z);
+        if (!this.facing(a, 0.35)) {
+          me.stop();
+          this.faceGoal = a;
+          me.lookAt(a);
+          this.go('OBSERVE');
+          this.think = TURN_CHECK;
+          return true;
+        }
+        this.faceGoal = null;
+        if (this.spells.cast(ac)) {
+          this.go('CAST');
+          return true;
+        }
+      }
+    }
+    this.faceGoal = null;
+    const os = this.opponentSpells;
+    // Expelliarmus into the opponent's cast (early in it: there is time to beat the release)
+    const alt = this.altSpell;
+    if (alt && os?.isCasting && os.castTime < 0.25 && foe.hasWand && dist <= alt.aimRange
+        && this.spells.canCast(alt) && this.lineOfSight() && Math.random() < pr.disarmPunish) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(alt);
+      if (this.spells.cast(alt)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // Petrificus at an opponent who exposes herself
+    const pt = this.petrify;
+    const shieldDown = !!this.opponentShield && !this.opponentShield.up && !this.opponentShield.ready;
+    // (a wandless opponent is not an opening in itself: binding her again and again while she
+    // chased her wand was a death spiral)
+    const exposed = !!foe.reacting || shieldDown
+      || (!!os?.isCasting && os.castTime > (os.castingSpell?.release ?? 0.4)) || foe.moveSpeed > 1.6;
+    if (pt && !foe.petrified && dist >= 1.4 && dist <= pt.aimRange && this.spells.canCast(pt) && this.lineOfSight()
+        && Math.random() < pr.petrifyChance * (exposed ? 1 : 0.33)) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(pt);
+      if (this.spells.cast(pt)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // the plates: at range, never with her close enough to interrupt the wind-up (and not into
+    // a raised shield); more often while the opponent's Protego cools down or she has no wand
+    const pl = this.plates;
+    const up = !!this.opponentShield?.up;
+    if (pl && !foe.petrified && dist >= pr.platesRange[0] && dist <= pr.platesRange[1] && !up && this.spells.canCast(pl)
+        && this.lineOfSight() && Math.random() < pr.platesChance * (shieldDown || !foe.hasWand ? 1.6 : 1)) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(pl);
+      if (this.spells.cast(pl)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // Expelliarmus at a duellist with her wand (her usual ranged spell)
+    if (alt && foe.hasWand && dist >= this.params.castRange[0] && dist <= Math.min(this.params.castRange[1], alt.aimRange)
+        && this.spells.canCast(alt) && this.lineOfSight() && Math.random() < this.params.castChance * 0.5) {
+      if (!this.turnedTo(angle, AIM.spell)) return this.mean(alt);
+      if (this.spells.cast(alt)) {
+        this.go('CAST');
+        return true;
+      }
+    }
+    // an attack she sees coming in reach: a quick step out of it, to the side (never back)
+    if (this.noticed && dist < 1.6 && Math.random() < pr.dodgeClipChance) {
+      this.noticed = false;
+      if (this.dodgeClip(this.freeSide())) return true;
+    }
+    return false;
+  }
+
+  /** the opponent just went down bound: one follow-up, either Expelliarmus at once (while she
+   *  has her wand) or the plates timed for her getting up (both: disarmed, she couldn't raise
+   *  Protego against the plates) */
+  private planFollowUp(): void {
+    const foe = this.opponent;
+    const left = this.petrify?.petrify?.duration ?? 2.0;
+    if (this.altSpell && foe.hasWand && (!this.plates || Math.random() < 0.5)) {
+      this.planCast(this.altSpell, rand(0.3, 0.5));
+    } else if (this.plates) {
+      // the release (the first plate) as she is back on her feet: bound, then getting up
+      const up = left + foe.clipDuration('get_up');
+      this.planCast(this.plates, Math.max(0.6, up - this.plates.release - 0.05));
+    }
+  }
+
+  private planCast(spell: SpellDef, at: number): void {
+    if (this.plans.some((p) => p.spell === spell)) return;
+    this.plans.push({ spell, at, turn: 0 });
+    this.plans.sort((a, b) => a.at - b.at);
+  }
+
+  /** she holds the opponent's wand (Accio) */
+  get holdingFoeWand(): boolean {
+    const s = this.opponent.wand.state;
+    return s === 'held' || s === 'summoned';
+  }
+
+  /**
+   * the opponent's velocity, and her dodging habit: while something of hers flies at the
+   * opponent, a quick move across her line counts towards that side
+   */
+  private track(dt: number): void {
+    const p = this.opponent.position;
+    if (!this.foeSeen) {
+      this.foePrev.copy(p);
+      this.foeSeen = true;
+      return;
+    }
+    if (dt <= 0) return;
+    const vx = (p.x - this.foePrev.x) / dt, vz = (p.z - this.foePrev.z) / dt;
+    this.foePrev.copy(p);
+    if (Math.hypot(vx, vz) > 8) return;                          // (a teleport: a new round)
+    const k = 1 - Math.exp(-10 * dt);
+    this.foeVel.x += (vx - this.foeVel.x) * k;
+    this.foeVel.z += (vz - this.foeVel.z) * k;
+    this.habitClock -= dt;
+    const pr = this.params.prodigy;
+    if (!pr || this.habitClock > 0 || !this.threatOut?.()) return;
+    const lat = this.lateral(this.foeVel);
+    if (Math.abs(lat) < 1.0) return;
+    this.habitClock = 0.3;                                       // (one sample per dodge)
+    this.habit += (Math.sign(lat) - this.habit) * 0.2;
+  }
+
+  /** the opponent's sideways speed across her line from here (+: to the opponent's right as seen from here) */
+  private lateral(v: THREE.Vector3): number {
+    const to = this.dirToOpponent();
+    return -to.z * v.x + to.x * v.z;
+  }
+
+  /**
+   * where to aim something flying at `speed` from `from` at the opponent: where she will be when
+   * it arrives (her smoothed velocity times the flight, by `lead`), and towards the side she
+   * habitually dodges to (by `adapt`)
+   */
+  aimAt(from: THREE.Vector3, speed: number, out: THREE.Vector3): THREE.Vector3 {
+    const pr = this.params.prodigy;
+    const lead = pr?.lead ?? 0;
+    const p = this.opponent.position;
+    let t = Math.hypot(p.x - from.x, p.z - from.z) / speed;
+    for (let i = 0; i < 2; i++) {
+      const x = p.x + this.foeVel.x * t * lead, z = p.z + this.foeVel.z * t * lead;
+      t = Math.hypot(x - from.x, z - from.z) / speed;
+    }
+    const to = this.dirToOpponent();
+    const side = this.habit * (pr?.adapt ?? 0);
+    const aimY = this.opponent.lying ? 0.25 : 1.15;
+    return out.set(p.x + this.foeVel.x * t * lead + -to.z * side, aimY, p.z + this.foeVel.z * t * lead + to.x * side);
   }
 
   /** she chose this spell but has to turn first: she'll cast it once she faces the opponent */

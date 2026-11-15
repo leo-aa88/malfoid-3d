@@ -14,12 +14,16 @@ type FileId = 'punch_kick' | 'damage' | 'confringo' | 'expelliarmus' | 'protego'
   | 'malfoid_opening' | 'ginny_opening' | 'malfoid_win' | 'ginny_win'
   | 'malfoid_opening2' | 'cho_opening' | 'malfoid_win2' | 'cho_win' | 'stupefy' | 'ventus' | 'impedimenta' | 'episkey' | 'toasty'
   | 'malfoid_opening3' | 'susan_opening' | 'malfoid_win3' | 'susan_win'
-  | 'luna_opening' | 'malfoid_opening4' | 'malfoid_win4' | 'luna_win';
+  | 'luna_opening' | 'malfoid_opening4' | 'malfoid_win4' | 'luna_win'
+  | 'hermione_opening1' | 'malfoid_hermione_opening1' | 'hermione_opening2' | 'malfoid_hermione_opening2' | 'hermione_opening3'
+  | 'malfoid_hermione_opening3' | 'malfoid_win5' | 'hermione_win';
 const FILES: FileId[] = ['punch_kick', 'damage', 'confringo', 'expelliarmus', 'protego', 'walking',
   'malfoid_opening', 'ginny_opening', 'malfoid_win', 'ginny_win',
   'malfoid_opening2', 'cho_opening', 'malfoid_win2', 'cho_win', 'stupefy', 'ventus', 'impedimenta', 'episkey', 'toasty',
   'malfoid_opening3', 'susan_opening', 'malfoid_win3', 'susan_win',
-  'luna_opening', 'malfoid_opening4', 'malfoid_win4', 'luna_win'];
+  'luna_opening', 'malfoid_opening4', 'malfoid_win4', 'luna_win',
+  'hermione_opening1', 'malfoid_hermione_opening1', 'hermione_opening2', 'malfoid_hermione_opening2', 'hermione_opening3',
+  'malfoid_hermione_opening3', 'malfoid_win5', 'hermione_win'];
 interface Slice {
   file: FileId;
   start: number;   // s
@@ -87,6 +91,15 @@ export const BANKS = {
   malfoidOpening4: [slice('malfoid_opening4', 0, 99)],
   malfoidWin4: [slice('malfoid_win4', 0, 99)],
   lunaWin: [slice('luna_win', 0, 99)],
+  // the duel against Hermione (a longer exchange: she speaks first, three lines each)
+  hermioneOpening1: [slice('hermione_opening1', 0, 99)],
+  malfoidHermioneOpening1: [slice('malfoid_hermione_opening1', 0, 99)],
+  hermioneOpening2: [slice('hermione_opening2', 0, 99)],
+  malfoidHermioneOpening2: [slice('malfoid_hermione_opening2', 0, 99)],
+  hermioneOpening3: [slice('hermione_opening3', 0, 99)],
+  malfoidHermioneOpening3: [slice('malfoid_hermione_opening3', 0, 99)],
+  malfoidWin5: [slice('malfoid_win5', 0, 99)],
+  hermioneWin: [slice('hermione_win', 0, 99)],
 } as const;
 export type SoundId = keyof typeof BANKS;
 

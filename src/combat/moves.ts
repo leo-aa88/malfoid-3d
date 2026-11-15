@@ -33,6 +33,8 @@ export interface Move {
   missRecovery: number;
   /** finishers skip their wind-up when chained: clip start time */
   chainStart: number;
+  /** a fighter crouching ducks under it, or one in the air (jumping) clears it: it misses her */
+  avoid?: 'crouch' | 'jump';
 }
 
 const M = (m: Move): Move => m;
@@ -40,17 +42,17 @@ const M = (m: Move): Move => m;
 export const MOVES: Record<MoveId, Move> = {
   // --- openers: quick, light, flinch only
   jab: M({ id: 'jab', label: 'Jab', duration: 0.40, active: [0.07, 0.16], height: 'high', reach: 0.50, range: 0.59, width: 0.22,
-    damage: 5, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0 }),
+    damage: 5, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0, avoid: 'crouch' }),
   body_jab: M({ id: 'body_jab', label: 'Body Jab', duration: 0.42, active: [0.08, 0.18], height: 'low', reach: 0.47, range: 0.61,
     width: 0.22, damage: 5, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0 }),
   kick_low: M({ id: 'kick_low', label: 'Low Shin Kick', duration: 0.75, active: [0.22, 0.40], height: 'low',
-    reach: 0.62, range: 0.72, width: 0.25, damage: 7, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0 }),
+    reach: 0.62, range: 0.72, width: 0.25, damage: 7, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0, avoid: 'jump' }),
   kick_high: M({ id: 'kick_high', label: 'Roundhouse', duration: 0.90, active: [0.28, 0.48], height: 'high',
-    reach: 0.72, range: 0.83, width: 0.30, damage: 9, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0 }),
+    reach: 0.72, range: 0.83, width: 0.30, damage: 9, effect: 'flinch', heavy: false, missRecovery: 0, chainStart: 0, avoid: 'crouch' }),
 
   // --- finishers: each one hits differently
   cross: M({ id: 'cross', label: 'Cross', duration: 0.55, active: [0.12, 0.25], height: 'high', reach: 0.52, range: 0.62,
-    width: 0.22, damage: 11, effect: 'stagger', heavy: false, missRecovery: 0, chainStart: 0.05 }),
+    width: 0.22, damage: 11, effect: 'stagger', heavy: false, missRecovery: 0, chainStart: 0.05, avoid: 'crouch' }),
   body_hook: M({ id: 'body_hook', label: 'Body Hook', duration: 0.60, active: [0.14, 0.28], height: 'low', reach: 0.45, range: 0.53,
     width: 0.32, damage: 12, effect: 'stagger', heavy: false, missRecovery: 0, chainStart: 0.05 }),
   uppercut: M({ id: 'uppercut', label: 'Uppercut', duration: 0.65, active: [0.19, 0.33], height: 'high', reach: 0.45, range: 0.47,
@@ -58,9 +60,9 @@ export const MOVES: Record<MoveId, Move> = {
   heavy_body: M({ id: 'heavy_body', label: 'Heavy Body Punch', duration: 0.70, active: [0.18, 0.34], height: 'low',
     reach: 0.58, range: 0.65, width: 0.24, damage: 17, effect: 'knockback', heavy: true, missRecovery: 0.5, chainStart: 0.05 }),
   leg_sweep: M({ id: 'leg_sweep', label: 'Leg Sweep', duration: 0.85, active: [0.30, 0.48], height: 'low', reach: 0.62, range: 0.70,
-    width: 0.45, damage: 14, effect: 'knockdown', heavy: true, missRecovery: 0.5, chainStart: 0.04 }),
+    width: 0.45, damage: 14, effect: 'knockdown', heavy: true, missRecovery: 0.5, chainStart: 0.04, avoid: 'jump' }),
   spin_kick: M({ id: 'spin_kick', label: 'Spinning High Kick', duration: 0.95, active: [0.40, 0.60], height: 'high',
-    reach: 0.75, range: 0.72, width: 0.40, damage: 21, effect: 'knockback', heavy: true, missRecovery: 0.6, chainStart: 0.06 }),
+    reach: 0.75, range: 0.72, width: 0.40, damage: 21, effect: 'knockback', heavy: true, missRecovery: 0.6, chainStart: 0.06, avoid: 'crouch' }),
   rising_kick: M({ id: 'rising_kick', label: 'Rising Roundhouse', duration: 0.85, active: [0.26, 0.46],
     height: 'high', reach: 0.68, range: 0.75, width: 0.30, damage: 18, effect: 'knockdown', heavy: true, missRecovery: 0.55,
     chainStart: 0.06 }),

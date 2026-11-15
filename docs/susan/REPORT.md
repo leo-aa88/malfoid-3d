@@ -78,7 +78,7 @@ Episkey: the bottom-middle one shows the old 1.5 s cast.
 |---|---|---|
 | **Impedimenta** | Cold blue bolt, 4 damage and a flinch. The target is **slowed to 55 % for 2.5 s**: a slowed fighter's movement, strikes, casts and bolts run on scaled game time. A block stops it. | `spells/Impedimenta.ts` (6 s cooldown, 17 m/s) |
 | **Depulso** | Violet bolt, 9 damage, a 6 m/s knockback, 7 m range | `spells/Depulso.ts` (8 s cooldown) |
-| **Episkey** | Heals at once: no cast, nothing to interrupt, no opening. Never heals past full. 6 s between heals, and a few charges per duel. | `Episkey.ts`; amount and charges per level |
+| **Episkey** | **Removed later on request:** with the stun-lock exploit fixed, her healing made her a wall on Hard. It healed at once (no cast, no opening), 6 s apart, a few charges per duel. The charm stays in the code (`Episkey.ts`) for Malfoid's reward. | – |
 | **Expelliarmus** | Ginny's disarm (and Malfoid's), alternated with Impedimenta while Malfoid has her wand | `spells/Expelliarmus.ts` |
 | **Protego** | Cho's shield: it stops a spell, or sends it back when raised just as it arrives | `Protego.ts` (5 s cooldown) |
 | **Hufflepuff Resolve** | A stagger becomes a flinch, a knockdown becomes a knockback, and she takes 60 % of the push. Damage is unchanged. | `FighterTarget.ts` (`HUFFLEPUFF_RESOLVE`) |

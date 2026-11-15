@@ -35,9 +35,11 @@ export interface SpellDef {
   slow?: { factor: number; duration: number };
   /** a direct hit that gets through confuses the target (Confundo): her directions reversed for this long (s) */
   confuse?: { duration: number };
+  /** a direct hit that gets through binds the target (Petrificus Totalus): she falls rigid for this long (s) */
+  petrify?: { duration: number };
   /** no bolt: at the release the caster summons something instead (Oppugno's birds, Illusio's
-   *  copies), handed to SpellSystem.onSummon */
-  summon?: 'oppugno' | 'illusio';
+   *  copies, Hermione's plates, Accio on a dropped wand), handed to SpellSystem.onSummon */
+  summon?: 'oppugno' | 'illusio' | 'plates' | 'accio';
 }
 
 /** the caster as the spell system sees it (Malfoid) */
@@ -116,6 +118,9 @@ export class SpellSystem implements Reflector {
   onSound: ((s: SpellSound, at: THREE.Vector3) => void) | null = null;
   /** a summoning spell released: from the wand tip, along `dir` (aimed like a bolt), at `target` */
   onSummon: ((def: SpellDef, origin: THREE.Vector3, dir: THREE.Vector3, target: CombatTarget | null) => void) | null = null;
+  /** a cast started, or was cut short before its release (Hermione's plates rise with the cast
+   *  and fall if it is interrupted) */
+  onCast: ((def: SpellDef, phase: 'start' | 'cancel') => void) | null = null;
 
   private casting: Casting | null = null;
   private readonly flying: Flying[] = [];
@@ -175,6 +180,7 @@ export class SpellSystem implements Reflector {
       this.caster.faceToward(Math.atan2(this.v.x - this.caster.position.x, this.v.z - this.caster.position.z));
     }
     this.fx.castStart(def, this.emitter);
+    this.onCast?.(def, 'start');
     this.onSound?.('charge', this.emitter.getWorldPosition(this.v));
     this.emit({ type: 'cast', spell: def });
     return true;
@@ -188,6 +194,7 @@ export class SpellSystem implements Reflector {
     this.caster.castLock = false;
     if (this.caster.currentStrike === c.def.clip) this.caster.endStrike();
     this.fx.castEnd(c.def, false, this.emitter);
+    this.onCast?.(c.def, 'cancel');
     this.emit({ type: 'cancel', spell: c.def });
   }
 
@@ -361,6 +368,7 @@ export class SpellSystem implements Reflector {
       const disarmed = def.disarms && report.result === 'hit' && t.disarm ? t.disarm(dir) : false;
       if (def.slow && report.result === 'hit' && !report.ko) t.slow?.(def.slow.factor, def.slow.duration);
       if (def.confuse && report.result === 'hit' && !report.ko) t.confuse?.(def.confuse.duration);
+      if (def.petrify && report.result === 'hit' && !report.ko) t.petrify?.(def.petrify.duration);
       this.emit({ type: 'hit', spell: def, target: t, direct: true, report, at: at.clone(), disarmed });
       // a copy (Illusio): it only pops; the blast goes nowhere else (never into the caster)
       if (t.illusion) return;

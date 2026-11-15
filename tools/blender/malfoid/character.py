@@ -1,6 +1,6 @@
 """Which character the build makes, and everything that differs between them.
 
-  MF_CHAR=malfoid (default) | ginny | cho | susan | luna
+  MF_CHAR=malfoid (default) | ginny | cho | susan | luna | hermione
 
 Pure Python (no bpy): read by the Blender build and by tools/textures/*.py. Malfoid's
 profile holds exactly the values the pipeline was written with, so her model is
@@ -32,8 +32,9 @@ PROFILES = {
         'tie': ((0x1f, 0x5c, 0x40), (0xc6, 0xc6, 0xc9)),   # base, stripe
         'palette': {},                       # mats.PALETTE overrides
         'crest': 'Malfoid_Crest.png',
-        # her Protego (learned from Cho): the held shield pose. Clips only add to her model
-        'extra_clips': ('protego',),
+        # her Protego (learned from Cho): the held shield pose; Petrificus Totalus's fall and her
+        # getting up (Hermione binds her). Clips only add to her model
+        'extra_clips': ('protego', 'petrified', 'get_up'),
     },
     'ginny': {
         'name': 'Ginny',
@@ -218,6 +219,56 @@ PROFILES = {
         # side-step and quick dodges for her erratic movement, and the Protego pose
         'extra_clips': ('luna_idle', 'luna_skip', 'distracted', 'cast_illusio', 'cast_oppugno', 'cast_quick',
                         'strafe', 'dodge_left', 'dodge_right', 'dodge_back', 'protego'),
+    },
+    'hermione': {
+        'name': 'Hermione',
+        'prefix': 'Hermione',
+        # skin #FBE3D3: fair, a warm undertone (facial atlas)
+        'skin_warm': 0.5,
+        # warm amber brown (atlases: "Iris / Pupil (Brown)", #8A5A2E-ish): the pack's brown iris
+        # art, warmer and lighter than Ginny's
+        # (a first pass at value 0.92 read bright orange-amber once toon shaded)
+        'iris': {'src': 'Eyes_Color5', 'hue': 24.0 / 360.0, 'sat': 0.95, 'val': 0.70},
+        'brow': ((0x5a, 0x34, 0x22), (0x9a, 0x68, 0x48)),  # chestnut: natural, slightly thick
+        'lashes': 'brown',                   # medium-long, natural, dense
+        'hide_nose_mark': True,
+        'scalp': (107, 74, 58),              # chestnut root tone (#6B4A3A)
+        # light freckles across the nose and cheeks (#C58F73, "light to moderate")
+        'freckles': {'colour': (0xc5, 0x8f, 0x73), 'count': 110, 'seed': 11, 'size': (3.5, 6.0), 'alpha': (0.22, 0.42)},
+        'face_keys': (),                     # the base face as authored
+        # composed and clever: a faint, self-assured smile
+        'rest_keys': {'mouthSmileLeft': 0.12, 'mouthSmileRight': 0.12},
+        'extra_keys': ('Smile1', 'Smile2', 'Shy', 'Sad', 'Scared', 'Confused', 'Shocked', 'Excited', 'jawOpen',
+                       'mouthUpperUpLeft', 'mouthUpperUpRight', 'mouthLowerDownLeft', 'mouthLowerDownRight',
+                       'vrc.blink_Joy', 'あ', 'い', 'お', 'ワ', 'にこり', 'なごみ', 'びっくり', '照れ', '瞳大',
+                       'eyeBlinkLeft', 'eyeBlinkRight', 'mouthFunnel', 'browInnerUp', 'browOuterUpLeft',
+                       'browOuterUpRight', 'browDownLeft', 'browDownRight', 'cheekPuff'),
+        'earrings': False,                   # natural ears (atlas: no piercings needed)
+        # chestnut brown #6B4A3A (both atlases), reddish in the light; long and very voluminous,
+        # with loose defined curls (volume and curls reshape the purchased cards: assets.volumize,
+        # assets.curl_hair), half-up with a dark clip at the back (facial atlas back views)
+        # (a first ramp a third lighter read caramel-orange: the toon light lifts it ~1.5x; the
+        # curls were first a looser wave, from lower down)
+        'hair': {'ramp': ((0x22, 0x12, 0x0c), (0x3e, 0x24, 0x18), (0x55, 0x33, 0x22), (0x6a, 0x42, 0x2c), (0x8a, 0x5a, 0x3c)),
+                 'flatten': True, 'slim': False, 'part_shift': -0.010, 'half_up': True, 'frame_locks': True,
+                 'volume': {'k': 0.30, 'top': 1.44, 'full': 1.22, 'back': 0.012},
+                 'curls': {'amp': 0.013, 'wave': 0.044, 'top': 1.43, 'full': 1.28, 'seed': 5}},
+        'ribbon': 'clip',                    # a dark barrette where the half-up is gathered
+        'tie': ((0x7a, 0x1f, 0x2b), (0xd4, 0xa1, 0x3a)),   # Gryffindor maroon and gold
+        'palette': {
+            'mf_robe': ('#1c1c1c', 0.90, 0.0),
+            'mf_robe_lining': ('#7a1f2b', 0.85, 0.0),
+            'mf_tie': ('#7a1f2b', 0.75, 0.0),
+            'mf_tie_stripe': ('#d4a13a', 0.60, 0.0),
+            'mf_sweater': ('#6e6c70', 0.95, 0.0),          # grey V-neck vest (character atlas)
+            'mf_sock': ('#3b3a3e', 0.90, 0.0),             # dark grey knee socks
+            'mf_ribbon': ('#2a2420', 0.55, 0.0),           # the dark hair clip
+        },
+        'crest': 'Hermione_Crest.png',
+        # her clips (combat.EXTRA_CLIPS), in her model only: the plates' levitation and barrage,
+        # Accio, Cho's flick (Petrificus), the side-step and dodges, and the Protego pose
+        'extra_clips': ('hermione_idle', 'cast_plates', 'cast_accio', 'cast_quick', 'strafe', 'dodge_left', 'dodge_right',
+                        'dodge_back', 'protego'),
     },
 }
 
