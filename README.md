@@ -59,9 +59,10 @@ Each opponent has her arena:
 - **Herbology Greenhouse** (Susan): a finite Victorian glasshouse generated in code.
   - **Structure:** a brick plinth, iron-framed glass walls and a barrel-vaulted glass roof.
   - **Planting:** potting benches and staging full of potted plants along both long walls,
-    planters of palms at the ends, hanging baskets, ivy and Hufflepuff banners.
+    planters of palms at the ends (a path through the east one to the door), hanging baskets, ivy
+    and Hufflepuff banners.
   - **The fight:** on the stone floor in the middle. The fighters can't walk into the benches
-    or planters, spells burst on the plants, and the camera never stands behind the plants.
+    or planters (they can walk up the path to the closed door), spells burst on the plants, and the camera never stands behind the plants.
   - **Outside:** the Hogwarts grounds and castle, seen through the glass.
   - See `docs/greenhouse/REPORT.md`; all values are in `src/scene/greenhouse/config.ts`.
 - **Ravenclaw Common Room** (Luna): a finite, round tower room generated in code, at night.

@@ -60,6 +60,11 @@ export const GREENHOUSE_CONFIG = {
   potColour: '#b4643f',
   /** the big planters closing each end (m): depth along x */
   planterDepth: 2.2,
+  /** half width (m) of the flagstone path through the east planter to the doorway (the doorway
+   *  itself is 1 m either side of the middle); fighters may walk up it to the door */
+  doorPath: 1.3,
+  /** the beds' ends beside that path: no palms this far from it (m) (low plants only) */
+  pathClear: 2.2,
   /** hanging baskets under the vault (count along each side of the ridge) */
   baskets: 6,
   /** wall posts with climbing ivy (every nth post) */

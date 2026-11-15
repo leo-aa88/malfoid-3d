@@ -22,7 +22,8 @@ The duel camera's view. Behind the fighters:
   - Iron-framed glass walls (posts every 2 m, three glazing bars per bay, a transom rail).
   - A segmental barrel vault: 3.8 m eaves, 7.4 m crown, ribs over every post, purlins, and ridge
     cresting with finials.
-  - The east gable has an open doorway with two half-open glazed doors.
+  - The east gable has a doorway with two closed glazed doors (panelled below, brass handles).
+    At first the doors stood half open, and the east planter ran across in front of them.
 - **Glass:** up to the transom the panes are frosted. They read as glass, and they give the
   fighters a calm backdrop. The upper panes and the roof are nearly clear.
 - **Floor:** stone flags in running courses, with moss and damp patches, in a generated texture.
@@ -32,7 +33,11 @@ The duel camera's view. Behind the fighters:
   - **On top:** seedling trays, yellow watering cans and stacks of empty pots.
   - **Underneath:** big pots and compost sacks.
 - **Ends:** raised brick planters, with palms at the back and broad-leaved plants, ferns and
-  flowers in front.
+  flowers in front. The east planter is two beds, with a flagstone path (2.6 m wide) between them
+  to the door. No palms stand within 2.2 m of the path: from the duel camera in the corner, one
+  there hid a fighter on the path.
+
+  ![door](door.png)
 - **Overhead:** twelve hanging baskets under the vault.
 - **Walls:** ivy up every third wall post, a Hufflepuff banner on each gable and two along each
   long wall. The banners reuse the pitch's cloth.
@@ -47,7 +52,7 @@ The duel camera's view. Behind the fighters:
 ### Gameplay
 
 - **Fighters:** they stay on the stone floor between the bench fronts and the planters
-  (|x| ≤ 13.35 m, |z| ≤ 8.45 m).
+  (|x| ≤ 13.35 m, |z| ≤ 8.45 m), and up the path to the door (to x 15.55 m, |z| ≤ 0.85 m).
 - **Spells:** they burst on the bench plants (up to 1.8 m) and the planters. Beyond those, the
   glass walls are solid too.
 - **Camera:** it stays on the floor too, never behind the plants. Near a bench it watches from

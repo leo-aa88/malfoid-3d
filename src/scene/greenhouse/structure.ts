@@ -127,17 +127,16 @@ export function buildFrame(cfg: GreenhouseConfig, kit: Kit, fine: Kit): void {
     fine.beam(V(x, cfg.transom, -W), V(x, cfg.transom, s > 0 ? -1.0 : W), cfg.bar * 1.5, cfg.bar * 1.5, iron);
     if (s > 0) {
       fine.beam(V(x, cfg.transom, 1.0), V(x, cfg.transom, W), cfg.bar * 1.5, cfg.bar * 1.5, iron);
-      // the doorway: posts, lintel, a fanlight bar, two half-open glazed doors
+      // the doorway: posts, lintel, and two closed glazed doors (a meeting stile, rails, a
+      // panelled lower part, brass handles)
       for (const t of [-1, 1]) kit.beam(V(x, 0, t * 1.0), V(x, 2.5, t * 1.0), cfg.rib, cfg.rib, iron);
       kit.beam(V(x, 2.5, -1.0), V(x, 2.5, 1.0), cfg.rib, cfg.rib, iron);
+      kit.beam(V(x, 0, 0), V(x, 2.45, 0), cfg.bar * 1.8, cfg.bar * 1.8, iron);
+      for (const y of [0.9, 2.4]) kit.beam(V(x, y, -1.0), V(x, y, 1.0), cfg.bar * 1.8, cfg.bar * 1.8, iron);
+      kit.box(x, 0.45, 0, 0.05, 0.9, 2.0, iron);
       for (const t of [-1, 1]) {
-        const hinge = V(x, 0, t * 1.0);
-        const yaw = t * 0.9;
-        const dz = -t * Math.cos(yaw) * 0.95, dx = Math.sin(yaw) * 0.95;
-        const tip = V(x + dx, 0, t * 1.0 + dz);
-        kit.beam(V(tip.x, 0, tip.z), V(tip.x, 2.4, tip.z), cfg.bar * 1.5, cfg.bar * 1.5, iron);
-        kit.beam(V(hinge.x, 2.4, hinge.z), V(tip.x, 2.4, tip.z), cfg.bar * 1.5, cfg.bar * 1.5, iron);
-        kit.beam(V(hinge.x, 0.9, hinge.z), V(tip.x, 0.9, tip.z), cfg.bar * 1.5, cfg.bar * 1.5, iron);
+        kit.beam(V(x, 0.9, t * 0.5), V(x, 2.4, t * 0.5), cfg.bar * 1.2, cfg.bar * 1.2, iron);
+        kit.add(new THREE.SphereGeometry(0.035, 8, 6), new THREE.Matrix4().makeTranslation(x - 0.05, 1.05, t * 0.1), '#c9a24a');
       }
     }
   }
@@ -191,15 +190,17 @@ export function buildGlass(cfg: GreenhouseConfig): THREE.Mesh[] {
     if (s > 0) {
       rect(-W, -1.0);
       rect(1.0, W);
+      // the closed doors' glass, above their panelled lower part
+      const d = new THREE.Shape();
+      d.moveTo(-1.0, 0.9);
+      d.lineTo(1.0, 0.9);
+      d.lineTo(1.0, Tr);
+      d.lineTo(-1.0, Tr);
+      d.lineTo(-1.0, 0.9);
+      low.push(place(d, s));
     } else rect(-W, W);
     const hi = new THREE.Shape();
     hi.moveTo(-W, Tr);
-    if (s > 0) {
-      hi.lineTo(-1.0, Tr);
-      hi.lineTo(-1.0, 2.5);
-      hi.lineTo(1.0, 2.5);
-      hi.lineTo(1.0, Tr);
-    }
     hi.lineTo(W, Tr);
     hi.lineTo(W, E);
     for (let i = pts.length - 1; i >= 0; i--) hi.lineTo(pts[i].x, pts[i].y);
