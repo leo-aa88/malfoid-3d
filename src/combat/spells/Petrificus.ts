@@ -40,9 +40,10 @@ export const PETRIFICUS_LOOK: SpellLook = {
   tint: (r, g, b) => [0.45 + 0.4 * r * r, 0.65 + 0.3 * g, 0.95 + 0.05 * b],
   bolt: 0.04,
   explosion: {
-    fireball: 0.22, ring: 0.75, duration: 0.3, sparks: 0.45,
+    // (small: a big white burst hid the very moment she is bound)
+    fireball: 0.13, ring: 0.5, duration: 0.25, sparks: 0.35,
     fire: [new THREE.Color(0.2, 0.35, 0.7), new THREE.Color(0.55, 0.78, 1.0), new THREE.Color(0.95, 0.98, 1.0)],
-    flash: new THREE.Color(0.85, 0.92, 1.0), ringColour: new THREE.Color(0.6, 0.8, 1.0),
+    flash: new THREE.Color(0.45, 0.55, 0.7), ringColour: new THREE.Color(0.6, 0.8, 1.0),
   },
   blastLight: 0,
   lights: false,

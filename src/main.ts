@@ -5,6 +5,7 @@ import { ForestArena } from './scene/forest/ForestArena';
 import { PitchArena } from './scene/pitch';
 import { GreenhouseArena } from './scene/greenhouse';
 import { RavenclawArena } from './scene/ravenclaw';
+import { GreatHallArena } from './scene/greathall';
 import type { Arena } from './scene/arena';
 import { CameraController } from './camera/CameraController';
 import { Malfoid } from './character/Malfoid';
@@ -246,6 +247,7 @@ async function start(): Promise<void> {
       opp.reset();
       gatherWands();
       spells.reset();
+      greatHall.restock();                            // every plate back on the tables
       // side by side across the screen (the camera looks along -z): Malfoid on the left
       // facing right, her opponent on the right facing left (a bounded arena: at its centre)
       if (arena?.finite) malfoid.root.position.set(arena.spawn.x - opp.def.startDistance / 2, 0, arena.spawn.z);
@@ -524,9 +526,11 @@ async function start(): Promise<void> {
   // the arenas (each opponent's definition names hers; training keeps the studio): the
   // Forbidden Woods, the Quidditch Pitch, the Herbology Greenhouse, the Ravenclaw common room. Built
   // once; only the current one is shown and updated.
-  const woods = new ForestArena(sm.scene);
-  const arenas: Record<OpponentDef['arena'], Arena> = { woods, pitch: new PitchArena(sm.scene),
-    greenhouse: new GreenhouseArena(sm.scene), ravenclaw: new RavenclawArena(sm.scene), greathall: woods };
+  const greatHall = new GreatHallArena(sm.scene);
+  const arenas: Record<OpponentDef['arena'], Arena> = { woods: new ForestArena(sm.scene), pitch: new PitchArena(sm.scene),
+    greenhouse: new GreenhouseArena(sm.scene), ravenclaw: new RavenclawArena(sm.scene), greathall: greatHall };
+  // Hermione's plates come off the Great Hall's tables (the nearest places)
+  for (const o of Object.values(opponents)) if (o.barrage) o.plateSource = (near, n) => (arena === greatHall ? greatHall.takePlates(near, n) : []);
   let arena: Arena | null = null;
   // spells hit trunks and stands: every caster shares one list of solids, refilled each frame
   spells.world.solids = solids;
@@ -595,6 +599,7 @@ async function start(): Promise<void> {
   const clock = new THREE.Clock();
   let frames = 0;
   let fpsTime = 0;
+  const hudEl = document.getElementById('hud')!;
   let lastState = '';
 
   // the duel camera frames Malfoid and her opponent; while Luna's copies are out, the middle of
@@ -715,6 +720,10 @@ async function start(): Promise<void> {
       fpsEl.textContent = String(Math.round(frames / fpsTime));
       frames = 0;
       fpsTime = 0;
+      // how much of the screen the HUD panel covers on the left (the duel camera keeps the
+      // fighters clear of it)
+      const hr = hudEl.getBoundingClientRect();
+      cam.leftCover = hr.width > 0 && hr.right > 0 ? Math.min(0.45, hr.right / window.innerWidth) : 0;
     }
   });
   // expose for debugging / automated checks
@@ -730,7 +739,7 @@ async function start(): Promise<void> {
     susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
     luna: lu.char, lunaAi: lu.ai, lunaSpells: lu.spells, lunaTarget: lu.target, lunaFlock: lu.flock, lunaIllusions: lu.illusions,
     hermione: he.char, hermioneAi: he.ai, hermioneSpells: he.spells, hermioneTarget: he.target, hermioneBarrage: he.barrage,
-    hermioneOpp: he,
+    hermioneOpp: he, greatHall,
     confusionFx,
     protego, protegoFx, cameo, cameoTrigger,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,

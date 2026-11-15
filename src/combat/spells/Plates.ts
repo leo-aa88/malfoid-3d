@@ -366,12 +366,12 @@ export class PlateBarrage {
 // ------------------------------------------------------------------ drawing
 
 /** a dinner plate (lathe): white porcelain, a gold band on the rim; ~26 cm across, lying flat (normal +y) */
-export function plateGeometry(): THREE.BufferGeometry {
+export function plateGeometry(segments = 20): THREE.BufferGeometry {
   const prof: [number, number][] = [
     [0.0, 0.004], [0.06, 0.004], [0.075, 0.0], [0.082, 0.003], [0.09, 0.009], [0.118, 0.016], [0.13, 0.019],
     [0.131, 0.022], [0.124, 0.021], [0.1, 0.014], [0.085, 0.011], [0.0, 0.009],
   ];
-  const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 20);
+  const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), segments);
   const pos = g.getAttribute('position');
   const col = new Float32Array(pos.count * 3);
   const white = new THREE.Color('#f4f1ea');

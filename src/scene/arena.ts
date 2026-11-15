@@ -30,4 +30,7 @@ export interface CameraLimit {
   inside(x: number, z: number): boolean;
   /** move the camera (towards the target) until it can */
   clamp(camera: THREE.Vector3, target: THREE.Vector3): void;
+  /** the lowest the camera may be at (x, z) (the Great Hall: over the tables, high enough to see
+   *  the fighters' feet past them); none: no floor */
+  minY?(x: number, z: number): number;
 }

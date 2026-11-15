@@ -28,6 +28,10 @@ const HUD_SHIFT = 0.16;
  * (1/s). The scene's own fov (32 deg) is the normal one.
  */
 const MAX_FOV = 60;
+/** the HUD panel on the left: the fighter nearer it is kept this much (fraction of half the
+ *  screen width) clear of its edge, counting her body's half width (m) beyond her centre */
+const HUD_CLEAR = 0.06;
+const BODY_HALF = 0.3;
 const FOV_RATE = 3.0;
 
 /**
@@ -113,6 +117,8 @@ export class CameraController {
     this.limit.clamp(p, t);
     const h1 = Math.hypot(p.x - t.x, p.z - t.z);
     if (h0 > 1e-6 && h1 < h0 - 1e-6) p.y = Math.max(t.y, t.y + (y0 * h1) / h0);
+    const floor = this.limit.minY?.(p.x, p.z) ?? 0;
+    if (p.y < floor) p.y = floor;
   }
 
   /** the fov that shows at the camera's distance what the normal fov would at `want` (m) */
@@ -123,13 +129,30 @@ export class CameraController {
     return Math.min(MAX_FOV, THREE.MathUtils.radToDeg(2 * half));
   }
 
-  /** the duel's look-at point: the pair's midpoint, moved left so they show right of the HUD */
-  private duelTarget(mid: THREE.Vector3, yaw: number, dist: number, out: THREE.Vector3): THREE.Vector3 {
+  /** the fraction of the screen's width the HUD panel covers on the left (the page sets it) */
+  leftCover = 0;
+
+  /**
+   * the duel's look-at point: the pair's midpoint, moved left so they show right of the HUD: at
+   * least HUD_SHIFT, more when the fighter nearer the panel (a, b: the fighters) would be under
+   * it (a small window, a long range), as far as the other still fits on the right
+   */
+  private duelTarget(mid: THREE.Vector3, yaw: number, dist: number, out: THREE.Vector3,
+    a?: THREE.Vector3, b?: THREE.Vector3): THREE.Vector3 {
     const halfW = dist * Math.tan(THREE.MathUtils.degToRad(this.baseFov) / 2) * this.camera.aspect;
     // the camera's right on the ground, for a camera at yaw looking back at the target
     const rx = Math.cos(yaw);
     const rz = -Math.sin(yaw);
-    return out.set(mid.x - rx * halfW * HUD_SHIFT, mid.y, mid.z - rz * halfW * HUD_SHIFT);
+    let shift = halfW * HUD_SHIFT;
+    if (a && b && this.leftCover > 0) {
+      const ua = (a.x - mid.x) * rx + (a.z - mid.z) * rz;
+      const ub = (b.x - mid.x) * rx + (b.z - mid.z) * rz;
+      const edge = (-1 + 2 * this.leftCover + HUD_CLEAR) * halfW;
+      const need = edge - Math.min(ua, ub) + BODY_HALF;
+      const room = 0.95 * halfW - Math.max(ua, ub) - BODY_HALF;
+      shift = Math.max(shift, Math.min(need, room));
+    }
+    return out.set(mid.x - rx * shift, mid.y, mid.z - rz * shift);
   }
 
   /** an arena's limit on where the camera may stand (the pitch's stands); null: anywhere */
@@ -147,7 +170,7 @@ export class CameraController {
     const mx = a.x + dx / 2, mz = a.z + dz / 2;
     if (this.limit && !this.limit.inside(mx + Math.sin(yaw) * dist * 0.9, mz + Math.cos(yaw) * dist * 0.9)
         && this.limit.inside(mx - Math.sin(yaw) * dist * 0.9, mz - Math.cos(yaw) * dist * 0.9)) yaw += Math.PI;
-    this.duelTarget(new THREE.Vector3(a.x + dx / 2, a.y + this.initialTargetHeight, a.z + dz / 2), yaw, dist, this.controls.target);
+    this.duelTarget(new THREE.Vector3(a.x + dx / 2, a.y + this.initialTargetHeight, a.z + dz / 2), yaw, dist, this.controls.target, a, b);
     const h = this.initialOffset.y / this.initialOffset.length();
     this.camera.position.set(Math.sin(yaw) * dist, h * dist, Math.cos(yaw) * dist).add(this.controls.target);
     this.clampToLimit(this.controls.target);
@@ -222,7 +245,8 @@ export class CameraController {
         const other = wantYaw === a ? b : a;
         if (!room(wantYaw) && room(other)) wantYaw = other;
       }
-      this.duelTarget(this.want.set(anchor.x + dx / 2, anchor.y + this.initialTargetHeight, anchor.z + dz / 2), wantYaw, wantDist, this.want);
+      this.duelTarget(this.want.set(anchor.x + dx / 2, anchor.y + this.initialTargetHeight, anchor.z + dz / 2), wantYaw, wantDist, this.want,
+        anchor, f.other);
       const k = 1 - Math.exp(-3.0 * dt);
       t.lerp(this.want, k);
       const len = this.offset.length();
