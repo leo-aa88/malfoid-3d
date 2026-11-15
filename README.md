@@ -84,8 +84,8 @@ Each opponent has her arena:
     lifts them off the nearest places, and every plate is back for each duel or round.
   - **The fight:** it starts in the wide central aisle (about 11 m clear between the benches). The fighters walk the whole floor round
     the tables, benches and dais; spells fly over the tables and burst on the walls, benches,
-    dais and high table. The camera stays in the aisles (never right over a table) and high
-    enough to see the fighters' feet past the tables.
+    dais and high table. The camera rises over the tables (high enough that their plates and
+    goblets don't fill the view, and to see the fighters' feet past them).
   - All values are in `src/scene/greathall/config.ts`.
 
 ## Opponents

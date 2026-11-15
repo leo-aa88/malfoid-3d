@@ -73,10 +73,15 @@ export const GREATHALL_CONFIG = {
   // --- the duel
   /** fighters keep this far (m) from the walls, the tables, the benches and the dais */
   margin: 0.15,
-  /** the camera stays inside the walls this far (m), and over the tables at least this high (m)
-   *  (lower, a table's edge hid the fighters' feet) */
+  /** the camera stays inside the walls this far (m). Outside the central aisle it stays at least
+   *  cameraOverTables high (m; lower, a table's edge hid the fighters' feet), and right over a
+   *  table at least cameraOverTableTop (m; lower, the plates and goblets filled the frame), rising
+   *  to it smoothly over cameraTableRamp (m) either side of the table and its benches. (It used to
+   *  be kept out of the strips over the tables; between them that left it nowhere to stand.) */
   cameraMargin: 0.6,
   cameraOverTables: 1.9,
+  cameraOverTableTop: 2.8,
+  cameraTableRamp: 0.9,
 
   // --- light: warm candlelight from above, a cool night rim (the fighters stay readable)
   keyColour: '#ffe2bb',

@@ -100,6 +100,7 @@ export class CameraController {
   reset(anchor: THREE.Vector3): void {
     this.controls.target.set(anchor.x, anchor.y + this.initialTargetHeight, anchor.z);
     this.camera.position.copy(this.controls.target).add(this.initialOffset);
+    this.lift = 0;
     this.lastAnchor.copy(anchor);
     this.sinceUser = 99;
     this.setFov(this.baseFov);
@@ -118,15 +119,28 @@ export class CameraController {
    * distance push climb it above the greenhouse roof)
    */
   private clampToLimit(t: THREE.Vector3): void {
+    this.lift = 0;
     if (!this.limit) return;
     const p = this.camera.position;
     const h0 = Math.hypot(p.x - t.x, p.z - t.z), y0 = p.y - t.y;
     this.limit.clamp(p, t);
     const h1 = Math.hypot(p.x - t.x, p.z - t.z);
     if (h0 > 1e-6 && h1 < h0 - 1e-6) p.y = Math.max(t.y, t.y + (y0 * h1) / h0);
+    // the arena's floor lifts the camera for this frame only (see lift)
     const floor = this.limit.minY?.(p.x, p.z) ?? 0;
-    if (p.y < floor) p.y = floor;
+    if (p.y < floor) {
+      this.lift = floor - p.y;
+      p.y = floor;
+    }
   }
+
+  /**
+   * how far (m) the arena's floor (CameraLimit.minY) lifted the camera this frame. It is taken
+   * off again before the next frame's framing: kept, it steepened the view each frame (the duel
+   * framing keeps the camera's pitch), and between the Great Hall's tables the camera climbed
+   * until it looked straight down
+   */
+  private lift = 0;
 
   /** the fov that shows at the camera's distance what the normal fov would at `want` (m) */
   private fovFor(want: number): number {
@@ -148,17 +162,23 @@ export class CameraController {
    */
   private duelTarget(mid: THREE.Vector3, yaw: number, dist: number, out: THREE.Vector3,
     a?: THREE.Vector3, b?: THREE.Vector3): THREE.Vector3 {
-    const halfW = dist * Math.tan(THREE.MathUtils.degToRad(this.baseFov) / 2) * this.camera.aspect;
+    // half the view's width per metre of depth
+    const k = Math.tan(THREE.MathUtils.degToRad(this.baseFov) / 2) * this.camera.aspect;
     // the camera's right on the ground, for a camera at yaw looking back at the target
     const rx = Math.cos(yaw);
     const rz = -Math.sin(yaw);
-    let shift = halfW * HUD_SHIFT;
+    let shift = dist * k * HUD_SHIFT;
     if (a && b && this.leftCover > 0) {
-      const ua = (a.x - mid.x) * rx + (a.z - mid.z) * rz;
-      const ub = (b.x - mid.x) * rx + (b.z - mid.z) * rz;
-      const edge = (-1 + 2 * this.leftCover + HUD_CLEAR) * halfW;
-      const need = edge - Math.min(ua, ub) + BODY_HALF;
-      const room = 0.95 * halfW - Math.max(ua, ub) - BODY_HALF;
+      // each fighter at her own depth (off side-on, the nearer one shows further out: with one
+      // between the Great Hall's tables she stood under the panel)
+      const edge = -1 + 2 * this.leftCover + HUD_CLEAR;
+      let need = -Infinity, room = Infinity;
+      for (const p of [a, b]) {
+        const u = (p.x - mid.x) * rx + (p.z - mid.z) * rz;
+        const depth = Math.max(dist - ((p.x - mid.x) * Math.sin(yaw) + (p.z - mid.z) * Math.cos(yaw)), 1.0);
+        need = Math.max(need, edge * depth * k - u + BODY_HALF);
+        room = Math.min(room, 0.95 * depth * k - u - BODY_HALF);
+      }
       shift = Math.max(shift, Math.min(need, room));
     }
     return out.set(mid.x - rx * shift, mid.y, mid.z - rz * shift);
@@ -200,6 +220,7 @@ export class CameraController {
     const yaw = Math.abs(angDiff(a, cur)) < Math.abs(angDiff(b, cur)) ? a : b;
     this.controls.target.copy(face);
     this.camera.position.set(Math.sin(yaw) * CLOSE_UP.distance, CLOSE_UP.height, Math.cos(yaw) * CLOSE_UP.distance).add(face);
+    this.lift = 0;
     this.sinceUser = 99;
     this.setFov(this.baseFov);
     this.controls.update();
@@ -218,7 +239,12 @@ export class CameraController {
       this.lastAnchor.copy(anchor);
     }
     this.duelDist = 0;
-    if (follow && !this.manual) this.adjust(anchor, follow, dt);
+    if (follow && !this.manual) {
+      this.camera.position.y -= this.lift;
+      this.adjust(anchor, follow, dt);
+    } else {
+      this.lift = 0;                    // the user holds the view: it stays where it is
+    }
     // the field of view: widened while walls hold the duel view in, normal otherwise (paused or
     // held by the user: left as it is)
     if (follow && !this.manual) {

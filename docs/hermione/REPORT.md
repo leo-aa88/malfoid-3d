@@ -140,16 +140,27 @@ How it plays:
 - **Spells:** they fly over the tables and burst on walls, benches, dais and high table.
 - **Ammunition:** her barrage takes the nearest plates off the tables; every plate is back for each
   duel or round.
-- **Camera:** it stays in the aisles, never right over a table (its plates and goblets filled the
-  frame), and at least 1.9 m up outside the central aisle, so the fighters' feet show past the
-  tables.
+- **Camera:**
+  - Outside the central aisle it stays at least 1.9 m up, so the fighters' feet show past the
+    tables.
+  - Right over a table it stays at least 2.8 m up, so its plates and goblets don't fill the
+    frame. It rises smoothly as it crosses one.
+  - **Fixed after a report:** with a fighter between the side tables, it ended up looking
+    straight down from 10–16 m, or sitting on a table. It used to be kept out of the strips over
+    the tables, which left it nowhere to stand, and each frame's minimum-height lift was kept,
+    steepening the view for good. The lift now holds for one frame. In a live fight with Malfoid
+    between the tables, the camera stayed at most 1.9 m up and 4° down, at least 9.6 m away.
+  - **Still:** Malfoid lying in a side aisle (Petrificus) is hidden behind the table between
+    them. A low camera can't see over it; that would take a steep view from about 7 m up.
 
 **Cost:** 95 draw calls and 459k triangles in the duel view, both fighters included.
 
 ## Camera changes (shared with every arena)
 
 - **The HUD panel:** the duel framing now follows the panel's real width. At long range in a
-  small window, Malfoid stood under the panel.
+  small window, Malfoid stood under the panel. Each fighter is now framed at her own
+  depth: off side-on, the nearer one shows further out, and with one between the tables she stood
+  half under the panel.
 - **Turning less (on request):** the camera holds still until the fighters' line is about 30° off
   side-on, then turns at 1.5 rad/s (was 2.2). In the hall it also swung round to the other side,
   because its side check counted the spots over the tables as no room; it now checks only the

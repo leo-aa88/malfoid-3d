@@ -306,43 +306,37 @@ export class GreatHallArena implements Arena {
 
     this.group.add(floor, hall, leads, banners, glass, sky, upperMesh, this.plates, this.candles, this.flames);
 
-    // --- the camera: inside the walls, in an aisle (never right over a table: its plates and
-    // goblets filled the frame), and outside the central aisle high enough to see the fighters'
-    // feet past the tables
+    // --- the camera: inside the walls; outside the central aisle high enough to see the
+    // fighters' feet past the tables, and higher right over a table (its plates and goblets
+    // filled the frame), rising smoothly (a step made the view jump)
     const cx = L - cfg.cameraMargin, cz = W - cfg.cameraMargin;
-    const band = cfg.benchOffset + cfg.benchWidth / 2 + 0.15;
-    // (the duel camera picks the side it watches from with inside(): only the walls count there;
-    // with the tables counted too it kept finding no room and swung round to the other side)
+    const band = cfg.benchOffset + cfg.benchWidth / 2 + 0.15;     // a table and its benches, half width
+    const ramp = cfg.cameraTableRamp;
+    const smooth = (d: number) => {                                // 1 within the band, 0 a ramp away
+      const u = THREE.MathUtils.clamp(1 - (d - band) / ramp, 0, 1);
+      return u * u * (3 - 2 * u);
+    };
     const inside = (x: number, z: number) => Math.abs(x) <= cx && Math.abs(z) <= cz;
-    const allowed = (x: number, z: number) => inside(x, z)
-      && !(x > tx0 - 0.4 && x < tx1 + 0.4 && cfg.tables.some((t) => Math.abs(z - t) < band));
     const aisle = cfg.tables[2] - cfg.benchOffset - cfg.benchWidth / 2;
     this.cameraLimit = {
       inside,
       clamp: (c, t) => {
-        if (allowed(c.x, c.z)) return;
-        // the first allowed spot on the way in towards the target (the aisle beside the table
-        // it stood over: bisecting jumped to the central aisle, far too close)
-        const x0 = c.x, z0 = c.z;
-        const at = (m: number) => allowed(x0 + (t.x - x0) * m, z0 + (t.z - z0) * m);
-        let lo = 0, hi = 1;
-        for (let i = 1; i <= 64; i++) {
-          if (at(i / 64)) {
-            hi = i / 64;
-            lo = (i - 1) / 64;
-            break;
-          }
-        }
-        for (let i = 0; i < 10; i++) {
-          const m = (lo + hi) / 2;
-          if (at(m)) hi = m;
-          else lo = m;
-        }
-        c.x = x0 + (t.x - x0) * hi;
-        c.z = z0 + (t.z - z0) * hi;
-        c.y = Math.max(c.y, t.y);
+        if (inside(c.x, c.z)) return;
+        // in along the line to the target (always inside) until within the walls
+        let m = 1;
+        if (Math.abs(c.x) > cx) m = Math.min(m, Math.abs((Math.sign(c.x) * cx - t.x) / (c.x - t.x)));
+        if (Math.abs(c.z) > cz) m = Math.min(m, Math.abs((Math.sign(c.z) * cz - t.z) / (c.z - t.z)));
+        c.x = t.x + (c.x - t.x) * m;
+        c.z = t.z + (c.z - t.z) * m;
       },
-      minY: (x, z) => (Math.abs(z) > aisle && x > tx0 - 0.5 && x < tx1 + 0.5 ? cfg.cameraOverTables : 0),
+      minY: (x, z) => {
+        // along the tables: 1 between their ends, easing to 0 a ramp beyond them
+        const along = smooth(Math.max(tx0 - x, x - tx1, 0) + band);
+        if (along <= 0) return 0;
+        const over = Math.max(...cfg.tables.map((t) => smooth(Math.abs(z - t))));
+        const side = Math.abs(z) > aisle ? cfg.cameraOverTables : 0;
+        return along * Math.max(side, over * cfg.cameraOverTableTop);
+      },
     };
   }
 
