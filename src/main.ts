@@ -20,6 +20,7 @@ import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
 import { IMPEDIMENTA_LOOK, MALFOID_IMPEDIMENTA } from './combat/spells/Impedimenta';
+import { ILLUSIO_LOOK, Illusions, MALFOID_ILLUSIO, MALFOID_ILLUSIO_CFG } from './combat/Illusio';
 import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 import { FighterAI } from './combat/ai/FighterAI';
 import { Sfx } from './audio/Sfx';
@@ -68,7 +69,8 @@ async function start(): Promise<void> {
   const char = asked && OPPONENTS[asked] ? OPPONENTS[asked] : null;
   const ids = Object.keys(OPPONENTS) as OpponentId[];
   const [malfoid, ...opponentChars] = await Promise.all([
-    Malfoid.load(`${BASE}models/${char?.model ?? 'malfoid'}.glb`, `${BASE}models/${char?.model ?? 'malfoid'}.json`, char?.character),
+    // (twins: her Illusio's copies, learned from Luna)
+    Malfoid.load(`${BASE}models/${char?.model ?? 'malfoid'}.glb`, `${BASE}models/${char?.model ?? 'malfoid'}.json`, char?.character, true),
     ...ids.map((id) => Malfoid.load(`${BASE}models/${OPPONENTS[id].model}.glb`, `${BASE}models/${OPPONENTS[id].model}.json`,
       OPPONENTS[id].character)),
   ]);
@@ -100,6 +102,11 @@ async function start(): Promise<void> {
   const protego = new Protego(malfoid);
   const protegoFx = new ProtegoFx(sm.scene, protego, malfoid);
   malfoidTarget.shield = protego;
+  // her Illusio (learned from Luna): two copies of her appear beside her (she stays where she
+  // is); they face and circle her opponent (the dummy in training), mimic her casts, pop at any
+  // hit, and all vanish when she is hit
+  const myIllusions = new Illusions(sm.scene, [malfoid.makeTwin(), malfoid.makeTwin()], malfoid, malfoidTarget, dummy);
+  myIllusions.cfg = { ...MALFOID_ILLUSIO_CFG };
   const solids: THREE.Box3[] = [];
   // training: the dummy in the studio; practice (any opponent, every spell, straight into the
   // fight) and the campaign (opponents in order, spells learned): a duel in the woods
@@ -121,11 +128,16 @@ async function start(): Promise<void> {
   const ginnyFx = new ConfringoFx(sm.scene, EXPELLIARMUS_LOOK, 'expelliarmus_fx');
   // her Impedimenta (learned from Susan): Susan shares this pool (no lights)
   const impedimentaFx = new ConfringoFx(sm.scene, IMPEDIMENTA_LOOK, 'impedimenta_fx');
+  // her Illusio's silver charge at the wand (no bolt; Luna has her own)
+  const illusioFx = new ConfringoFx(sm.scene, ILLUSIO_LOOK, 'malfoid_illusio_fx');
   // (her pools by spell id also get every opponent's, below: a bolt her Protego sends back
   // flies on in its caster's pool, which its caster's system advances)
-  const malfoidPools: Record<string, SpellFx> = { confringo: spellFx, expelliarmus: ginnyFx, impedimenta: impedimentaFx };
+  const malfoidPools: Record<string, SpellFx> = { confringo: spellFx, expelliarmus: ginnyFx, impedimenta: impedimentaFx,
+    illusio: illusioFx };
   const spells = new SpellSystem(malfoid, malfoid.spellEmitter, () => combat.busy,
-    new SpellFxSet(malfoidPools, [spellFx, ginnyFx, impedimentaFx]), { solids, groundY: 0 });
+    new SpellFxSet(malfoidPools, [spellFx, ginnyFx, impedimentaFx, illusioFx]), { solids, groundY: 0 });
+  // a summoning spell of hers (no bolt): Illusio's copies
+  spells.onSummon = (def) => { if (def.summon === 'illusio') myIllusions.cast(); };
   malfoidTarget.reflector = spells;                    // a spell she sends back becomes hers
   spells.onEvent = (e) => {
     hud.handleSpell(e);
@@ -140,8 +152,9 @@ async function start(): Promise<void> {
   hud.addSpell('expelliarmus', SPELL_INFO.expelliarmus.name, SPELL_INFO.expelliarmus.key, 'expelliarmus');
   hud.addSpell('protego', SPELL_INFO.protego.name, SPELL_INFO.protego.key, 'protego');
   hud.addSpell('impedimenta', SPELL_INFO.impedimenta.name, SPELL_INFO.impedimenta.key, 'impedimenta');
+  hud.addSpell('illusio', SPELL_INFO.illusio.name, SPELL_INFO.illusio.key, 'illusio');
   const SPELL_DEFS: Record<Exclude<SpellId, 'protego'>, SpellDef> = { confringo: CONFRINGO, expelliarmus: EXPELLIARMUS,
-    impedimenta: MALFOID_IMPEDIMENTA };
+    impedimenta: MALFOID_IMPEDIMENTA, illusio: MALFOID_ILLUSIO };
   malfoidTarget.onShield = (r) => {
     if (r === 'reflect') hud.announce('REFLECTED!', 'disarm');
     else hud.flashStatusText('PROTEGO', 'miss');
@@ -160,7 +173,8 @@ async function start(): Promise<void> {
   // the opponents (OPPONENTS: Ginny, Cho): each with her own health, combo system, spells,
   // shield and AI; only the one being duelled is shown and updated. The AI only fights once a
   // duel has started.
-  const world = { scene: sm.scene, malfoid, malfoidTarget, malfoidCombat: combat, malfoidSpells: spells, solids,
+  const world = { scene: sm.scene, malfoid, malfoidTarget, malfoidCombat: combat, malfoidSpells: spells,
+    malfoidCopies: myIllusions.targets, solids,
     pools: { confringo: spellFx, expelliarmus: ginnyFx, impedimenta: impedimentaFx } };
   const opponents = {} as Record<OpponentId, Opponent>;
   ids.forEach((id, i) => {
@@ -254,6 +268,7 @@ async function start(): Promise<void> {
       // a fresh start: full health, wands back, facing each other a few steps apart
       malfoidTarget.reset();
       protego.reset();
+      myIllusions.reset();
       opp.reset();
       gatherWands();
       spells.reset();
@@ -355,6 +370,7 @@ async function start(): Promise<void> {
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
   const helpProtego = document.getElementById('help-protego')!;
   const helpImpedimenta = document.getElementById('help-impedimenta')!;
+  const helpIllusio = document.getElementById('help-illusio')!;
   const refreshSpells = () => {
     // practice: the spells she has when she reaches this opponent in the campaign (against
     // Ginny only Confringo; nothing learned from her or anyone after her)
@@ -367,6 +383,9 @@ async function start(): Promise<void> {
     helpProtego.hidden = !mySpells.has('protego');
     hud.showSpell('impedimenta', mySpells.has('impedimenta'));
     helpImpedimenta.hidden = !mySpells.has('impedimenta');
+    hud.showSpell('illusio', mySpells.has('illusio'));
+    helpIllusio.hidden = !mySpells.has('illusio');
+    if (!mySpells.has('illusio')) myIllusions.reset();
     if (!mySpells.has('protego')) protego.reset();
   };
   // the start menu's campaign box: continue the run (who is next, difficulty) or start
@@ -511,6 +530,7 @@ async function start(): Promise<void> {
       placeDummy(DUMMY_START_ANGLE, DUMMY_START_DISTANCE);
       malfoidTarget.reset();
       protego.reset();
+      myIllusions.reset();
     } else {
       // the duel starts in the spawn clearing of the woods
       malfoid.root.position.set(arena!.spawn.x - opp.def.startDistance / 2, 0, arena!.spawn.z);
@@ -653,6 +673,10 @@ async function start(): Promise<void> {
       malfoid.update(mdt);
       if (duelMode) foe.update(fdt);
       spells.update(mdt);                   // after the pose update: the wand tip is where it is drawn
+      // her copies: about her opponent (the dummy in training), kept out of walls and furniture
+      myIllusions.foe = duelMode ? foe : dummy;
+      myIllusions.world = duelMode ? arena : null;
+      myIllusions.update(mdt);
       protego.update(mdt);
       protegoFx.update(dt);
       if (duelMode) {
@@ -708,10 +732,13 @@ async function start(): Promise<void> {
     if (mySpells.has('impedimenta')) {
       hud.setSpell('impedimenta', spells.cooldownLeft(MALFOID_IMPEDIMENTA), MALFOID_IMPEDIMENTA.cooldown, malfoid.hasWand);
     }
+    if (mySpells.has('illusio')) hud.setSpell('illusio', spells.cooldownLeft(MALFOID_ILLUSIO), MALFOID_ILLUSIO.cooldown, malfoid.hasWand);
     hud.setFighters(malfoidTarget, opp.target, duel ? opp.ai.state : null);
     spellFx.setView(sm.camera, sm.renderer.domElement.height);
     ginnyFx.setView(sm.camera, sm.renderer.domElement.height);
     impedimentaFx.setView(sm.camera, sm.renderer.domElement.height);
+    illusioFx.setView(sm.camera, sm.renderer.domElement.height);
+    myIllusions.setView(sm.camera, sm.renderer.domElement.height);
     opp.setView(sm.camera, sm.renderer.domElement.height);
     // voice lines: cut to a close-up of whoever speaks (her mouth is readable) and hold it
     // through the pause between the opening lines; the fight cuts back to the duel view
@@ -755,7 +782,7 @@ async function start(): Promise<void> {
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
-    susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx, oppSlowFx, MALFOID_IMPEDIMENTA,
+    susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx, oppSlowFx, MALFOID_IMPEDIMENTA, myIllusions, MALFOID_ILLUSIO, illusioFx,
     luna: lu.char, lunaAi: lu.ai, lunaSpells: lu.spells, lunaTarget: lu.target, lunaFlock: lu.flock, lunaIllusions: lu.illusions,
     hermione: he.char, hermioneAi: he.ai, hermioneSpells: he.spells, hermioneTarget: he.target, hermioneBarrage: he.barrage,
     hermioneOpp: he, greatHall,

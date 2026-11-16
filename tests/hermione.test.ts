@@ -404,3 +404,136 @@ test('her AI never steps back with the quick dodge (removed on request): she wal
     });
   }
 });
+
+// ------------------------------------------------------------------ Malfoid's Illusio copies: her belief
+import type { CopyTarget } from '../src/combat/ai/FighterAI';
+
+/** a copy of Malfoid as her AI sees it (popped by takeHit) */
+function copyAt(x: number, z: number): CopyTarget & { active: boolean } {
+  const copy = { position: new THREE.Vector3(x, 0, z), facingAngle: Math.atan2(-x, -z), currentStrike: null as string | null };
+  const c = {
+    name: 'Illusion', illusion: true, active: true, copy,
+    get targetable() { return c.active; },
+    getBounds(o: { x: number; z: number; yMin: number; yMax: number; radius: number }) { o.x = x; o.z = z; o.yMin = 0; o.yMax = 1.6; o.radius = 0.2; return o; },
+    getAimPoint(o: THREE.Vector3) { return o.set(copy.position.x, 1.15, copy.position.z); },
+    takeHit() { c.active = false; return { result: 'immune' as const, damage: 0, ko: false }; },
+  };
+  return c as unknown as CopyTarget & { active: boolean };
+}
+
+function fooled(sense: { spot: number; seeThrough: [number, number] }) {
+  const s = aiSetup(6, { petrifyChance: 0 }, { illusion: sense });
+  const copies = [copyAt(-3, 5), copyAt(3, 5)];
+  s.ai.copies = copies;
+  s.ai.foeTarget = { name: 'Malfoid' } as never;
+  const intended: unknown[] = [];
+  const sp = s.ai['spells'] as unknown as { intended: unknown; cast: (d: { id: string }) => boolean };
+  const cast0 = sp.cast;
+  sp.cast = (d) => { intended.push(sp.intended); return cast0(d); };
+  return { ...s, copies, intended, sp };
+}
+
+test('her belief: as Malfoid\'s copies appear she may take one for her; she turns, aims and casts at it', () => {
+  withRandom(0.01, () => {                                 // (no spot; the first figure: a copy)
+    const s = fooled({ spot: 0, seeThrough: [5, 5] });
+    s.ai.setActive(true);
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, s.copies[0], 'took the first copy for Malfoid');
+    // an exposed Malfoid: Petrificus, at the copy
+    s.ai.params.prodigy!.petrifyChance = 1;
+    s.foe.reacting = 'stagger';
+    think(s, () => s.casts.length > 0);
+    assert.deepEqual(s.casts, ['petrificus']);
+    assert.equal(s.intended[0], s.copies[0], 'meant for the copy');
+    assert.ok(Math.abs(s.self.facingAngle - Math.atan2(-3, 5)) < 0.36, 'facing the copy, not Malfoid');
+  });
+});
+
+test('she sees through it in time, and a bolt from the real one gives her away at once; then the real one until they are gone', () => {
+  withRandom(0.01, () => {
+    const s = fooled({ spot: 0, seeThrough: [0.5, 0.5] });
+    s.ai.setActive(true);
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, s.copies[0]);
+    for (let t = 0; t < 0.6; t += DT) s.ai.update(DT);
+    assert.equal(s.ai.believed, null, 'seen through');
+    s.copies[1].active = false;                           // one pops: still the real one
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, null);
+    const b = fooled({ spot: 0, seeThrough: [5, 5] });
+    b.ai.setActive(true);
+    b.ai.update(DT);
+    assert.equal(b.ai.believed, b.copies[0]);
+    b.oppSpells.projectiles.push({ id: 1, position: new THREE.Vector3(0, 1.3, 5.5), direction: new THREE.Vector3(0, 0, 1) });   // Malfoid's bolt flies (away)
+    b.ai.update(DT);
+    assert.equal(b.ai.believed, null, 'given away by her bolt');
+  });
+});
+
+test('the copy she watched pops: she picks again among those left; spot 1: never fooled', () => {
+  withRandom(0.01, () => {
+    const s = fooled({ spot: 0, seeThrough: [5, 5] });
+    s.ai.setActive(true);
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, s.copies[0]);
+    s.copies[0].takeHit();
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, s.copies[1], 'the next figure (random 0.01: the first left)');
+    const n = fooled({ spot: 1, seeThrough: [5, 5] });
+    n.ai.setActive(true);
+    for (let t = 0; t < 1; t += DT) n.ai.update(DT);
+    assert.equal(n.ai.believed, null);
+  });
+});
+
+test('baited: fooled, she reads the copy\'s mimicked cast as real and raises Protego at a bolt that never comes', () => {
+  withRandom(0.01, () => {
+    const s = fooled({ spot: 0, seeThrough: [5, 5] });
+    s.ai.params.prodigy!.shieldChance = 1;
+    s.ai.params.prodigy!.parryChance = 0;
+    const sh = { ready: true, raised: 0, up: false, raise() { sh.up = true; sh.raised++; }, lower() { sh.up = false; }, reset() {} };
+    s.ai.shield = sh as never;
+    s.ai.setActive(true);
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, s.copies[0]);
+    // the real one casts Confringo; the copy she watches mimics it a beat later (no bolt)
+    s.oppSpells.isCasting = true;
+    s.oppSpells.castTime = 0.1;
+    s.oppSpells.castingSpell = { id: 'confringo', release: 0.42, projectile: { speed: 18 } };
+    (s.copies[0].copy as { currentStrike: string | null }).currentStrike = 'cast_confringo';
+    for (let t = 0; t < 1.0 && !sh.raised; t += DT) s.ai.update(DT);
+    assert.equal(s.ai.baited, 1, 'she read the copy\'s cast');
+    assert.equal(sh.raised, 1, 'her shield, for nothing');
+    // the same, not fooled (spot 1): she reads the real cast, never the copy's
+    const r = fooled({ spot: 1, seeThrough: [5, 5] });
+    r.ai.params.prodigy!.shieldChance = 1;
+    const rs = { ready: true, raised: 0, up: false, raise() { rs.up = true; rs.raised++; }, lower() { rs.up = false; }, reset() {} };
+    r.ai.shield = rs as never;
+    r.ai.setActive(true);
+    r.ai.update(DT);
+    r.oppSpells.isCasting = true;
+    r.oppSpells.castTime = 0.3;
+    r.oppSpells.castingSpell = { id: 'confringo', release: 0.42, projectile: { speed: 18 } };
+    (r.copies[0].copy as { currentStrike: string | null }).currentStrike = 'cast_confringo';
+    for (let t = 0; t < 1.0 && !rs.raised; t += DT) { r.oppSpells.castTime += DT; r.ai.update(DT); }
+    assert.equal(r.ai.baited, 0);
+    assert.equal(rs.raised, 1, 'Protego at the real cast');
+  });
+});
+
+test('baited by a feint: the copy she watches casts on its own (Malfoid isn\'t casting); her Protego goes up at nothing', () => {
+  withRandom(0.01, () => {
+    const s = fooled({ spot: 0, seeThrough: [5, 5] });
+    s.ai.params.prodigy!.shieldChance = 1;
+    s.ai.params.prodigy!.parryChance = 0;
+    const sh = { ready: true, raised: 0, up: false, raise() { sh.up = true; sh.raised++; }, lower() { sh.up = false; }, reset() {} };
+    s.ai.shield = sh as never;
+    s.ai.setActive(true);
+    s.ai.update(DT);
+    assert.equal(s.ai.believed, s.copies[0]);
+    (s.copies[0].copy as { currentStrike: string | null }).currentStrike = 'cast_confringo';
+    for (let t = 0; t < 1.0 && !sh.raised; t += DT) s.ai.update(DT);
+    assert.equal(s.ai.baited, 1);
+    assert.equal(sh.raised, 1, 'Protego, for a feint');
+  });
+});

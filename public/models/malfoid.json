@@ -32,7 +32,8 @@
   "crouch": 0.3,
   "protego": 0.22,
   "petrified": 0.95,
-  "get_up": 1.1
+  "get_up": 1.1,
+  "cast_illusio": 0.95
  },
  "rest_expression": {
   "vrc.blink": 0.0,

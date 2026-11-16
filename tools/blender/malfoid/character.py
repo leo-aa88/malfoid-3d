@@ -33,8 +33,9 @@ PROFILES = {
         'palette': {},                       # mats.PALETTE overrides
         'crest': 'Malfoid_Crest.png',
         # her Protego (learned from Cho): the held shield pose; Petrificus Totalus's fall and her
-        # getting up (Hermione binds her). Clips only add to her model
-        'extra_clips': ('protego', 'petrified', 'get_up'),
+        # getting up (Hermione binds her); Illusio's gesture (learned from Luna). Clips only add to
+        # her model
+        'extra_clips': ('protego', 'petrified', 'get_up', 'cast_illusio'),
     },
     'ginny': {
         'name': 'Ginny',

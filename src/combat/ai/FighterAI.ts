@@ -5,7 +5,9 @@ import type { FighterTarget } from '../FighterTarget';
 import { AttackButton, COMBOS, MOVES } from '../moves';
 import { sweepBox } from '../spells/collision';
 import type { SpellDef, SpellSystem } from '../spells/SpellSystem';
+import type { CombatTarget } from '../CombatTarget';
 import { PROTEGO, Protego } from '../Protego';
+import { CONFRINGO } from '../spells/Confringo';
 import type { DodgeState } from '../../character/AnimationController';
 import type { Episkey } from '../Episkey';
 
@@ -188,6 +190,25 @@ const RETRIEVE_TIME = 3.0;
 const RUSH_MEMORY = 0.8;
 
 /** everything that shapes how she fights (tuned in play) */
+/** how an AI copes with the opponent's Illusio copies (see FighterAI.copies) */
+export interface IllusionSense {
+  /** as they appear: the chance she spots the real one at once (else she takes any figure, the
+   *  real one included, at random) */
+  spot: number;
+  /** s until she sees through the copy she took for the opponent (then: the real one, until the
+   *  copies are gone) */
+  seeThrough: [number, number];
+}
+
+export const ILLUSION_DEFAULT: IllusionSense = { spot: 0.15, seeThrough: [2.5, 3.5] };
+
+/** one of the opponent's copies as an AI sees it: a target (popped when hit) at a figure's place */
+export interface CopyTarget extends CombatTarget {
+  readonly active: boolean;
+  /** the figure (its place, its facing, and the clip it plays: a mimicked cast is a cast_ clip) */
+  readonly copy: { readonly position: THREE.Vector3; readonly facingAngle: number; readonly currentStrike: string | null };
+}
+
 export interface AIParams {
   detectRange: number;           // m: notices the opponent within this
   meleeRange: number;            // m centre to centre: close enough to strike
@@ -215,6 +236,9 @@ export interface AIParams {
   defensive?: DefensiveStyle;
   /** a chaotic duellist's extra habits (Luna) */
   chaotic?: ChaoticStyle;
+  /** the opponent's Illusio copies (Malfoid's): the chance she spots the real one as they appear,
+   *  and how long (s) until she sees through a copy she took for her (absent: ILLUSION_DEFAULT) */
+  illusion?: IllusionSense;
   /** a prodigy's extra habits (Hermione) */
   prodigy?: ProdigyStyle;
 }
@@ -271,6 +295,30 @@ export class FighterAI {
   onState: ((s: AIState) => void) | null = null;
   /** the opponent's spells (to dodge her bolts and punish her casts) */
   opponentSpells: SpellSystem | null = null;
+  /**
+   * the opponent's Illusio copies (Malfoid's), and the real opponent as a target. While copies
+   * are out she may take one of them for the opponent (`believed`): she then moves, aims, casts
+   * and fires at that figure, until it pops (she picks again among those left), she sees through
+   * it (IllusionSense.seeThrough), or the real one gives herself away: a bolt of hers flies (a
+   * copy's never does), or she strikes in reach. Seen through, she keeps to the real one until
+   * the copies are gone.
+   */
+  copies: readonly CopyTarget[] = [];
+  foeTarget: CombatTarget | null = null;
+  /** the copy she takes for the opponent now (null: the real one) */
+  believed: CopyTarget | null = null;
+  private seenThrough = false;
+  private seeThroughLeft = 0;
+  private copiesOut = 0;
+  private foeBolts = 0;
+  /** the cast she watches while fooled: the copy's mimicry of the opponent's (s into it, and the
+   *  spell it mimics: the one the opponent is casting); -1: none */
+  private copyCastT = -1;
+  private copyCastDef: SpellDef | null = null;
+  /** the last spell she saw the opponent cast (what a copy's feint looks like to her) */
+  private lastFoeSpell: SpellDef | null = null;
+  /** casts of a copy she has read as real (a measure: her Protego and dodges baited) */
+  baited = 0;
   /** her Protego (evasive and defensive styles), and her short-range push spell (Ventus) */
   shield: Protego | null = null;
   pushSpell: SpellDef | null = null;
@@ -396,6 +444,11 @@ export class FighterAI {
     this.think -= dt;
     this.attackReady -= dt;
     const me = this.self;
+    if (this.copies.length) {
+      this.updateBelief(dt);
+      // her spells go where she means them (a copy she takes for the opponent, or the real one)
+      this.spells.intended = this.meantTarget;
+    }
     const dist = this.distance();
     const angle = this.angleToOpponent();
     if (this.prevDist >= 0 && dt > 0) {
@@ -458,21 +511,29 @@ export class FighterAI {
     }
 
     // she reads the opponent's wand wind-up and steps aside as the bolt is released (the bolt
-    // is aimed where she stands at the release)
+    // is aimed where she stands at the release). Fooled by a copy, she watches the copy: its
+    // mimicked cast is the one she reads (and may raise Protego at: no bolt ever comes), and the
+    // real one's cast goes unread (its bolt, once it flies, gives her away)
     const os = this.opponentSpells;
-    if (os && os.isCasting && !dazed) {
-      const rel = os.castingSpell?.release ?? 0.42;
-      if (!this.readCast && os.castTime >= rel - 0.16 && os.castTime < rel) {
+    const fake = this.believed && this.copyCastT >= 0 && this.copyCastDef ? this.believed.copy : null;
+    const watching = fake ? true : !this.believed && !!os?.isCasting;
+    if (os && watching && !dazed) {
+      const castDef = fake ? this.copyCastDef : os.castingSpell;
+      const castTime = fake ? this.copyCastT : os.castTime;
+      const caster = fake ?? this.opponent;
+      const rel = castDef?.release ?? 0.42;
+      if (!this.readCast && castTime >= rel - 0.16 && castTime < rel) {
         this.readCast = true;
-        const aimedAtMe = Math.abs(angDiff(this.opponent.facingAngle, this.angleFrom(this.opponent.position, me.position))) < 0.8;
-        const def = os.castingSpell;
-        if (def?.id === 'confringo' && !this.countedCast) {
+        const aimedAtMe = Math.abs(angDiff(caster.facingAngle, this.angleFrom(caster.position, me.position))) < 0.8;
+        const def = castDef;
+        if (fake) this.baited++;
+        if (!fake && def?.id === 'confringo' && !this.countedCast) {
           this.countedCast = true;
           this.opponentCasts.push(this.clock);
         }
         if (P.evasive && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting) {
           // the bolt reaches her this long from now (the rest of the wind-up, then its flight)
-          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const arrive = Math.max(0, rel - castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           this.readAt = this.clock;
           this.evade(arrive);
         } else if (P.defensive && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting
@@ -480,7 +541,7 @@ export class FighterAI {
           // a defensive duellist meets the bolt: Protego when she has it ready (well ahead to stop
           // it, now and then timed to send it back), otherwise her guard
           const df = P.defensive;
-          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const arrive = Math.max(0, rel - castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           const parry = Math.random() < df.parryChance;
           if (this.shield?.ready && this.state !== 'PROTEGO' && (parry || arrive > PROTEGO.perfectWindow + 0.05)
               && Math.random() < df.shieldChance) {
@@ -497,7 +558,7 @@ export class FighterAI {
           // a chaotic duellist (Luna) or a prodigy (Hermione) with Protego: the shield, well ahead
           // or timed to send it back
           const ch = (P.chaotic ?? P.prodigy)!;
-          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const arrive = Math.max(0, rel - castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           const parry = Math.random() < ch.parryChance;
           if (parry || arrive > PROTEGO.perfectWindow + 0.05) {
             this.shieldAt = parry ? Math.max(0, arrive - rand(0.03, 0.12) + rand(-ch.timingError, ch.timingError))
@@ -1060,10 +1121,10 @@ export class FighterAI {
     // crowded: she gets away, a step back or a skip off across the room (a caster, not a brawler)
     if (dist < ch.escapeRange && !this.combat.busy && Math.random() < ch.escapeChance) {
       if (Math.random() < 0.4 && this.dodgeClip('dodge_back')) return true;
-      const from = Math.atan2(me.position.x - this.opponent.position.x, me.position.z - this.opponent.position.z);
+      const from = Math.atan2(me.position.x - this.foePos.x, me.position.z - this.foePos.z);
       const a = from + rand(-0.8, 0.8);
       const rr = rand(ch.roamRange[1] * 0.7, ch.roamRange[1]);
-      this.roamGoal.set(this.opponent.position.x + Math.sin(a) * rr, 0, this.opponent.position.z + Math.cos(a) * rr);
+      this.roamGoal.set(this.foePos.x + Math.sin(a) * rr, 0, this.foePos.z + Math.cos(a) * rr);
       this.keepIn?.(this.roamGoal);
       this.go('SKIP', 1.8);
       return true;
@@ -1250,7 +1311,7 @@ export class FighterAI {
    * opponent, a quick move across her line counts towards that side
    */
   private track(dt: number): void {
-    const p = this.opponent.position;
+    const p = this.foePos;
     if (!this.foeSeen) {
       this.foePrev.copy(p);
       this.foeSeen = true;
@@ -1286,7 +1347,7 @@ export class FighterAI {
   aimAt(from: THREE.Vector3, speed: number, out: THREE.Vector3): THREE.Vector3 {
     const pr = this.params.prodigy;
     const lead = pr?.lead ?? 0;
-    const p = this.opponent.position;
+    const p = this.foePos;
     let t = Math.hypot(p.x - from.x, p.z - from.z) / speed;
     for (let i = 0; i < 2; i++) {
       const x = p.x + this.foeVel.x * t * lead, z = p.z + this.foeVel.z * t * lead;
@@ -1294,7 +1355,7 @@ export class FighterAI {
     }
     const to = this.dirToOpponent();
     const side = this.habit * (pr?.adapt ?? 0);
-    const aimY = this.opponent.lying ? 0.25 : 1.15;
+    const aimY = !this.believed && this.opponent.lying ? 0.25 : 1.15;
     return out.set(p.x + this.foeVel.x * t * lead + -to.z * side, aimY, p.z + this.foeVel.z * t * lead + to.x * side);
   }
 
@@ -1311,10 +1372,10 @@ export class FighterAI {
     const r = Math.random();
     if (dist > far + 1.0 || (dist < near && r < 0.7) || r < ch.skipChance) {
       // a spot on the ring, somewhere off to one side of where she is
-      const from = Math.atan2(this.self.position.x - this.opponent.position.x, this.self.position.z - this.opponent.position.z);
+      const from = Math.atan2(this.self.position.x - this.foePos.x, this.self.position.z - this.foePos.z);
       const a = from + rand(-1.4, 1.4);
       const rr = rand(near, far);
-      this.roamGoal.set(this.opponent.position.x + Math.sin(a) * rr, 0, this.opponent.position.z + Math.cos(a) * rr);
+      this.roamGoal.set(this.foePos.x + Math.sin(a) * rr, 0, this.foePos.z + Math.cos(a) * rr);
       this.keepIn?.(this.roamGoal);                   // (a round room: never a spot beyond the floor)
       this.go('SKIP', 2.2);
       return;
@@ -1449,9 +1510,86 @@ export class FighterAI {
     this.timer = time;
   }
 
+  /** where she believes the opponent is: the copy she takes for her, or the real one */
+  private get foePos(): THREE.Vector3 {
+    return this.believed ? this.believed.copy.position : this.opponent.position;
+  }
+
+  /**
+   * the opponent's copies (her Illusio): as they appear she takes one figure for the opponent;
+   * a popped one makes her choose again among those left; in time, or when the real one gives
+   * herself away, she sees through it
+   */
+  private updateBelief(dt: number): void {
+    if (this.opponentSpells?.isCasting && this.opponentSpells.castingSpell) this.lastFoeSpell = this.opponentSpells.castingSpell;
+    const out = this.copies.filter((c) => c.active);
+    const bolts = this.opponentSpells?.projectiles.length ?? 0;
+    const newBolt = bolts > this.foeBolts;
+    this.foeBolts = bolts;
+    if (out.length === 0) {
+      this.copiesOut = 0;
+      this.setBelief(null);
+      this.seenThrough = false;
+      return;
+    }
+    const sense = this.params.illusion ?? ILLUSION_DEFAULT;
+    if (this.copiesOut === 0) {
+      // they just appeared: the real one spotted at once, or any figure taken at random
+      this.seenThrough = false;
+      this.seeThroughLeft = rand(sense.seeThrough[0], sense.seeThrough[1]);
+      this.pickBelief(out, sense.spot);
+    } else if (this.believed && !this.believed.active) {
+      this.pickBelief(out, 0);                                // the one she watched popped
+    }
+    this.copiesOut = out.length;
+    if (!this.believed) return;
+    this.seeThroughLeft -= dt;
+    // the real one gives herself away: a bolt of hers flies, or she strikes in reach
+    const near = Math.hypot(this.opponent.position.x - this.self.position.x, this.opponent.position.z - this.self.position.z);
+    if (this.seeThroughLeft <= 0 || newBolt || (this.opponentCombat.busy && near < 2.0)) {
+      this.seenThrough = true;
+      this.setBelief(null);
+      return;
+    }
+    // the copy she watches mimics a cast: to her, the opponent is casting at her
+    const s = this.believed.copy.currentStrike;
+    if (s && s.startsWith('cast_')) {
+      if (this.copyCastT < 0) {
+        this.copyCastT = 0;
+        // mimicking her cast: that spell; a feint of its own: the last she cast (or her Confringo)
+        this.copyCastDef = this.opponentSpells?.castingSpell ?? this.lastFoeSpell ?? CONFRINGO;
+      } else {
+        this.copyCastT += dt;
+      }
+    } else {
+      this.copyCastT = -1;
+    }
+  }
+
+  private pickBelief(out: readonly CopyTarget[], spot: number): void {
+    if (this.seenThrough || Math.random() < spot) {
+      this.setBelief(null);
+      return;
+    }
+    const k = Math.floor(Math.random() * (out.length + 1));     // the real one is one of the figures
+    this.setBelief(k < out.length ? out[k] : null);
+  }
+
+  private setBelief(c: CopyTarget | null): void {
+    if (c === this.believed) return;
+    this.believed = c;
+    this.copyCastT = -1;
+    this.foeSeen = false;                                     // a new figure: her velocity starts afresh
+  }
+
+  /** the target she means her spells for (her belief) */
+  private get meantTarget(): CombatTarget | null {
+    return this.believed ?? this.foeTarget;
+  }
+
   private distance(): number {
     const a = this.self.position;
-    const b = this.opponent.position;
+    const b = this.foePos;
     return Math.hypot(b.x - a.x, b.z - a.z);
   }
 
@@ -1461,20 +1599,20 @@ export class FighterAI {
 
   private angleToOpponent(): number {
     const a = this.self.position;
-    const b = this.opponent.position;
+    const b = this.foePos;
     return Math.atan2(b.x - a.x, b.z - a.z);
   }
 
   private dirToOpponent(): THREE.Vector3 {
     const a = this.self.position;
-    const b = this.opponent.position;
+    const b = this.foePos;
     return this.tmp.set(b.x - a.x, 0, b.z - a.z).normalize();
   }
 
   /** nothing solid between her wand and the opponent's chest */
   private lineOfSight(): boolean {
     const from = this.tmp2.copy(this.self.position).setY(1.3);
-    const to = new THREE.Vector3(this.opponent.position.x, 1.15, this.opponent.position.z);
+    const to = new THREE.Vector3(this.foePos.x, 1.15, this.foePos.z);
     for (const box of this.solids()) if (sweepBox(from, to, 0, box) >= 0) return false;
     return true;
   }

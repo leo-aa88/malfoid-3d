@@ -11,9 +11,9 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
   KeyI: 'I',
 };
 
-/** spell keys: the digit on the number row or the keypad (0 Confringo, 1 Expelliarmus, 2 Protego, 3 Impedimenta) */
+/** spell keys: the digit on the number row or the keypad (0 Confringo, 1 Expelliarmus, 2 Protego, 3 Impedimenta, 4 Illusio) */
 const SPELL_KEYS: Record<string, number> = {
-  Digit0: 0, Numpad0: 0, Digit1: 1, Numpad1: 1, Digit2: 2, Numpad2: 2, Digit3: 3, Numpad3: 3,
+  Digit0: 0, Numpad0: 0, Digit1: 1, Numpad1: 1, Digit2: 2, Numpad2: 2, Digit3: 3, Numpad3: 3, Digit4: 4, Numpad4: 4,
 };
 
 /**
@@ -32,6 +32,7 @@ const SPELL_KEYS: Record<string, number> = {
  * | 1            | cast Expelliarmus (learned)|
  * | 2            | Protego (held; learned)    |
  * | 3            | cast Impedimenta (learned) |
+ * | 4            | cast Illusio (learned)     |
  * (the number row or the keypad)
  * | G            | start / stop a duel        |
  * | B            | dummy guard none/high/low  |
@@ -51,8 +52,8 @@ export class CharacterController {
   /** training dummy: cycle its guard / bring it in front of her */
   onDummyGuard: (() => void) | null = null;
   onDummyReset: (() => void) | null = null;
-  /** spell keys (0: Confringo, 1: Expelliarmus, 3: Impedimenta); called once per key press, never for auto-repeat */
-  onSpell: ((spell: 'confringo' | 'expelliarmus' | 'impedimenta') => void) | null = null;
+  /** spell keys (0: Confringo, 1: Expelliarmus, 3: Impedimenta, 4: Illusio); called once per key press, never for auto-repeat */
+  onSpell: ((spell: 'confringo' | 'expelliarmus' | 'impedimenta' | 'illusio') => void) | null = null;
   /** Protego's key (2): true as it is pressed (never for auto-repeat), false as it is let go */
   onShield: ((on: boolean) => void) | null = null;
   /** start / stop a duel with Ginny */
@@ -82,6 +83,7 @@ export class CharacterController {
       else if (SPELL_KEYS[e.code] === 1) this.onSpell?.('expelliarmus');
       else if (SPELL_KEYS[e.code] === 2) this.onShield?.(true);
       else if (SPELL_KEYS[e.code] === 3) this.onSpell?.('impedimenta');
+      else if (SPELL_KEYS[e.code] === 4) this.onSpell?.('illusio');
       else if (e.code === 'KeyG') this.onDuel?.();
       else if (e.code === 'KeyB') this.onDummyGuard?.();
       else if (e.code === 'KeyN') this.onDummyReset?.();

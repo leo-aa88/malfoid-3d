@@ -114,6 +114,13 @@ interface Flying {
  */
 export class SpellSystem implements Reflector {
   readonly world: { targets: CombatTarget[]; solids: THREE.Box3[]; groundY: number };
+  /** false: her aim (turning to a target, aim assist, a reflected spell's new course) never picks
+   *  an illusion; a bolt still pops one it flies into. The opponents' (Malfoid's copies fool them
+   *  only as their AI decides); the player's aim may pick Luna's copies. */
+  aimAtIllusions = true;
+  /** the target she means (an AI's choice: Malfoid, or a copy of her it is fooled by): her aim
+   *  picks it whenever it is in reach of the spell, before any other */
+  intended: CombatTarget | null = null;
   onEvent: ((e: SpellEvent) => void) | null = null;
   onSound: ((s: SpellSound, at: THREE.Vector3) => void) | null = null;
   /** a summoning spell released: from the wand tip, along `dir` (aimed like a bolt), at `target` */
@@ -308,7 +315,7 @@ export class SpellSystem implements Reflector {
     let aim: THREE.Vector3 | null = null;
     let best = Infinity;
     for (const t of this.world.targets) {
-      if (!t.targetable) continue;
+      if (!t.targetable || (t.illusion && !this.aimAtIllusions)) continue;
       t.getAimPoint(this.v2);
       const d = Math.hypot(this.v2.x - toward.x, this.v2.z - toward.z);
       if (d < best) {
@@ -326,10 +333,18 @@ export class SpellSystem implements Reflector {
   private pickTarget(def: SpellDef, maxAngle: number): CombatTarget | null {
     const p = this.caster.position;
     const f = this.caster.facingAngle;
+    const it = this.intended;
+    if (it?.targetable) {
+      it.getAimPoint(this.v2);
+      const dx = this.v2.x - p.x, dz = this.v2.z - p.z;
+      const dist = Math.hypot(dx, dz);
+      const ang = Math.abs(Math.atan2(Math.sin(Math.atan2(dx, dz) - f), Math.cos(Math.atan2(dx, dz) - f)));
+      if (dist <= def.aimRange && (dist <= 0.05 || ang <= maxAngle)) return it;
+    }
     let best: CombatTarget | null = null;
     let bestScore = Infinity;
     for (const t of this.world.targets) {
-      if (!t.targetable) continue;
+      if (!t.targetable || (t.illusion && !this.aimAtIllusions)) continue;
       t.getAimPoint(this.v2);
       const dx = this.v2.x - p.x;
       const dz = this.v2.z - p.z;

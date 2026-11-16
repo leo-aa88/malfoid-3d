@@ -104,6 +104,8 @@ export class PlateBarrage {
   cfg = { ...PLATES, fan: { ...PLATES.fan } };
   private caster: PlateCaster | null = null;
   private aim: PlateAim | null = null;
+  /** other things a plate in flight strikes when it meets them (Malfoid's Illusio copies: popped) */
+  extraTargets: readonly CombatTarget[] = [];
   private reflected = 0;
   /** how many plates this volley has (the fan is laid out for all of them) */
   private volley = 1;
@@ -274,7 +276,17 @@ export class PlateBarrage {
       }
       const t = p.target;
       const bb = t.getBounds(this.bounds);
-      if (this.crosses(p, bb)) this.strike(p, t);
+      if (this.crosses(p, bb)) {
+        this.strike(p, t);
+        continue;
+      }
+      // (a plate sent back at her strikes only her)
+      if (p.reflected) continue;
+      for (const x of this.extraTargets) {
+        if (x === t || !x.targetable || !this.crosses(p, x.getBounds(this.bounds))) continue;
+        this.strike(p, x);
+        break;
+      }
     }
   }
 

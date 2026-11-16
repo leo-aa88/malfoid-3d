@@ -352,6 +352,9 @@ const HERMIONE_EASY: AIParams = {
   smartCombos: true,
   pressure: 0,
   guardAfterHit: 0.35,
+  // Malfoid's Illusio copies: the chance she spots the real one at once, s until she sees through
+  // a copy she took for her (quicker than anyone: precise)
+  illusion: { spot: 0.15, seeThrough: [2.6, 3.4] },
   prodigy: {
     preferredRange: [4.0, 7.5],
     circleSwitch: [0.8, 1.6],
@@ -387,6 +390,7 @@ export const HERMIONE_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       counterChance: 0.4,
       dodgeChance: 0.45,
       guardAfterHit: 0.5,
+      illusion: { spot: 0.25, seeThrough: [1.8, 2.4] },
       prodigy: { ...HERMIONE_EASY.prodigy!, shieldChance: 0.55, parryChance: 0.25, timingError: 0.06, chainChance: 0.55,
         disarmPunish: 0.45, petrifyChance: 0.3, followUpChance: 0.8, platesChance: 0.4, accioChance: 0.7,
         dodgeClipChance: 0.4, lead: 0.85, adapt: 0.5 },
@@ -408,6 +412,7 @@ export const HERMIONE_DIFFICULTY: Record<Difficulty, DifficultyLevel> = {
       dodgeChance: 0.55,
       guardAfterHit: 0.6,
       recover: 0.22,
+      illusion: { spot: 0.35, seeThrough: [1.1, 1.5] },
       prodigy: { ...HERMIONE_EASY.prodigy!, shieldChance: 0.65, parryChance: 0.35, timingError: 0.04, chainChance: 0.7,
         disarmPunish: 0.6, petrifyChance: 0.45, followUpChance: 1.0, platesChance: 0.5, accioChance: 0.9,
         dodgeClipChance: 0.5, lead: 1.0, adapt: 0.7 },
