@@ -30,6 +30,11 @@ export const ILLUSIO = {
   mimicDelay: [0.08, 0.3] as [number, number],   // s after her own cast starts
   contact: 0.55,             // m: her opponent walking into a copy pops it
   wander: [0.8, 2.0] as [number, number],   // s between a copy's changes of mind
+  /** a change of mind: stand and watch below standChance, skip somewhere below skipChance, else circle */
+  standChance: 0.3,
+  skipChance: 0.65,
+  /** as they appear, she and they swap places at random (Luna: the player must find her again) */
+  shuffle: true,
 };
 
 export const ILLUSIO_SPELL: SpellDef = {
@@ -51,6 +56,22 @@ export const ILLUSIO_SPELL: SpellDef = {
   aimRange: 30,
   summon: 'illusio',
 };
+
+/**
+ * Malfoid's Illusio (learned from Luna, key 4): two copies of her beside her, for a little less
+ * long than Luna's, on a longer cooldown. She stays where she is (no shuffle: the player steers
+ * her); the copies keep calmer than Luna's (more standing and circling, less skipping about).
+ * They pop at any hit or contact, and all vanish when she is hit.
+ */
+export const MALFOID_ILLUSIO_CFG = {
+  ...ILLUSIO,
+  copies: 2,
+  life: 8.0,                 // s
+  standChance: 0.35,
+  skipChance: 0.55,
+  shuffle: false,
+};
+export const MALFOID_ILLUSIO: SpellDef = { ...ILLUSIO_SPELL, key: '4', cooldown: 16.0 };
 
 /** the charge at her wand while she casts it: a silvery shimmer (no bolt ever leaves) */
 export const ILLUSIO_LOOK: SpellLook = {
@@ -148,7 +169,8 @@ export interface IllusionWorld {
 }
 
 /**
- * Luna's copies: made once (her model's twins, hidden), shown by cast(), driven here.
+ * Luna's copies, and Malfoid's (learned from Luna): made once (her model's twins, hidden), shown
+ * by cast(), driven here.
  */
 export class Illusions {
   readonly targets: IllusionTarget[];
@@ -165,7 +187,8 @@ export class Illusions {
   private readonly v2 = new THREE.Vector3();
 
   constructor(scene: THREE.Scene, twins: Malfoid[], private readonly real: Malfoid, private readonly realTarget: FighterTarget,
-    private readonly foe: Malfoid) {
+    /** whom the copies face and circle (Malfoid's copies: her opponent, or the training dummy) */
+    public foe: { readonly position: THREE.Vector3 }) {
     this.copies = twins.map((char) => {
       char.scene = scene;
       char.root.visible = false;
@@ -227,8 +250,9 @@ export class Illusions {
       this.world?.resolve(p, 0.28);
       places.push(p);
     }
-    // the shuffle: she takes one of the places at random, a copy takes hers
-    const mine = Math.floor(Math.random() * places.length);
+    // the shuffle: she takes one of the places at random, a copy takes hers (without it she
+    // stays where she is: Malfoid, whom the player steers)
+    const mine = this.cfg.shuffle ? Math.floor(Math.random() * places.length) : 0;
     let k = 0;
     for (let i = 0; i < places.length; i++) {
       this.puff(places[i], 34);
@@ -326,7 +350,7 @@ export class Illusions {
       if (c.think <= 0) {
         c.think = rand(this.cfg.wander[0], this.cfg.wander[1]);
         const r = Math.random();
-        c.mode = r < 0.3 ? 'stand' : r < 0.65 ? 'skip' : 'circle';
+        c.mode = r < this.cfg.standChance ? 'stand' : r < this.cfg.skipChance ? 'skip' : 'circle';
         if (Math.random() < 0.35) c.side = c.side > 0 ? -1 : 1;
         if (c.mode === 'skip') {
           const a = angle + Math.PI + rand(-1.3, 1.3);

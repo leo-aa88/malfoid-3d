@@ -103,7 +103,7 @@ test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Vold
   assert.equal(s.next?.name, 'Luna Lovegood');
   assert.equal(s.next?.playable, true, 'Luna is in the game');
   const l = c.win();                                   // Luna beaten
-  assert.equal(l.learned, null, 'her reward (Illusio) comes later');
+  assert.equal(l.learned, 'illusio', 'her copies');
   assert.equal(l.next?.name, 'Hermione Granger');
   assert.equal(l.next?.playable, true, 'Hermione is in the game');
   const h = c.win();                                   // Hermione beaten

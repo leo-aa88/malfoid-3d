@@ -198,13 +198,14 @@ export class Malfoid {
   private readonly tq2 = new THREE.Quaternion();
   private static readonly UP = new THREE.Vector3(0, 1, 0);
 
-  static async load(url: string, metaUrl: string, options?: CharacterOptions): Promise<Malfoid> {
+  /** twins: keep a pristine copy for makeTwin() (as CharacterOptions.twins, without replacing her default options) */
+  static async load(url: string, metaUrl: string, options?: CharacterOptions, twins = false): Promise<Malfoid> {
     const [gltf, meta] = await Promise.all([
       new GLTFLoader().loadAsync(url),
       fetch(metaUrl).then((r) => r.json() as Promise<ModelMeta>),
     ]);
     // a copy kept before anything converts or adds to the scene (geometry and textures shared)
-    const pristine = options?.twins ? { scene: cloneSkinned(gltf.scene), animations: gltf.animations, meta } : null;
+    const pristine = options?.twins || twins ? { scene: cloneSkinned(gltf.scene), animations: gltf.animations, meta } : null;
     const m = Malfoid.fromScene(gltf.scene, gltf.animations, meta, options);
     m.pristine = pristine;
     return m;
@@ -229,7 +230,8 @@ export class Malfoid {
       if (sk) m.bind(sk, m.bindMatrix);
       else shared.set(key, m.skeleton);
     });
-    return Malfoid.fromScene(scene, p.animations, p.meta, { ...this.opts, twins: false });
+    // (a copy never crosses her arms in boredom: no annoyed idle)
+    return Malfoid.fromScene(scene, p.animations, p.meta, { ...this.opts, twins: false, annoyedIdle: false });
   }
 
   private static fromScene(scene: THREE.Object3D, animations: THREE.AnimationClip[], meta: ModelMeta,

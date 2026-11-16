@@ -1,3 +1,4 @@
+import type { CombatTarget } from '../combat/CombatTarget';
 import * as THREE from 'three';
 import { Malfoid } from '../character/Malfoid';
 import { ComboSystem } from '../combat/ComboSystem';
@@ -28,6 +29,8 @@ export interface OpponentWorld {
   malfoidTarget: FighterTarget;
   malfoidCombat: ComboSystem;
   malfoidSpells: SpellSystem;
+  /** Malfoid's Illusio copies (her targets too: a strike or a bolt that reaches one pops it) */
+  malfoidCopies: CombatTarget[];
   solids: THREE.Box3[];
   /** effect pools by spell id that already exist (shared: one set of lights per look) */
   pools: Record<string, ConfringoFx>;
@@ -78,7 +81,8 @@ export class Opponent {
     char.root.visible = false;
     this.foe = w.malfoid;
     this.target = new FighterTarget(char);
-    this.combat = new ComboSystem(char, () => [w.malfoidTarget]);
+    const foes: CombatTarget[] = [w.malfoidTarget, ...w.malfoidCopies];
+    this.combat = new ComboSystem(char, () => foes);
     // her spells' effects: her main spell's pool is shared if it already exists (Ginny's
     // Expelliarmus is also Malfoid's); otherwise she has her own, which she advances. A spell
     // she reflects keeps flying in its caster's pool (that caster's system advances it).
@@ -108,8 +112,9 @@ export class Opponent {
     }
     this.fxBySpell = bySpell;
     this.spells = new SpellSystem(char, char.spellEmitter, () => this.combat.busy, new SpellFxSet(bySpell, updates),
-      { targets: [w.malfoidTarget], solids: w.solids, groundY: 0 });
+      { targets: foes, solids: w.solids, groundY: 0 });
     this.spells.world.solids = w.solids;
+    this.spells.aimAtIllusions = false;               // she aims at Malfoid (her AI's choice)
     this.ai = new FighterAI(char, this.target, this.combat, this.spells, this.spell, w.malfoid, w.malfoidCombat, () => w.solids);
     this.ai.opponentSpells = w.malfoidSpells;          // she sees Malfoid's casts and bolts
     this.ai.pushSpell = def.push ?? null;

@@ -29,7 +29,7 @@ The start screen offers three modes:
   spell, to practise strikes, combos and spells.
 - **Practice:** pick an opponent and a difficulty and fight straight away, with the spells
   Malfoid has when she reaches that opponent in the campaign (Ginny: Confringo only; Cho: and
-  Expelliarmus; Susan: and Protego; Luna and Hermione: and Impedimenta), and no voice lines.
+  Expelliarmus; Susan: and Protego; Luna: and Impedimenta; Hermione: and Illusio), and no voice lines.
   **G** restarts the fight. Ginny, Cho, Susan, Luna or Hermione; a Malfoid mirror match is listed as coming soon.
 - **Campaign:** choose the difficulty once, at the start, and fight the opponents in order
   (Ginny, then Cho, then Susan Bones, ...). Each duel is a **best-of-three match**: the first to
@@ -97,7 +97,7 @@ The campaign, in order (the planned roster; see the status column for what is in
 | 1 | Ginny Weasley | Aggressive, close-range fighter | Establish the romantic rivalry | Expelliarmus | playable |
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
 | 3 | Susan Bones | Defence, resilience | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Impedimenta | playable ([design](docs/susan/DESIGN.md)) |
-| 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable (Illusio not yet taught; [report](docs/luna/REPORT.md)) |
+| 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable ([report](docs/luna/REPORT.md)) |
 | 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | – | playable ([report](docs/hermione/REPORT.md)) |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
@@ -278,6 +278,23 @@ legs and **SLOWED!** shows.
 
 Tuning is in `src/combat/spells/Impedimenta.ts` (`MALFOID_IMPEDIMENTA`).
 
+## Illusio (4)
+
+Malfoid learns Luna's charm by beating her in the campaign. In training she always has it, and
+in practice against Hermione. Her wand circles overhead, her arms sweep open, and **two copies
+of her** appear beside her. Unlike Luna, she stays where she is: the player steers her.
+
+- **The copies:** they face and circle her opponent (the dummy in training), and stand, circle or
+  skip about, more calmly than Luna's. They mimic her casts a beat late, but no bolt leaves their
+  wands, and they cast no shadow.
+- **Popping:** any hit pops a copy, and so does the opponent walking into it. When Malfoid
+  herself is hit, they all vanish.
+- **Length:** 8 s, with a 16 s cooldown.
+- **Against an opponent's AI:** so far she isn't fooled: she aims at the real Malfoid, though a
+  bolt or strike of hers that meets a copy pops it. Fooling her comes next.
+
+Tuning is in `src/combat/Illusio.ts` (`MALFOID_ILLUSIO`, `MALFOID_ILLUSIO_CFG`).
+
 ## How a duel runs
 
 - **Opening lines (campaign):** the two exchange a line each in close-ups: against Ginny Malfoid
@@ -318,6 +335,7 @@ Tuning is in `src/combat/spells/Impedimenta.ts` (`MALFOID_IMPEDIMENTA`).
 | 1 | cast Expelliarmus (8 s cooldown; needs the wand; learned from Ginny in the campaign) |
 | 2 | Protego (hold): a shield before her for up to 0.9 s, then 5 s before it can be raised again. It stops spells reaching its front, and one raised just as a spell arrives (within 0.2 s) sends it back at its caster; it guards strikes like a block. Needs the wand; learned from Cho in the campaign |
 | 3 | cast Impedimenta (10 s cooldown; needs the wand; learned from Susan in the campaign) |
+| 4 | cast Illusio (16 s cooldown; needs the wand; learned from Luna in the campaign): two copies of her |
 | G | restart the fight (practice) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
@@ -427,7 +445,7 @@ Screenshots from the viewer are in `docs/confringo/`.
   `SlowFx.ts` – the rings of a slow; `ConfusionFx.ts` – the stars of a confusion.
   `FighterTarget` carries the slow (`timeScale`), the confusion (`confused`; the controller
   reverses the directions) and Susan's Hufflepuff Resolve.
-- `combat/Illusio.ts` – Luna's copies: their targets (any hit pops one), the shuffle as they
+- `combat/Illusio.ts` – Luna's copies (and Malfoid's): their targets (any hit pops one), the shuffle as they
   appear, their wandering and mimicked casts. Copies are `Malfoid.makeTwin()`s of her model
   (shared geometry and textures).
 - `combat/Protego.ts` – the shield (timing, perfect window, cooldown); `ProtegoFx.ts` – its look.

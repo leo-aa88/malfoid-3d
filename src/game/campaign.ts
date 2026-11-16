@@ -9,7 +9,7 @@ import type { Difficulty } from '../combat/ai/difficulty';
 
 export type OpponentId = 'ginny' | 'cho' | 'susan' | 'luna' | 'hermione' | 'harry' | 'bellatrix' | 'voldemort';
 /** Malfoid's spells; Confringo she always has, the rest are learned in the campaign */
-export type SpellId = 'confringo' | 'expelliarmus' | 'protego' | 'impedimenta';
+export type SpellId = 'confringo' | 'expelliarmus' | 'protego' | 'impedimenta' | 'illusio';
 /** the spells learned from opponents */
 export type LearnedSpell = Exclude<SpellId, 'confringo'>;
 
@@ -27,8 +27,8 @@ export const CAMPAIGN: readonly Opponent[] = [
   { id: 'cho', name: 'Cho Chang', reward: 'protego', playable: true },
   // (Susan's Impediment Jinx: it slows the opponent, Hermione's barrage wind-up included)
   { id: 'susan', name: 'Susan Bones', reward: 'impedimenta', playable: true },
-  // (her reward, Illusio, comes with Malfoid's own copies)
-  { id: 'luna', name: 'Luna Lovegood', playable: true },
+  // (Luna's copies: Malfoid's own, two beside her)
+  { id: 'luna', name: 'Luna Lovegood', reward: 'illusio', playable: true },
   // (no reward)
   { id: 'hermione', name: 'Hermione Granger', playable: true },
   { id: 'harry', name: 'Harry Potter', playable: false },
@@ -37,7 +37,7 @@ export const CAMPAIGN: readonly Opponent[] = [
 ];
 
 /** every spell (training and practice) */
-export const ALL_SPELLS: ReadonlySet<SpellId> = new Set<SpellId>(['confringo', 'expelliarmus', 'protego', 'impedimenta']);
+export const ALL_SPELLS: ReadonlySet<SpellId> = new Set<SpellId>(['confringo', 'expelliarmus', 'protego', 'impedimenta', 'illusio']);
 
 /**
  * Malfoid's spells when she reaches this opponent in the campaign: Confringo and what every
@@ -56,6 +56,7 @@ export const SPELL_INFO: Record<LearnedSpell, { name: string; key: string; how: 
   expelliarmus: { name: 'Expelliarmus', key: '1', how: 'disarm your opponent' },
   protego: { name: 'Protego', key: '2', how: 'raise a shield (raised just as a spell arrives, it sends the spell back)' },
   impedimenta: { name: 'Impedimenta', key: '3', how: 'slow your opponent down: her moves, strikes and spells' },
+  illusio: { name: 'Illusio', key: '4', how: 'conjure two copies of yourself (a hit pops one; when you are hit, they all vanish)' },
 };
 
 export interface Run {

@@ -94,6 +94,11 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #hud .spell-box.impedimenta.ready .spell-state { color: #c4f6f4; }
 #hud .spell-box.impedimenta .cd-fill { background: linear-gradient(90deg, #0b5a63, #22b8c4, #cff8f6); }
 #hud .spell-box.impedimenta.cooling .cd-fill { background: #23515a; }
+/* Illusio: silver-lilac (the copies' sparkle) */
+#hud .spell-box.illusio .spell-name { color: #c9c2ff; }
+#hud .spell-box.illusio.ready .spell-state { color: #ecebff; }
+#hud .spell-box.illusio .cd-fill { background: linear-gradient(90deg, #4a3f8a, #9d95e8, #f1efff); }
+#hud .spell-box.illusio.cooling .cd-fill { background: #3e3a5e; }
 #hud .spell-box.learned { animation: slot-in 0.6s ease-out; }
 @keyframes slot-in { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: none; } }
 /* white with a thick dark outline: readable over the explosion */

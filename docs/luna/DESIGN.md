@@ -1,7 +1,7 @@
 # Luna Lovegood — the Chaos Caster (design)
 
-Campaign stage 4, after Susan Bones. **Status: playable** (practice and campaign). Her reward,
-Illusio for Malfoid, isn't built yet. What was built and how it was checked: [REPORT.md](REPORT.md).
+Campaign stage 4, after Susan Bones. **Status: playable** (practice and campaign). Beating her
+teaches Malfoid Illusio (key 4). What was built and how it was checked: [REPORT.md](REPORT.md).
 
 Luna is an **illusion-and-disruption boss**, not another offensive spellcaster with a different
 selection of damage projectiles. She is the most unpredictable opponent so far, but her
@@ -42,8 +42,8 @@ own illusory copies to confuse opponents, draw their attacks and create openings
 | 4 | **Luna Lovegood** | **Illusio** |
 | 5 | Hermione Granger | – |
 
-For now the reward is recorded but not taught. Malfoid's own Illusio
-comes in a later change.
+Malfoid's Illusio is taught (key 4): two copies of her appear beside her (she stays where she
+is), for 8 s, every 16 s. Fooling an opponent's AI comes in steps; see the README.
 
 ## Arena
 
