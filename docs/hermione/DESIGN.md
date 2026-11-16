@@ -1,8 +1,7 @@
 # Hermione Granger — the Prodigy (design)
 
 Campaign stage 5, after Luna Lovegood, and the last student before Harry. **Status: playable**
-(practice and campaign). Her reward, Petrificus Totalus for Malfoid, is recorded here but not built
-yet. What was built and how it was checked: [REPORT.md](REPORT.md).
+(practice and campaign). What was built and how it was checked: [REPORT.md](REPORT.md).
 
 Hermione is **the hardest student by a considerable margin**. She isn't chaotic like Luna or a
 wall like Susan. She fights with precision: she reads Malfoid, exploits her cooldowns, her wand
@@ -40,20 +39,6 @@ and every attack can be dodged or blocked.
   the plates timed for Malfoid getting up, not both; a wandless Malfoid isn't an opening by
   itself; holding Malfoid's wand she lets her come close (kiting made winning it back all but
   impossible).
-
-## Campaign reward
-
-**Defeating Hermione unlocks Petrificus Totalus for Malfoid.** For now, like Luna's Illusio,
-it's recorded but not taught. (Susan's reward, Impedimenta, is taught: slowed, Hermione's
-barrage takes about twice as long to rise.)
-
-| Stage | Opponent | Spell unlocked |
-|---|---|---|
-| 1 | Ginny Weasley | Expelliarmus |
-| 2 | Cho Chang | Protego |
-| 3 | Susan Bones | Impedimenta |
-| 4 | Luna Lovegood | Illusio |
-| 5 | **Hermione Granger** | **Petrificus Totalus** |
 
 ## Arena
 

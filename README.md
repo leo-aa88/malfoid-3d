@@ -98,7 +98,7 @@ The campaign, in order (the planned roster; see the status column for what is in
 | 2 | Cho Chang | Evasion, counters, precision | Another romantic rival | Protego | playable |
 | 3 | Susan Bones | Defence, resilience | The only Hufflepuff, and the first who ignores the rivalry: she wants Malfoid stopped | Impedimenta | playable ([design](docs/susan/DESIGN.md)) |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Comic relief before the darker story | Illusio | playable (Illusio not yet taught; [report](docs/luna/REPORT.md)) |
-| 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | Petrificus Totalus | playable (Petrificus not yet taught; [report](docs/hermione/REPORT.md)) |
+| 5 | Hermione Granger | Tactical, intelligent, versatile | Final challenging school duel | – | playable ([report](docs/hermione/REPORT.md)) |
 | 6 | Harry Potter | Superior duellist; scripted defeat | Major turning point | – | planned |
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | First genuinely terrifying boss | – | planned |
 | 8 | Lord Voldemort | Final boss; lethal magic | The end of the campaign | – | planned |

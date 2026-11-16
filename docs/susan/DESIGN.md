@@ -54,7 +54,7 @@ charges per duel, no healing beyond maximum HP. The charm is in `src/combat/Epis
 | 2 | Cho Chang | Evasion, counters, precision | Protego |
 | 3 | Susan Bones | Defence, resilience | Impedimenta |
 | 4 | Luna Lovegood | Unpredictable, chaotic spellcasting | Confundo |
-| 5 | Hermione Granger | Tactical, intelligent, versatile | Petrificus Totalus |
+| 5 | Hermione Granger | Tactical, intelligent, versatile | – |
 | 6 | Harry Potter | Superior duellist; scripted defeat | None |
 | 7 | Bellatrix Lestrange | Cruel, relentless, uses Unforgivable Curses | None |
 | 8 | Lord Voldemort | Final boss; lethal magic | None |

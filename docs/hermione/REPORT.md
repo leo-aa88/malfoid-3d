@@ -201,7 +201,6 @@ What the numbers say:
 
 ## Known limitations
 
-- **Her reward:** Petrificus Totalus for Malfoid isn't built yet (like Luna's Illusio).
 - **The plates' sounds** borrow Ventus's whoosh, and plates shattering have no sound of their own.
 - **Lying, Malfoid's body extends behind her feet.** In a small window her upper body can sit under
   the HUD panel; the framing keeps her feet clear, not her whole lying body.
