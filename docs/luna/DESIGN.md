@@ -43,7 +43,7 @@ own illusory copies to confuse opponents, draw their attacks and create openings
 | 5 | Hermione Granger | – |
 
 Malfoid's Illusio is taught (key 4): two copies of her appear beside her (she stays where she
-is), for 8 s, every 16 s. Fooling an opponent's AI comes in steps; see the README.
+is), for 8 s, every 16 s, and can fool an opponent's AI: [docs/illusio/REPORT.md](../illusio/REPORT.md).
 
 ## Arena
 
