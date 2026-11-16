@@ -311,7 +311,8 @@ of her** appear beside her. Unlike Luna, she stays where she is: the player stee
   Her shield then needs its 5 s before it can go up again: a window for your Confringo. Meanwhile
   she doesn't read the real Malfoid's cast; its bolt, once it flies, gives her away.
 
-Tuning is in `src/combat/Illusio.ts` (`MALFOID_ILLUSIO`, `MALFOID_ILLUSIO_CFG`).
+Tuning is in `src/combat/Illusio.ts` (`MALFOID_ILLUSIO`, `MALFOID_ILLUSIO_CFG`). How it was built and measured:
+[docs/illusio/REPORT.md](docs/illusio/REPORT.md).
 
 ## How a duel runs
 
