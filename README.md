@@ -285,8 +285,9 @@ in practice against Hermione. Her wand circles overhead, her arms sweep open, an
 of her** appear beside her. Unlike Luna, she stays where she is: the player steers her.
 
 - **The copies:** they face and circle her opponent (the dummy in training), and stand, circle or
-  skip about, more calmly than Luna's. They mimic her casts a beat late, but no bolt leaves their
-  wands, and they cast no shadow.
+  skip about, more calmly than Luna's. They mimic her casts a beat late, and **feint casts of
+  their own** (the first 0.4–1.2 s after appearing, then every 2–3.5 s), but no bolt ever leaves
+  their wands, and they cast no shadow.
 - **Popping:** any hit pops a copy, and so does the opponent walking into it. When Malfoid
   herself is hit, they all vanish.
 - **Length:** 8 s, with a 16 s cooldown.
@@ -301,6 +302,10 @@ of her** appear beside her. Unlike Luna, she stays where she is: the player stee
   - **Spotting:** as the copies appear, Hermione spots the real one at once 15 % / 25 % / 35 % of
     the time.
   - **Afterwards:** seen through, she keeps to the real one until the copies are gone.
+- **Baiting her Protego:** while she watches a copy, she reads that copy's casts (its mimicry or
+  its feints) as the real thing, and may raise her Protego (or dodge) at a bolt that never comes.
+  Her shield then needs its 5 s before it can go up again: a window for your Confringo. Meanwhile
+  she doesn't read the real Malfoid's cast; its bolt, once it flies, gives her away.
 
 Tuning is in `src/combat/Illusio.ts` (`MALFOID_ILLUSIO`, `MALFOID_ILLUSIO_CFG`).
 

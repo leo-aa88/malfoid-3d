@@ -7,6 +7,7 @@ import { sweepBox } from '../spells/collision';
 import type { SpellDef, SpellSystem } from '../spells/SpellSystem';
 import type { CombatTarget } from '../CombatTarget';
 import { PROTEGO, Protego } from '../Protego';
+import { CONFRINGO } from '../spells/Confringo';
 import type { DodgeState } from '../../character/AnimationController';
 import type { Episkey } from '../Episkey';
 
@@ -204,7 +205,8 @@ export const ILLUSION_DEFAULT: IllusionSense = { spot: 0.15, seeThrough: [2.5, 3
 /** one of the opponent's copies as an AI sees it: a target (popped when hit) at a figure's place */
 export interface CopyTarget extends CombatTarget {
   readonly active: boolean;
-  readonly copy: { readonly position: THREE.Vector3 };
+  /** the figure (its place, its facing, and the clip it plays: a mimicked cast is a cast_ clip) */
+  readonly copy: { readonly position: THREE.Vector3; readonly facingAngle: number; readonly currentStrike: string | null };
 }
 
 export interface AIParams {
@@ -309,6 +311,14 @@ export class FighterAI {
   private seeThroughLeft = 0;
   private copiesOut = 0;
   private foeBolts = 0;
+  /** the cast she watches while fooled: the copy's mimicry of the opponent's (s into it, and the
+   *  spell it mimics: the one the opponent is casting); -1: none */
+  private copyCastT = -1;
+  private copyCastDef: SpellDef | null = null;
+  /** the last spell she saw the opponent cast (what a copy's feint looks like to her) */
+  private lastFoeSpell: SpellDef | null = null;
+  /** casts of a copy she has read as real (a measure: her Protego and dodges baited) */
+  baited = 0;
   /** her Protego (evasive and defensive styles), and her short-range push spell (Ventus) */
   shield: Protego | null = null;
   pushSpell: SpellDef | null = null;
@@ -501,21 +511,29 @@ export class FighterAI {
     }
 
     // she reads the opponent's wand wind-up and steps aside as the bolt is released (the bolt
-    // is aimed where she stands at the release)
+    // is aimed where she stands at the release). Fooled by a copy, she watches the copy: its
+    // mimicked cast is the one she reads (and may raise Protego at: no bolt ever comes), and the
+    // real one's cast goes unread (its bolt, once it flies, gives her away)
     const os = this.opponentSpells;
-    if (os && os.isCasting && !dazed) {
-      const rel = os.castingSpell?.release ?? 0.42;
-      if (!this.readCast && os.castTime >= rel - 0.16 && os.castTime < rel) {
+    const fake = this.believed && this.copyCastT >= 0 && this.copyCastDef ? this.believed.copy : null;
+    const watching = fake ? true : !this.believed && !!os?.isCasting;
+    if (os && watching && !dazed) {
+      const castDef = fake ? this.copyCastDef : os.castingSpell;
+      const castTime = fake ? this.copyCastT : os.castTime;
+      const caster = fake ?? this.opponent;
+      const rel = castDef?.release ?? 0.42;
+      if (!this.readCast && castTime >= rel - 0.16 && castTime < rel) {
         this.readCast = true;
-        const aimedAtMe = Math.abs(angDiff(this.opponent.facingAngle, this.angleFrom(this.opponent.position, me.position))) < 0.8;
-        const def = os.castingSpell;
-        if (def?.id === 'confringo' && !this.countedCast) {
+        const aimedAtMe = Math.abs(angDiff(caster.facingAngle, this.angleFrom(caster.position, me.position))) < 0.8;
+        const def = castDef;
+        if (fake) this.baited++;
+        if (!fake && def?.id === 'confringo' && !this.countedCast) {
           this.countedCast = true;
           this.opponentCasts.push(this.clock);
         }
         if (P.evasive && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting) {
           // the bolt reaches her this long from now (the rest of the wind-up, then its flight)
-          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const arrive = Math.max(0, rel - castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           this.readAt = this.clock;
           this.evade(arrive);
         } else if (P.defensive && aimedAtMe && dist > 1.5 && def && !this.combat.busy && !this.spells.isCasting
@@ -523,7 +541,7 @@ export class FighterAI {
           // a defensive duellist meets the bolt: Protego when she has it ready (well ahead to stop
           // it, now and then timed to send it back), otherwise her guard
           const df = P.defensive;
-          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const arrive = Math.max(0, rel - castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           const parry = Math.random() < df.parryChance;
           if (this.shield?.ready && this.state !== 'PROTEGO' && (parry || arrive > PROTEGO.perfectWindow + 0.05)
               && Math.random() < df.shieldChance) {
@@ -540,7 +558,7 @@ export class FighterAI {
           // a chaotic duellist (Luna) or a prodigy (Hermione) with Protego: the shield, well ahead
           // or timed to send it back
           const ch = (P.chaotic ?? P.prodigy)!;
-          const arrive = Math.max(0, rel - os.castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
+          const arrive = Math.max(0, rel - castTime) + Math.max(0, dist - 0.5) / def.projectile.speed;
           const parry = Math.random() < ch.parryChance;
           if (parry || arrive > PROTEGO.perfectWindow + 0.05) {
             this.shieldAt = parry ? Math.max(0, arrive - rand(0.03, 0.12) + rand(-ch.timingError, ch.timingError))
@@ -1503,6 +1521,7 @@ export class FighterAI {
    * herself away, she sees through it
    */
   private updateBelief(dt: number): void {
+    if (this.opponentSpells?.isCasting && this.opponentSpells.castingSpell) this.lastFoeSpell = this.opponentSpells.castingSpell;
     const out = this.copies.filter((c) => c.active);
     const bolts = this.opponentSpells?.projectiles.length ?? 0;
     const newBolt = bolts > this.foeBolts;
@@ -1530,6 +1549,20 @@ export class FighterAI {
     if (this.seeThroughLeft <= 0 || newBolt || (this.opponentCombat.busy && near < 2.0)) {
       this.seenThrough = true;
       this.setBelief(null);
+      return;
+    }
+    // the copy she watches mimics a cast: to her, the opponent is casting at her
+    const s = this.believed.copy.currentStrike;
+    if (s && s.startsWith('cast_')) {
+      if (this.copyCastT < 0) {
+        this.copyCastT = 0;
+        // mimicking her cast: that spell; a feint of its own: the last she cast (or her Confringo)
+        this.copyCastDef = this.opponentSpells?.castingSpell ?? this.lastFoeSpell ?? CONFRINGO;
+      } else {
+        this.copyCastT += dt;
+      }
+    } else {
+      this.copyCastT = -1;
     }
   }
 
@@ -1545,6 +1578,7 @@ export class FighterAI {
   private setBelief(c: CopyTarget | null): void {
     if (c === this.believed) return;
     this.believed = c;
+    this.copyCastT = -1;
     this.foeSeen = false;                                     // a new figure: her velocity starts afresh
   }
 

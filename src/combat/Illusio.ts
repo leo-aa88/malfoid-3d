@@ -35,6 +35,12 @@ export const ILLUSIO = {
   skipChance: 0.65,
   /** as they appear, she and they swap places at random (Luna: the player must find her again) */
   shuffle: true,
+  /** s between a copy's own feinted casts (its clip, no bolt: an opponent fooled by it may raise
+   *  her shield at nothing); null: copies only mimic (Luna's) */
+  feint: null as [number, number] | null,
+  /** s after appearing until a copy's first feint (early: a quick opponent sees through them soon) */
+  feintFirst: [0.4, 1.2] as [number, number],
+  feintClip: 'cast_confringo' as SpellClip,
 };
 
 export const ILLUSIO_SPELL: SpellDef = {
@@ -70,6 +76,8 @@ export const MALFOID_ILLUSIO_CFG = {
   standChance: 0.35,
   skipChance: 0.55,
   shuffle: false,
+  // her copies feint casts of their own (baiting a fooled opponent's Protego)
+  feint: [2.0, 3.5] as [number, number],
 };
 export const MALFOID_ILLUSIO: SpellDef = { ...ILLUSIO_SPELL, key: '4', cooldown: 16.0 };
 
@@ -161,6 +169,8 @@ interface Copy {
   mimicIn: number;
   mimicClip: SpellClip | null;
   mimicLeft: number;
+  /** s until its own feinted cast (cfg.feint) */
+  feintIn: number;
 }
 
 /** what the copies need of the arena: keep them out of walls and furniture */
@@ -197,7 +207,7 @@ export class Illusions {
       scene.add(char.root);
       const target = new IllusionTarget(char);
       const c: Copy = { target, char, think: 0, mode: 'stand', goal: new THREE.Vector3(), side: 1, mimicIn: -1, mimicClip: null,
-        mimicLeft: 0 };
+        mimicLeft: 0, feintIn: 0 };
       target.onPop = () => this.pop(c, true);
       return c;
     });
@@ -268,6 +278,7 @@ export class Illusions {
       c.mimicIn = -1;
       c.mimicClip = null;
       c.mimicLeft = 0;
+      c.feintIn = this.cfg.feint ? rand(this.cfg.feintFirst[0], this.cfg.feintFirst[1]) : -1;
     }
     this.real.root.position.copy(places[mine]);
     this.real.setFacing(Math.atan2(foe.x - places[mine].x, foe.z - places[mine].z));
@@ -329,6 +340,15 @@ export class Illusions {
       if (newCast) {
         c.mimicIn = rand(this.cfg.mimicDelay[0], this.cfg.mimicDelay[1]);
         c.mimicClip = strike as SpellClip;
+      }
+      // a cast of its own (a feint), now and then, while it isn't mimicking hers
+      if (this.cfg.feint && c.mimicIn < 0 && c.mimicLeft <= 0 && !me.currentStrike) {
+        c.feintIn -= dt;
+        if (c.feintIn <= 0) {
+          c.feintIn = rand(this.cfg.feint[0], this.cfg.feint[1]);
+          c.mimicIn = 0;
+          c.mimicClip = this.cfg.feintClip;
+        }
       }
       if (c.mimicIn >= 0) {
         c.mimicIn -= dt;

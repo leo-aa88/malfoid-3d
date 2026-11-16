@@ -138,3 +138,24 @@ test('learned from Luna: in practice from Hermione on; key 4', () => {
   assert.ok(spellsBefore('hermione').has('illusio'));
   assert.equal(SPELL_INFO.illusio.key, '4');
 });
+
+test('her copies feint casts of their own now and then (no bolt; Luna\'s only mimic)', () => {
+  const s = setup();
+  const feints: string[] = [];
+  for (const t of s.twins) {
+    const p = t.playStrike.bind(t);
+    t.playStrike = (c: string) => { feints.push(c); p(c); };
+  }
+  s.ill.cast(2);
+  for (let x = 0; x < 4.0; x += DT) s.ill.update(DT);
+  assert.ok(feints.length >= 2, `both copies feinted (${feints.length})`);
+  assert.ok(feints.every((c) => c === 'cast_confringo'));
+  assert.equal(s.malfoid.currentStrike, null, 'she did nothing');
+  const l = setup();
+  l.ill.cfg = { ...ILLUSIO, life: 10 };
+  const none: string[] = [];
+  for (const t of l.twins) t.playStrike = (c: string) => { none.push(c); };
+  l.ill.cast(2);
+  for (let x = 0; x < 6.0; x += DT) l.ill.update(DT);
+  assert.equal(none.length, 0, 'Luna\'s copies never feint');
+});
