@@ -302,6 +302,10 @@ of her** appear beside her. Unlike Luna, she stays where she is: the player stee
   - **Spotting:** as the copies appear, Hermione spots the real one at once 15 % / 25 % / 35 % of
     the time.
   - **Afterwards:** seen through, she keeps to the real one until the copies are gone.
+- **Her plates:** each plate is aimed as it leaves, at the figure she believes. Fooled, she pours
+  the barrage at one copy: the first plate to reach it pops it, but the next ~4 are already flying
+  at the empty spot. Then she picks again among the figures left. Cast during her wind-up, Illusio
+  let 4.5 of 10 plates reach Malfoid on average (Normal, 8 barrages: 0 to 10).
 - **Baiting her Protego:** while she watches a copy, she reads that copy's casts (its mimicry or
   its feints) as the real thing, and may raise her Protego (or dodge) at a bolt that never comes.
   Her shield then needs its 5 s before it can go up again: a window for your Confringo. Meanwhile
