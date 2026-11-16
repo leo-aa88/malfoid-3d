@@ -19,6 +19,7 @@ import { SpellSystem } from './combat/spells/SpellSystem';
 import { ConfringoFx } from './combat/spells/ConfringoFx';
 import { CONFRINGO } from './combat/spells/Confringo';
 import { EXPELLIARMUS, EXPELLIARMUS_LOOK } from './combat/spells/Expelliarmus';
+import { IMPEDIMENTA_LOOK, MALFOID_IMPEDIMENTA } from './combat/spells/Impedimenta';
 import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 import { FighterAI } from './combat/ai/FighterAI';
 import { Sfx } from './audio/Sfx';
@@ -118,11 +119,13 @@ async function start(): Promise<void> {
   // orb each); Malfoid's spell system advances both of her pools (it runs in every mode)
   const spellFx = new ConfringoFx(sm.scene);
   const ginnyFx = new ConfringoFx(sm.scene, EXPELLIARMUS_LOOK, 'expelliarmus_fx');
+  // her Impedimenta (learned from Susan): Susan shares this pool (no lights)
+  const impedimentaFx = new ConfringoFx(sm.scene, IMPEDIMENTA_LOOK, 'impedimenta_fx');
   // (her pools by spell id also get every opponent's, below: a bolt her Protego sends back
   // flies on in its caster's pool, which its caster's system advances)
-  const malfoidPools: Record<string, SpellFx> = { confringo: spellFx, expelliarmus: ginnyFx };
+  const malfoidPools: Record<string, SpellFx> = { confringo: spellFx, expelliarmus: ginnyFx, impedimenta: impedimentaFx };
   const spells = new SpellSystem(malfoid, malfoid.spellEmitter, () => combat.busy,
-    new SpellFxSet(malfoidPools, [spellFx, ginnyFx]), { solids, groundY: 0 });
+    new SpellFxSet(malfoidPools, [spellFx, ginnyFx, impedimentaFx]), { solids, groundY: 0 });
   malfoidTarget.reflector = spells;                    // a spell she sends back becomes hers
   spells.onEvent = (e) => {
     hud.handleSpell(e);
@@ -130,11 +133,15 @@ async function start(): Promise<void> {
     // her spell met the opponent's shield: stopped, or (a parry) sent straight back at her
     if (e.type === 'shielded') hud.flashStatusText('PROTEGO', 'miss');
     if (e.type === 'reflected') hud.announce('REFLECTED!', 'disarm');
+    // her Impedimenta caught the opponent
+    if (e.type === 'hit' && e.direct && e.spell.slow && e.report.result === 'hit' && !e.report.ko) hud.announce('SLOWED!', 'disarm');
   };
-  hud.addSpell('confringo', CONFRINGO.name, 'L', 'confringo');
+  hud.addSpell('confringo', CONFRINGO.name, CONFRINGO.key, 'confringo');
   hud.addSpell('expelliarmus', SPELL_INFO.expelliarmus.name, SPELL_INFO.expelliarmus.key, 'expelliarmus');
   hud.addSpell('protego', SPELL_INFO.protego.name, SPELL_INFO.protego.key, 'protego');
-  const SPELL_DEFS: Record<Exclude<SpellId, 'protego'>, SpellDef> = { confringo: CONFRINGO, expelliarmus: EXPELLIARMUS };
+  hud.addSpell('impedimenta', SPELL_INFO.impedimenta.name, SPELL_INFO.impedimenta.key, 'impedimenta');
+  const SPELL_DEFS: Record<Exclude<SpellId, 'protego'>, SpellDef> = { confringo: CONFRINGO, expelliarmus: EXPELLIARMUS,
+    impedimenta: MALFOID_IMPEDIMENTA };
   malfoidTarget.onShield = (r) => {
     if (r === 'reflect') hud.announce('REFLECTED!', 'disarm');
     else hud.flashStatusText('PROTEGO', 'miss');
@@ -154,7 +161,7 @@ async function start(): Promise<void> {
   // shield and AI; only the one being duelled is shown and updated. The AI only fights once a
   // duel has started.
   const world = { scene: sm.scene, malfoid, malfoidTarget, malfoidCombat: combat, malfoidSpells: spells, solids,
-    pools: { confringo: spellFx, expelliarmus: ginnyFx } };
+    pools: { confringo: spellFx, expelliarmus: ginnyFx, impedimenta: impedimentaFx } };
   const opponents = {} as Record<OpponentId, Opponent>;
   ids.forEach((id, i) => {
     const o = new Opponent(OPPONENTS[id], opponentChars[i], world);
@@ -183,6 +190,8 @@ async function start(): Promise<void> {
     if (o.illusions) o.illusions.onEvent = (e) => { if (e === 'pop') hud.flashStatusText('ILLUSION!', 'miss'); };
   });
   opp = opponents.ginny;
+  // the rings round the opponent's legs while Malfoid's Impedimenta slows her (follows whoever she duels)
+  const oppSlowFx = new SlowFx(sm.scene, opp.target);
   let level: Difficulty = 'easy';
   const setLevel = (l: Difficulty) => {
     level = l;
@@ -200,6 +209,7 @@ async function start(): Promise<void> {
       opp.char.root.position.copy(OPPONENT_WAIT);
     }
     opp = opponents[id];
+    oppSlowFx.target = opp.target;
     voices.setOpponent(opp.char, opp.def.lines);
     hud.setOpponent(opp.def.name, opp.def.hudColour);
     spells.world.targets = malfoidTargets();
@@ -319,7 +329,7 @@ async function start(): Promise<void> {
   const input = new CharacterController(malfoid, combat);
   input.viewYaw = () => cam.getYaw();
   input.confused = () => malfoidTarget.confused;          // Confundo: her directions reversed
-  // H: Protego while held (learned from Cho). Raised over a held block or crouch; not while
+  // 2: Protego while held (learned from Cho). Raised over a held block or crouch; not while
   // striking, casting, reacting or disarmed; letting go (or its time running out) lowers it
   input.onShield = (on) => {
     if (!on) {
@@ -344,6 +354,7 @@ async function start(): Promise<void> {
   let mySpells: ReadonlySet<SpellId> = ALL_SPELLS;
   const helpExpelliarmus = document.getElementById('help-expelliarmus')!;
   const helpProtego = document.getElementById('help-protego')!;
+  const helpImpedimenta = document.getElementById('help-impedimenta')!;
   const refreshSpells = () => {
     // practice: the spells she has when she reaches this opponent in the campaign (against
     // Ginny only Confringo; nothing learned from her or anyone after her)
@@ -354,6 +365,8 @@ async function start(): Promise<void> {
     helpExpelliarmus.hidden = !mySpells.has('expelliarmus');
     hud.showSpell('protego', mySpells.has('protego'));
     helpProtego.hidden = !mySpells.has('protego');
+    hud.showSpell('impedimenta', mySpells.has('impedimenta'));
+    helpImpedimenta.hidden = !mySpells.has('impedimenta');
     if (!mySpells.has('protego')) protego.reset();
   };
   // the start menu's campaign box: continue the run (who is next, difficulty) or start
@@ -652,6 +665,7 @@ async function start(): Promise<void> {
       malfoidTarget.update(dt);
       opp.target.update(dt);
       slowFx.update(dt);
+      oppSlowFx.update(dt);
       confusionFx.update(dt);
       if (duelMode) {
         keepApart(malfoid.position, foe.position, FIGHTER_GAP, 0.5);
@@ -691,9 +705,13 @@ async function start(): Promise<void> {
     hud.setSpell('confringo', spells.cooldownLeft(CONFRINGO), CONFRINGO.cooldown, malfoid.hasWand);
     if (mySpells.has('expelliarmus')) hud.setSpell('expelliarmus', spells.cooldownLeft(EXPELLIARMUS), EXPELLIARMUS.cooldown, malfoid.hasWand);
     if (mySpells.has('protego')) hud.setSpell('protego', protego.cooldownLeft, PROTEGO.cooldown, malfoid.hasWand);
+    if (mySpells.has('impedimenta')) {
+      hud.setSpell('impedimenta', spells.cooldownLeft(MALFOID_IMPEDIMENTA), MALFOID_IMPEDIMENTA.cooldown, malfoid.hasWand);
+    }
     hud.setFighters(malfoidTarget, opp.target, duel ? opp.ai.state : null);
     spellFx.setView(sm.camera, sm.renderer.domElement.height);
     ginnyFx.setView(sm.camera, sm.renderer.domElement.height);
+    impedimentaFx.setView(sm.camera, sm.renderer.domElement.height);
     opp.setView(sm.camera, sm.renderer.domElement.height);
     // voice lines: cut to a close-up of whoever speaks (her mouth is readable) and hold it
     // through the pause between the opening lines; the fight cuts back to the duel view
@@ -733,11 +751,11 @@ async function start(): Promise<void> {
   const su = opponents.susan;
   const lu = opponents.luna;
   const he = opponents.hermione;
-  Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, malfoidTarget,
+  Object.assign(window, { sfx, volume, voices, malfoid, cam, combat, dummy, spells, spellFx, ginnyFx, impedimentaFx, malfoidTarget,
     // Ginny's systems by their old names, Cho's, and whoever is being duelled
     ginny: g.char, ginnyCombat: g.combat, ginnySpells: g.spells, ginnyTarget: g.target, ai: g.ai,
     cho: c.char, choCombat: c.combat, choSpells: c.spells, choTarget: c.target, choAi: c.ai, choProtego: c.protego,
-    susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx,
+    susan: su.char, susanCombat: su.combat, susanSpells: su.spells, susanTarget: su.target, susanAi: su.ai, susanEpiskey: su.episkey, slowFx, oppSlowFx, MALFOID_IMPEDIMENTA,
     luna: lu.char, lunaAi: lu.ai, lunaSpells: lu.spells, lunaTarget: lu.target, lunaFlock: lu.flock, lunaIllusions: lu.illusions,
     hermione: he.char, hermioneAi: he.ai, hermioneSpells: he.spells, hermioneTarget: he.target, hermioneBarrage: he.barrage,
     hermioneOpp: he, greatHall,

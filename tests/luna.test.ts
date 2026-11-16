@@ -115,7 +115,7 @@ test('Luna\'s definition: Confundo first, Expelliarmus second, her summons, Prot
   assert.equal(d.character.run?.clip, 'luna_skip');
   assert.ok(d.character.twins);
   // in practice against her, Malfoid has what she'd have reaching her in the campaign
-  assert.deepEqual([...spellsBefore('luna')].sort(), ['confringo', 'expelliarmus', 'protego']);
+  assert.deepEqual([...spellsBefore('luna')].sort(), ['confringo', 'expelliarmus', 'impedimenta', 'protego']);
 });
 
 test('summoning spells: no bolt; at the release the caster summons, and the cooldown starts', () => {

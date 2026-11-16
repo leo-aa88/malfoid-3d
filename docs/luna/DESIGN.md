@@ -38,11 +38,11 @@ own illusory copies to confuse opponents, draw their attacks and create openings
 |---|---|---|
 | 1 | Ginny Weasley | Expelliarmus |
 | 2 | Cho Chang | Protego |
-| 3 | Susan Bones | Episkey |
+| 3 | Susan Bones | Impedimenta |
 | 4 | **Luna Lovegood** | **Illusio** |
 | 5 | Hermione Granger | Petrificus Totalus |
 
-For now, like Susan's Episkey, the reward is recorded but not taught. Malfoid's own Illusio
+For now the reward is recorded but not taught. Malfoid's own Illusio
 comes in a later change.
 
 ## Arena

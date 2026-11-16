@@ -11,6 +11,11 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
   KeyI: 'I',
 };
 
+/** spell keys: the digit on the number row or the keypad (0 Confringo, 1 Expelliarmus, 2 Protego, 3 Impedimenta) */
+const SPELL_KEYS: Record<string, number> = {
+  Digit0: 0, Numpad0: 0, Digit1: 1, Numpad1: 1, Digit2: 2, Numpad2: 2, Digit3: 3, Numpad3: 3,
+};
+
 /**
  * Keyboard input -> character commands.
  *
@@ -22,10 +27,12 @@ const ATTACK_KEYS: Record<string, AttackButton> = {
  * | Left Ctrl    | crouch (held)              |
  * | J / U        | high / low punch           |
  * | K / I        | high / low kick            |
- * | O            | block (held)               |
- * | L            | cast Confringo             |
- * | P            | cast Expelliarmus (learned)|
- * | H            | Protego (held; learned)    |
+ * | O or Enter   | block (held; either Enter) |
+ * | 0            | cast Confringo             |
+ * | 1            | cast Expelliarmus (learned)|
+ * | 2            | Protego (held; learned)    |
+ * | 3            | cast Impedimenta (learned) |
+ * (the number row or the keypad)
  * | G            | start / stop a duel        |
  * | B            | dummy guard none/high/low  |
  * | N            | dummy in front of her      |
@@ -44,9 +51,9 @@ export class CharacterController {
   /** training dummy: cycle its guard / bring it in front of her */
   onDummyGuard: (() => void) | null = null;
   onDummyReset: (() => void) | null = null;
-  /** spell keys (L: Confringo, P: Expelliarmus); called once per key press, never for auto-repeat */
-  onSpell: ((spell: 'confringo' | 'expelliarmus') => void) | null = null;
-  /** Protego's key (H): true as it is pressed (never for auto-repeat), false as it is let go */
+  /** spell keys (0: Confringo, 1: Expelliarmus, 3: Impedimenta); called once per key press, never for auto-repeat */
+  onSpell: ((spell: 'confringo' | 'expelliarmus' | 'impedimenta') => void) | null = null;
+  /** Protego's key (2): true as it is pressed (never for auto-repeat), false as it is let go */
   onShield: ((on: boolean) => void) | null = null;
   /** start / stop a duel with Ginny */
   onDuel: (() => void) | null = null;
@@ -71,16 +78,17 @@ export class CharacterController {
       const attack = ATTACK_KEYS[e.code];
       if (attack) this.combat.press(attack);
       else if (e.code === 'Space') this.character.trigger('jump');
-      else if (e.code === 'KeyL') this.onSpell?.('confringo');
-      else if (e.code === 'KeyP') this.onSpell?.('expelliarmus');
-      else if (e.code === 'KeyH') this.onShield?.(true);
+      else if (SPELL_KEYS[e.code] === 0) this.onSpell?.('confringo');
+      else if (SPELL_KEYS[e.code] === 1) this.onSpell?.('expelliarmus');
+      else if (SPELL_KEYS[e.code] === 2) this.onShield?.(true);
+      else if (SPELL_KEYS[e.code] === 3) this.onSpell?.('impedimenta');
       else if (e.code === 'KeyG') this.onDuel?.();
       else if (e.code === 'KeyB') this.onDummyGuard?.();
       else if (e.code === 'KeyN') this.onDummyReset?.();
     });
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
-      if (e.code === 'KeyH') this.onShield?.(false);
+      if (SPELL_KEYS[e.code] === 2) this.onShield?.(false);
     });
     window.addEventListener('blur', () => {
       this.keys.clear();
@@ -107,7 +115,8 @@ export class CharacterController {
       return;
     }
     this.character.setHold('crouch', k.has('ControlLeft'));
-    this.character.setHold('block', k.has('KeyO'));
+    // O (beside the strike keys, for melee) or Enter (either)
+    this.character.setHold('block', k.has('KeyO') || k.has('Enter') || k.has('NumpadEnter'));
     const flip = this.confused?.() ? -1 : 1;
     const f = flip * ((k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0));
     const r = flip * ((k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0));
