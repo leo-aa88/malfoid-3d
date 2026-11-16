@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Malfoid } from '../character/Malfoid';
 import { ComboSystem } from '../combat/ComboSystem';
 import { FighterTarget } from '../combat/FighterTarget';
-import { FighterAI } from '../combat/ai/FighterAI';
+import { CopyTarget, FighterAI } from '../combat/ai/FighterAI';
 import type { Difficulty } from '../combat/ai/difficulty';
 import { SpellSystem, SpellFx, SpellDef } from '../combat/spells/SpellSystem';
 import { OPPUGNO_SPELL, OppugnoFlock, OppugnoFx } from '../combat/spells/Oppugno';
@@ -117,6 +117,9 @@ export class Opponent {
     this.spells.aimAtIllusions = false;               // she aims at Malfoid (her AI's choice)
     this.ai = new FighterAI(char, this.target, this.combat, this.spells, this.spell, w.malfoid, w.malfoidCombat, () => w.solids);
     this.ai.opponentSpells = w.malfoidSpells;          // she sees Malfoid's casts and bolts
+    // Malfoid's Illusio copies: she may take one for her (her AI's belief)
+    this.ai.copies = w.malfoidCopies as CopyTarget[];
+    this.ai.foeTarget = w.malfoidTarget;
     this.ai.pushSpell = def.push ?? null;
     // a second ranged spell (Susan's Expelliarmus): its effects are a shared pool
     if (def.altSpell && !bySpell[def.altSpell.id]) throw new Error(`no effects for ${def.altSpell.id}`);
@@ -161,6 +164,7 @@ export class Opponent {
     // brings Malfoid's dropped wand to her free hand
     if (def.plates) {
       this.barrage = new PlateBarrage();
+      this.barrage.extraTargets = w.malfoidCopies;      // a plate that meets a copy of Malfoid pops it
       this.plateFx = new PlateFx(w.scene, this.barrage);
       this.barrage.onEvent = (e) => this.spells.onEvent?.(e);
       this.ai.plates = this.platesSpell;

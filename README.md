@@ -290,8 +290,17 @@ of her** appear beside her. Unlike Luna, she stays where she is: the player stee
 - **Popping:** any hit pops a copy, and so does the opponent walking into it. When Malfoid
   herself is hit, they all vanish.
 - **Length:** 8 s, with a 16 s cooldown.
-- **Against an opponent's AI:** so far she isn't fooled: she aims at the real Malfoid, though a
-  bolt or strike of hers that meets a copy pops it. Fooling her comes next.
+- **Fooling the opponent:** as the copies appear, she may take one of them for Malfoid. She then
+  moves, aims and casts at it: her bolts, strikes and plates pop it. When the copy she watched
+  pops, she picks again among the figures left.
+- **Seeing through it:**
+  - **In time:** Hermione takes 2.6–3.4 s on Easy, 1.8–2.4 s on Normal and 1.1–1.5 s on Hard.
+    Others take 2.5–3.5 s.
+  - **Given away:** at once if the real Malfoid's bolt flies (a copy's never does) or she strikes
+    within reach.
+  - **Spotting:** as the copies appear, Hermione spots the real one at once 15 % / 25 % / 35 % of
+    the time.
+  - **Afterwards:** seen through, she keeps to the real one until the copies are gone.
 
 Tuning is in `src/combat/Illusio.ts` (`MALFOID_ILLUSIO`, `MALFOID_ILLUSIO_CFG`).
 
