@@ -107,7 +107,7 @@ test('the order: Ginny, Cho, Susan Bones, Luna, Hermione, Harry, Bellatrix, Vold
   assert.equal(l.next?.name, 'Hermione Granger');
   assert.equal(l.next?.playable, true, 'Hermione is in the game');
   const h = c.win();                                   // Hermione beaten
-  assert.equal(h.learned, null, 'her reward (Petrificus Totalus) comes later');
+  assert.equal(h.learned, null, 'no reward');
   assert.equal(h.next?.name, 'Harry Potter');
   assert.equal(h.next?.playable, false, 'not in the game yet');
 });

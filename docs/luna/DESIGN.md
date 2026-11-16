@@ -40,7 +40,7 @@ own illusory copies to confuse opponents, draw their attacks and create openings
 | 2 | Cho Chang | Protego |
 | 3 | Susan Bones | Impedimenta |
 | 4 | **Luna Lovegood** | **Illusio** |
-| 5 | Hermione Granger | Petrificus Totalus |
+| 5 | Hermione Granger | – |
 
 For now the reward is recorded but not taught. Malfoid's own Illusio
 comes in a later change.

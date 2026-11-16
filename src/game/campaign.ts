@@ -29,7 +29,7 @@ export const CAMPAIGN: readonly Opponent[] = [
   { id: 'susan', name: 'Susan Bones', reward: 'impedimenta', playable: true },
   // (her reward, Illusio, comes with Malfoid's own copies)
   { id: 'luna', name: 'Luna Lovegood', playable: true },
-  // (her reward, Petrificus Totalus, comes with Malfoid's own body-bind)
+  // (no reward)
   { id: 'hermione', name: 'Hermione Granger', playable: true },
   { id: 'harry', name: 'Harry Potter', playable: false },
   { id: 'bellatrix', name: 'Bellatrix Lestrange', playable: false },
