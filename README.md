@@ -11,6 +11,31 @@ playable; the rest of the campaign is planned. The built characters
 (`public/models/*.glb`) and sound effects (`public/sfx/`) are included, so the game runs straight
 from a clone.
 
+## Prerequisites
+
+To **run or build the game** from a clone:
+
+- **Node.js 22 or newer** (tested with 24). Vite needs 18+, and `npm test` passes a glob to
+  `node --test`, which needs 21+.
+- npm, which comes with Node. `npm install` fetches everything else (Three.js, TypeScript, Vite,
+  and esbuild for the tests).
+
+To **rebuild the characters** (`make models`), you also need:
+
+- **Blender 4.5 LTS**, the official build from blender.org (tested with 4.5.16 on Linux/WSL2).
+  - Make looks for it at `~/.local/opt/blender-4.5.16-linux-x64/blender`. Override with
+    `make BLENDER=/path/to/blender ...`.
+  - Distribution packages such as Ubuntu's apt Blender 3.0 crash on the asset files.
+- **Python 3 with Pillow and numpy** (tested with Pillow 11.2 and numpy 1.26), for the
+  textures. Install them with `pip install pillow numpy`, or on Debian/Ubuntu with
+  `sudo apt install python3-pil python3-numpy`.
+- **The DejaVu Serif font** (`fonts-dejavu-core` on Debian/Ubuntu), for the lettering on
+  Malfoid's crest. Without it the crest falls back to Pillow's default font and her model no
+  longer matches the committed one.
+- **GNU Make 4.3 or newer**, because the Makefile uses grouped targets (`&:`).
+- The purchased asset files the build reads are committed (see
+  [Rebuilding the models](#rebuilding-the-models)), so there's nothing else to download.
+
 ## Run
 
 ```bash
@@ -20,6 +45,10 @@ npm run dev
 
 Then open the URL Vite prints (usually http://localhost:5173). `npm run build` produces a static
 site in `dist/`.
+
+Use npm rather than `make dev` or `make build` if you don't have Blender. Both make targets
+rebuild the characters first, so they need everything listed for rebuilding the characters
+above.
 
 ## Modes
 
@@ -530,13 +559,17 @@ No browser or WebGL needed.
 
 ## Rebuilding the models
 
-The characters are generated from purchased assets. The files the build reads are committed in the
-repo root: `base_character.blend` and `Gumroad_Anime_Female_BaseMesh/` (anime base mesh and its
-textures), `Bell_Hair_01/` (hair `.blend` and PNGs) and
-`Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/` (uniform). The rest of each pack (PSDs,
-FBX/OBJ, Unity files) stays local. You also need system Python 3 with Pillow and numpy (textures) and
-Blender 4.5 (default path `~/.local/opt/blender-4.5.16-linux-x64/blender`,
-override with `BLENDER=...`).
+The characters are generated from purchased assets. The files the build reads are committed in
+the repo root:
+
+- `base_character.blend` and `Gumroad_Anime_Female_BaseMesh/`: the anime base mesh and its
+  textures
+- `Bell_Hair_01/`: the hair `.blend` and its PNGs
+- `Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/`: the uniform
+
+The rest of each pack (PSDs, FBX/OBJ, Unity files) stays local. For the tools you need, see
+[Prerequisites](#prerequisites). A full `make models` rebuild takes a few minutes, and its
+output is byte-identical to the committed `public/models/`.
 
 ```bash
 make model        # textures + build/malfoid.blend + public/models/malfoid.glb
