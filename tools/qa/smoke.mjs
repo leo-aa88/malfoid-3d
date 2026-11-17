@@ -38,7 +38,8 @@ const renders = async () => {
   const from = await page.evaluate(() => window.renderer.info.render.frame);
   await page.waitForFunction((n) => window.renderer.info.render.frame >= n, from + FRAMES_PER_MODE,
     { timeout: FRAME_TIMEOUT, polling: 250 }).catch(() => fail(`fewer than ${FRAMES_PER_MODE} frames rendered`));
-  if (shots) await page.screenshot({ path: `${shots}/${step}.png` });
+  // diagnostic only: a slow software frame must not fail the check
+  if (shots) await page.screenshot({ path: `${shots}/${step}.png`, timeout: 120_000 }).catch(() => console.log(`(no screenshot for ${step})`));
   await check();
 };
 
