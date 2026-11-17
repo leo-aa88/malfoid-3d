@@ -63,7 +63,8 @@ One-time setup, in the Cloudflare dashboard (**Workers & Pages → Create → Im
 
 1. Pick this repository and the `main` branch. The Workers Builds setup dialog pre-fills:
    - **Project name:** `malfoid-vs-hogwarts` (must match `name` in `wrangler.jsonc`)
-   - **Build command:** `npm run build`
+   - **Build command:** change to **`npm test && npm run build`**, so Cloudflare refuses to
+     deploy a commit whose tests or type check fail, even one pushed straight to `main`
    - **Deploy command:** `npx wrangler deploy` (reads `wrangler.jsonc`)
    - **Preview command:** change to **`npx wrangler versions upload`** so pushes to non-`main`
      branches upload a preview version without promoting it to production.
@@ -82,6 +83,39 @@ picked up immediately.
 
 **File-size note:** Workers Assets rejects any single file over 25 MiB. The committed GLBs are
 18–19 MB each; keep new models under the limit.
+
+### CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every pull request into `main`
+and on `main` itself, as two jobs:
+
+- **Test and build:** `npm test`, `npm run build` (type check + Vite), then
+  `wrangler deploy --dry-run`, which rejects a broken `wrangler.jsonc` or any file over 25 MiB.
+- **Boot in browser:** builds, serves `dist/` with `vite preview`, and runs
+  [`tools/qa/smoke.mjs`](tools/qa/smoke.mjs) in headless Chromium (software WebGL). The game
+  must load, then Training, a Practice duel against every opponent, a Campaign run and the menu
+  must each render 20 frames with no page error, console error or failed request. On failure
+  the screenshots are uploaded as the `smoke-screenshots` artifact. It takes a few minutes,
+  mostly compiling each arena's shaders in software.
+
+Make both jobs required status checks on `main` (**Settings → Branches → Branch protection
+rule → Require status checks to pass**: `Test and build`, `Boot in browser`), so a red PR
+can't be merged and so never reaches Cloudflare.
+
+To run the boot check locally (`--no-save` keeps Playwright out of `package.json`; the next
+`npm ci` removes it):
+
+```bash
+npm install --no-save playwright@1.58.2 && npx playwright install --only-shell chromium
+```
+
+```bash
+npm run build && npx vite preview --port 4173 --strictPort &
+```
+
+```bash
+node tools/qa/smoke.mjs http://localhost:4173/ /tmp/smoke-shots
+```
 
 ## Modes
 

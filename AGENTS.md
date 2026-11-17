@@ -93,6 +93,9 @@ git checkout main && git pull --ff-only && git checkout -b feature/<name>
 
 ### 5. Regression checks (every feature)
 
+- **CI:** both jobs in `.github/workflows/ci.yml` (`Test and build`, `Boot in browser`) are green
+  on the PR. They gate the Cloudflare deploy. A new mode needs adding to `tools/qa/smoke.mjs`; a
+  new opponent is covered automatically (it walks `window.opponents`).
 - **Tests:** `npm test` passes.
 - **Training:** all 8 combos chain with the expected damage. This is the
   `combos` Playwright check.

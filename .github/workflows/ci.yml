@@ -1,0 +1,67 @@
+# Checks every PR into main (and main itself) before Cloudflare deploys it.
+# Make both jobs required status checks on main so a red PR can't be merged.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Unit tests
+        run: npm test
+      - name: Type check and build
+        run: npm run build
+      # Validates wrangler.jsonc and the asset set (25 MiB per file, file count) without uploading.
+      - name: Cloudflare deploy dry run
+        run: npx --yes wrangler@4.164.0 deploy --dry-run
+
+  smoke:
+    name: Boot in browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Playwright stays out of package.json; installed for this run only.
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps --only-shell chromium
+      - name: Boot every mode
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          for i in $(seq 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          node tools/qa/smoke.mjs http://localhost:4173/ smoke-shots
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots
+          path: smoke-shots/
+          if-no-files-found: ignore
