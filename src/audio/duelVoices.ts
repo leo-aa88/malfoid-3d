@@ -14,8 +14,9 @@ export const VOICE = {
   replyGap: 0.25,
   /** game time (s) from the KO to the winner's line (after the hit and the grunt) */
   winDelay: 0.7,
-  /** while the files are still loading, wait at most this long (s) before skipping the lines */
-  loadWait: 3,
+  /** while a line's file is still loading, wait at most this long (s) before skipping it (the
+   *  fighters are held meanwhile; 3 s skipped the first duel's lines on a slower load) */
+  loadWait: 10,
   volume: 0.95,
   /** loudness (envelope, ~0..1) below which the mouth is shut, and the span that opens it fully */
   mouthFloor: 0.14,
@@ -34,6 +35,8 @@ export interface Speaker {
 /** the parts of the sound player the voices use */
 export interface VoicePlayer {
   readonly pending: boolean;
+  /** this sound's file is decoded */
+  has(id: SoundId): boolean;
   play(id: SoundId, opts: { volume?: number }): SoundHandle | null;
   envelope(id: SoundId): Float32Array | null;
 }
@@ -178,8 +181,8 @@ export class DuelVoices {
     if (!this.current && this.queue.length) {
       this.wait -= dt;
       if (this.wait <= 0) {
-        if (this.sfx.pending && this.loadWaited < VOICE.loadWait) {
-          this.loadWaited += dt;                     // the very first duel: the files are still decoding
+        if (this.sfx.pending && !this.sfx.has(this.queue[0].id) && this.loadWaited < VOICE.loadWait) {
+          this.loadWaited += dt;                     // the very first duel: its file is still decoding
         } else {
           const line = this.queue.shift()!;
           const handle = this.sfx.play(line.id, { volume: VOICE.volume });
