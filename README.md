@@ -699,4 +699,9 @@ normals and authored shape keys are never modified.
 
 ## License
 
+Harry Potter, its characters, names and Hogwarts are trademarks of and © Warner Bros.
+Entertainment Inc. Harry Potter Publishing Rights © J.K. Rowling. Malfoid vs. Hogwarts is a free,
+non-commercial fan game, not affiliated with or endorsed by Warner Bros. or J.K. Rowling. The
+same notice is shown on the title screen.
+
 Code: MIT (see `LICENSE`).
