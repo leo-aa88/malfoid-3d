@@ -26,6 +26,7 @@ import { FighterAI } from './combat/ai/FighterAI';
 import { Sfx } from './audio/Sfx';
 import { connectCombatSounds } from './audio/combatSounds';
 import { VolumeControl } from './ui/VolumeControl';
+import { TitleScreen } from './ui/TitleScreen';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
 import { ALL_SPELLS, CAMPAIGN, Campaign, spellsBefore, LossResult, SPELL_INFO, SpellId, WinResult } from './game/campaign';
@@ -62,6 +63,7 @@ function keepApart(a: THREE.Vector3, b: THREE.Vector3, gap: number, share = 0): 
 }
 
 async function start(): Promise<void> {
+  const title = new TitleScreen();
   const sm = new SceneManager(document.getElementById('app')!);
   const cam = new CameraController(sm.camera, sm.renderer.domElement);
   // ?char=ginny / ?char=cho shows that model in the player's place (inspection)
@@ -395,9 +397,10 @@ async function start(): Promise<void> {
   const newRunBtns = [...modeEl.querySelectorAll<HTMLButtonElement>('.campaign .levels button')];
   let armed: HTMLButtonElement | null = null;
   let armTimer = 0;
-  // the campaign's order under its title (from the campaign list: it can't drift from it)
+  // the campaign's order under its title (from the campaign list: it can't drift from it); only
+  // the opponents already in the game
   modeEl.querySelector('.campaign-order')!.textContent =
-    `Best of ${MATCH.bestOf} · one defeat ends the run · ${CAMPAIGN.map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
+    `Best of ${MATCH.bestOf} · one defeat ends the run · ${CAMPAIGN.filter((o) => o.playable).map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
   const refreshMenu = () => {
     const run = campaign.run;
     const next = campaign.opponent;
@@ -586,6 +589,8 @@ async function start(): Promise<void> {
     (e.currentTarget as HTMLButtonElement).blur();     // keep WASD working
   });
   document.getElementById('loading')!.remove();
+  title.onStart = () => sfx.start();
+  title.setReady();
 
   const pausedEl = document.getElementById('paused')!;
   // sound effects (public/sfx); M mutes

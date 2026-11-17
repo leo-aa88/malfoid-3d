@@ -48,9 +48,16 @@ await page.waitForFunction(() => !document.getElementById('loading') || /^Failed
   null, { timeout: BOOT_TIMEOUT, polling: 500 }).catch(() => fail('still loading'));
 const loadError = await page.evaluate(() => document.getElementById('loading')?.textContent);
 if (loadError) await fail(loadError);
-if (!(await page.locator('#mode').isVisible())) await fail('start menu not shown');
 console.log(`booted in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 await renders();
+
+step = 'title';
+if (!(await page.locator('#title .press').isVisible())) await fail('title screen shows no start prompt');
+await page.keyboard.press('Enter');
+await page.waitForFunction(() => document.getElementById('title').hidden, null, { timeout: 10_000 })
+  .catch(() => fail('title screen did not close on a key'));
+if (!(await page.locator('#mode').isVisible())) await fail('start menu not shown');
+console.log('ok title');
 
 step = 'training';
 stepStart = Date.now();

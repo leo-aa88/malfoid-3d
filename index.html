@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="preload" as="image" href="/initial_screen.jpg" fetchpriority="high" />
     <title>Malfoid vs. Hogwarts</title>
     <meta name="description" content="Malfoid vs. Hogwarts — an anime-style browser duelling game. Play Training, Practice and Campaign modes in Three.js." />
   </head>
@@ -82,7 +83,10 @@
         <div class="actions"></div>
       </div>
     </div>
-    <div id="loading">Loading Malfoid vs. Hogwarts…</div>
+    <div id="title" role="img" aria-label="Malfoid vs. Hogwarts">
+      <div id="loading" class="title-line">Loading Malfoid vs. Hogwarts…</div>
+      <div class="title-line press">Click or press any key to start</div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
