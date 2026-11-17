@@ -1,4 +1,4 @@
-# Working on malfoid-3d
+# Working on malfoid-vs-hogwarts
 
 How features are built in this repo: the workflow, the tools, the checks, and the mistakes
 already made once that must not be repeated. Read it before starting any task.
