@@ -8,7 +8,7 @@ already made once that must not be repeated. Read it before starting any task.
 This is an anime Hogwarts duelling game in **Three.js + TypeScript + Vite** (`src/`).
 
 - **Characters:** Malfoid and Ginny are built by a **Blender 4.5 pipeline** (`tools/blender/`)
-  from purchased assets that stay out of git. The outputs are `public/models/*.glb` + `.json`,
+  from purchased assets; the files the build reads are committed (the rest of each pack stays local). The outputs are `public/models/*.glb` + `.json`,
   which are committed.
 - **Modes:** Training puts Malfoid against a dummy in the studio scene. Practice (any opponent,
   every spell) and Campaign (opponents in order, 3 lives, a spell learned per win) put her
@@ -26,8 +26,9 @@ This is an anime Hogwarts duelling game in **Three.js + TypeScript + Vite** (`sr
 3. **Don't change one character while working on another.** After any pipeline change,
    Malfoid's model must be byte-identical, or differ only by added clips (see Regression
    checks).
-4. **The purchased assets are licensed.** Don't comment on rights. Don't commit them, or the
-   reference images or `build/` (all in `.gitignore`). The sound files in `public/sfx/` are
+4. **The purchased assets are licensed.** Don't comment on rights. Only the files the build reads
+   are committed; don't commit the rest of the packs (PSDs, FBX/OBJ, Unity), the reference images
+   or `build/` (all in `.gitignore`). The sound files in `public/sfx/` are
    committed.
 5. **No premade environment assets.** Environments and props are generated in code.
 6. **Never claim something works without checking it in the real viewer.** List the visible

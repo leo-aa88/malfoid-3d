@@ -530,10 +530,12 @@ No browser or WebGL needed.
 
 ## Rebuilding the models
 
-The characters are generated from purchased assets that are **not** in this repository. To rebuild it you
-need, in the repo root: `base_character.blend` and `Gumroad_Anime_Female_BaseMesh/` (anime base
-mesh), `Bell_Hair_01/` (hair) and `Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/`
-(uniform), plus Blender 4.5 (default path `~/.local/opt/blender-4.5.16-linux-x64/blender`,
+The characters are generated from purchased assets. The files the build reads are committed in the
+repo root: `base_character.blend` and `Gumroad_Anime_Female_BaseMesh/` (anime base mesh and its
+textures), `Bell_Hair_01/` (hair `.blend` and PNGs) and
+`Girls+Hogwarts+Uniform+Harry+Potter+Uniform+Slytherin+BLEND/` (uniform). The rest of each pack (PSDs,
+FBX/OBJ, Unity files) stays local. You also need system Python 3 with Pillow and numpy (textures) and
+Blender 4.5 (default path `~/.local/opt/blender-4.5.16-linux-x64/blender`,
 override with `BLENDER=...`).
 
 ```bash
