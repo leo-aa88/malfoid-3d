@@ -89,6 +89,8 @@ export interface OpponentDef {
   faces: OpponentFaces;
   /** her health bar in the HUD */
   hudColour: string;
+  /** her battle song (public/music/<music>.ogg); without one, the shared battle song */
+  music?: string;
 }
 
 export const OPPONENTS: Record<OpponentId, OpponentDef> = {
@@ -180,6 +182,7 @@ export const OPPONENTS: Record<OpponentId, OpponentDef> = {
     id: 'hermione',
     name: 'Hermione',
     model: 'hermione',
+    music: 'battle_against_hermione',
     character: { name: 'Hermione', idleClip: 'hermione_idle', expressions: HERMIONE_FACES, talk: HERMIONE_TALK },
     difficulty: HERMIONE_DIFFICULTY,
     // Petrificus Totalus is her main spell, with Expelliarmus; the plates and Accio are summons

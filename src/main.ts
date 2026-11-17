@@ -24,8 +24,9 @@ import { ILLUSIO_LOOK, Illusions, MALFOID_ILLUSIO, MALFOID_ILLUSIO_CFG } from '.
 import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 import { FighterAI } from './combat/ai/FighterAI';
 import { Sfx } from './audio/Sfx';
+import { MUSIC, Music } from './audio/Music';
 import { connectCombatSounds } from './audio/combatSounds';
-import { VolumeControl } from './ui/VolumeControl';
+import { DEFAULT_MUSIC_VOLUME, MUSIC_VOLUME_KEY, VolumeControl } from './ui/VolumeControl';
 import { TitleScreen } from './ui/TitleScreen';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
@@ -216,6 +217,9 @@ async function start(): Promise<void> {
   };
   // sounds, and the duel's voice lines (the fighters' mouths follow them)
   const sfx = new Sfx(sm.camera);
+  // the battle music: from DUEL! to the winner's announcement (Ogg Vorbis; without it, no music)
+  const music = new Music(BASE, new Audio().canPlayType('audio/ogg; codecs="vorbis"') !== '');
+  const songFor = () => opp.def.music ?? MUSIC.defaultSong;
   const voices = new DuelVoices(sfx, malfoid, opp.char);
   /** duel this opponent (the others are hidden and still) */
   const setOpponent = (id: OpponentId) => {
@@ -261,6 +265,8 @@ async function start(): Promise<void> {
   const faceAt = new THREE.Vector3();
   const setDuel = (on: boolean) => {
     cameo.hide();                                     // not carried into a new duel or round
+    music.stop(0);                                    // a new duel, or none: the song starts at DUEL!
+    if (on) music.prepare(songFor());
     duel = on;
     duelOver = 0;
     roundBreak = false;
@@ -317,10 +323,12 @@ async function start(): Promise<void> {
     if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
     closeUpOn = null;
     hud.announce('DUEL!', 'duel');
+    music.start(songFor());
   };
   const finish = (winner: Malfoid) => {
     if (!duel || duelOver) return;
     duelOver = 1;
+    music.stop();                                     // fades out under the winner's announcement
     opp.ai.setActive(false);
     if (winner === opp.char) opp.char.setExpression(opp.def.faces.win, 4);
     else if (opp.def.faces.lose) opp.char.setExpression(opp.def.faces.lose, 99);
@@ -607,15 +615,20 @@ async function start(): Promise<void> {
     };
   }
   // the volume control: on the start menu and the pause screen
-  const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
+  const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume.sfx'));
+  const musicVolume = new VolumeControl(music, document.querySelectorAll<HTMLElement>('.volume.music'),
+    MUSIC_VOLUME_KEY, DEFAULT_MUSIC_VOLUME);
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat) return;
     sfx.setMuted(!sfx.muted);
+    music.setMuted(sfx.muted);                        // M: all sound
     volume.refresh();
+    musicVolume.refresh();
     hud.flashStatusText(sfx.muted ? 'SOUND OFF' : 'SOUND ON', 'miss');
   });
   input.onPauseChange = (p) => {
     sfx.setPaused(p);
+    music.setPaused(p);
     pausedEl.hidden = !p || menuOpen;
     if (!p && menuOpen) input.setPaused(true);          // Esc doesn't skip the mode select
   };
@@ -691,6 +704,7 @@ async function start(): Promise<void> {
         opp.update(fdt, solids);            // her shield, her healing charm, her birds and copies
       }
       combatSounds.update(dt);              // footsteps follow the poses just updated
+      music.update(dt);                     // its fade-out runs in game time
       malfoidTarget.update(dt);
       opp.target.update(dt);
       slowFx.update(dt);
@@ -795,7 +809,7 @@ async function start(): Promise<void> {
     protego, protegoFx, cameo, cameoTrigger,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, match, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
-    renderer: sm.renderer, scene: sm.scene, input, solids });
+    renderer: sm.renderer, scene: sm.scene, input, solids, music, musicVolume });
 }
 
 start().catch((err) => {

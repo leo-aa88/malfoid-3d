@@ -198,7 +198,8 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
   display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.12); cursor: default;
 }
-.volume .vol-name { opacity: 0.75; margin-right: 2px; }
+.volume + .volume { margin-top: 8px; padding-top: 0; border-top: 0; }   /* music under the effects */
+.volume .vol-name { opacity: 0.75; margin-right: 2px; width: 3.6em; text-align: left; }
 .volume input[type="range"] { flex: 1; min-width: 90px; accent-color: #9fe0bb; cursor: pointer; }
 .volume .vol-value { width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; }
 #mode .volume button, .volume button {
