@@ -24,12 +24,19 @@
     <div id="paused" hidden>
       <div class="box">
         <div class="big">Paused</div>Press <b>Esc</b> or click to resume
-        <div class="volume">
-          <span class="vol-name">Sound</span>
-          <button type="button" data-vol="-" aria-label="Lower the sound volume">−</button>
-          <input type="range" aria-label="Sound volume" />
-          <button type="button" data-vol="+" aria-label="Raise the sound volume">+</button>
+        <div class="volume sfx">
+          <span class="vol-name">Effects</span>
+          <button type="button" data-vol="-" aria-label="Lower the effects volume">−</button>
+          <input type="range" aria-label="Effects volume" />
+          <button type="button" data-vol="+" aria-label="Raise the effects volume">+</button>
           <span class="vol-value">80%</span>
+        </div>
+        <div class="volume music">
+          <span class="vol-name">Music</span>
+          <button type="button" data-vol="-" aria-label="Lower the music volume">−</button>
+          <input type="range" aria-label="Music volume" />
+          <button type="button" data-vol="+" aria-label="Raise the music volume">+</button>
+          <span class="vol-value">100%</span>
         </div>
       </div>
     </div>
@@ -64,12 +71,19 @@
             <button type="button" data-mode="campaign" data-level="hard">Hard</button>
           </div>
         </div>
-        <div class="volume">
-          <span class="vol-name">Sound</span>
-          <button type="button" data-vol="-" aria-label="Lower the sound volume">−</button>
-          <input type="range" aria-label="Sound volume" />
-          <button type="button" data-vol="+" aria-label="Raise the sound volume">+</button>
+        <div class="volume sfx">
+          <span class="vol-name">Effects</span>
+          <button type="button" data-vol="-" aria-label="Lower the effects volume">−</button>
+          <input type="range" aria-label="Effects volume" />
+          <button type="button" data-vol="+" aria-label="Raise the effects volume">+</button>
           <span class="vol-value">80%</span>
+        </div>
+        <div class="volume music">
+          <span class="vol-name">Music</span>
+          <button type="button" data-vol="-" aria-label="Lower the music volume">−</button>
+          <input type="range" aria-label="Music volume" />
+          <button type="button" data-vol="+" aria-label="Raise the music volume">+</button>
+          <span class="vol-value">100%</span>
         </div>
         <a class="repo" href="https://github.com/leo-aa88/malfoid-vs-hogwarts" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
       </div>
@@ -83,9 +97,14 @@
         <div class="actions"></div>
       </div>
     </div>
-    <div id="title" role="img" aria-label="Malfoid vs. Hogwarts">
-      <div id="loading" class="title-line">Loading Malfoid vs. Hogwarts…</div>
-      <div class="title-line press">Click or press any key to start</div>
+    <div id="title">
+      <div class="title-foot">
+        <div id="loading" class="title-line">Loading Malfoid vs. Hogwarts…</div>
+        <div class="title-line press">Click or press any key to start</div>
+        <p class="legal">Harry Potter, its characters, names and Hogwarts are trademarks of and © Warner Bros. Entertainment Inc.
+          Harry Potter Publishing Rights © J.K. Rowling. Malfoid vs. Hogwarts is a free, non-commercial fan game,
+          not affiliated with or endorsed by Warner Bros. or J.K. Rowling.</p>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

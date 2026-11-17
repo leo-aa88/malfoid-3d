@@ -19,8 +19,16 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const problems = [];
 page.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
-page.on('console', (m) => { if (m.type() === 'error') problems.push(`console error: ${m.text()}`); });
-page.on('requestfailed', (r) => problems.push(`request failed: ${r.url()} (${r.failure()?.errorText})`));
+page.on('console', (m) => {
+  if (m.type() === 'error') problems.push(`console error: ${m.text()}`);
+  else if (m.type() === 'warning' && m.text().startsWith('music:')) problems.push(`music: ${m.text()}`);
+});
+page.on('requestfailed', (r) => {
+  // an <audio> element routinely cancels its first download to re-request in ranges; a song that
+  // is really missing still shows as an HTTP error, one that can't play as the music: warning
+  if (r.resourceType() === 'media' && r.failure()?.errorText === 'net::ERR_ABORTED') return;
+  problems.push(`request failed: ${r.url()} (${r.failure()?.errorText})`);
+});
 page.on('response', (r) => { if (r.status() >= 400) problems.push(`HTTP ${r.status()}: ${r.url()}`); });
 
 let step = 'boot';
@@ -75,7 +83,9 @@ for (const id of ids) {
   await renders();
   const shown = await page.evaluate(() => !!window.arena() && window.opp().char.root.visible);
   if (!shown) await fail(`${id} or her arena not shown`);
-  console.log(`ok practice vs ${id} (${secs()})`);
+  const song = await page.evaluate(() => ({ playing: window.music.playing, hers: window.opp().def.music ?? 'battle' }));
+  if (song.playing !== song.hers) await fail(`music: ${song.playing} playing, ${song.hers} expected`);
+  console.log(`ok practice vs ${id}, ${song.hers} (${secs()})`);
 }
 
 step = 'campaign';

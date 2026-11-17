@@ -24,8 +24,9 @@ import { ILLUSIO_LOOK, Illusions, MALFOID_ILLUSIO, MALFOID_ILLUSIO_CFG } from '.
 import { DIFFICULTY, Difficulty } from './combat/ai/difficulty';
 import { FighterAI } from './combat/ai/FighterAI';
 import { Sfx } from './audio/Sfx';
+import { MUSIC, Music } from './audio/Music';
 import { connectCombatSounds } from './audio/combatSounds';
-import { VolumeControl } from './ui/VolumeControl';
+import { DEFAULT_MUSIC_VOLUME, MUSIC_VOLUME_KEY, VolumeControl } from './ui/VolumeControl';
 import { TitleScreen } from './ui/TitleScreen';
 import { DuelVoices } from './audio/duelVoices';
 import { SpellFxSet } from './combat/spells/SpellFxSet';
@@ -216,6 +217,9 @@ async function start(): Promise<void> {
   };
   // sounds, and the duel's voice lines (the fighters' mouths follow them)
   const sfx = new Sfx(sm.camera);
+  // the battle music: from DUEL! to the winner's announcement (Ogg Vorbis; without it, no music)
+  const music = new Music(BASE, new Audio().canPlayType('audio/ogg; codecs="vorbis"') !== '');
+  const songFor = () => opp.def.music ?? MUSIC.defaultSong;
   const voices = new DuelVoices(sfx, malfoid, opp.char);
   /** duel this opponent (the others are hidden and still) */
   const setOpponent = (id: OpponentId) => {
@@ -261,6 +265,10 @@ async function start(): Promise<void> {
   const faceAt = new THREE.Vector3();
   const setDuel = (on: boolean) => {
     cameo.hide();                                     // not carried into a new duel or round
+    // the match's next round keeps the song going; a new duel (or none) stops it, and it
+    // starts again at DUEL!
+    if (!(on && roundBreak)) music.stop(0);
+    if (on) music.prepare(songFor());
     duel = on;
     duelOver = 0;
     roundBreak = false;
@@ -317,6 +325,7 @@ async function start(): Promise<void> {
     if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
     closeUpOn = null;
     hud.announce('DUEL!', 'duel');
+    music.keep(songFor());
   };
   const finish = (winner: Malfoid) => {
     if (!duel || duelOver) return;
@@ -338,6 +347,7 @@ async function start(): Promise<void> {
       refreshMenu();
     }
     hud.announce(`${winner.name.toUpperCase()} WINS`, 'win');
+    music.stop();                                     // the match is over: fades out under the announcement
     // the winner's line: the campaign only (practice has no voice lines, like no opening lines)
     if (mode === 'campaign') voices.win(winner);
   };
@@ -401,17 +411,17 @@ async function start(): Promise<void> {
   // the opponents already in the game
   modeEl.querySelector('.campaign-order')!.textContent =
     `Best of ${MATCH.bestOf} · one defeat ends the run · ${CAMPAIGN.filter((o) => o.playable).map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
+  // a run whose next opponent isn't in the game yet has nothing to continue (no button, and
+  // starting a new one gives nothing up)
+  const continuable = () => !!campaign.run && !!campaign.opponent?.playable;
   const refreshMenu = () => {
     const run = campaign.run;
-    const next = campaign.opponent;
-    continueBtn.hidden = !run;
-    if (run) {
+    continueBtn.hidden = !continuable();
+    if (run && continuable()) {
       const status = `${run.level[0].toUpperCase()}${run.level.slice(1)}`;
-      continueBtn.disabled = !next?.playable;
-      continueBtn.innerHTML = next?.playable ? `Continue: ${next.name}<small>${status}</small>`
-        : `Next: ${next?.name ?? 'the end'} · coming soon<small>${status}</small>`;
+      continueBtn.innerHTML = `Continue: ${campaign.opponent!.name}<small>${status}</small>`;
     }
-    newRunEl.textContent = run ? 'Or start over' : 'Choose the difficulty';
+    newRunEl.textContent = continuable() ? 'Or start over' : 'Choose the difficulty';
     newRunEl.classList.remove('warn');
     for (const b of newRunBtns) b.classList.remove('confirm');
     armed = null;
@@ -420,7 +430,7 @@ async function start(): Promise<void> {
   for (const b of newRunBtns) {
     b.addEventListener('click', () => {
       b.blur();
-      if (campaign.run && armed !== b) {
+      if (continuable() && armed !== b) {
         refreshMenu();
         armed = b;
         b.classList.add('confirm');
@@ -462,7 +472,8 @@ async function start(): Promise<void> {
       } else {
         [cls, tag, title] = ['won', 'Victory', `${beaten.name.split(' ')[0]} defeated`];
       }
-      next = nx ? `Next duel: <b>${nx.name}</b>${nx.playable ? '' : '<span>coming soon</span>'}` : 'The campaign is complete';
+      // only an opponent already in the game is announced (after Hermione: nothing)
+      next = !nx ? 'The campaign is complete' : nx.playable ? `Next duel: <b>${nx.name}</b>` : '';
       actions = nx?.playable ? [['Next duel', 'continue'], ['Back to menu', 'menu']]
         : learned ? [['Practise it in Training', 'training'], ['Back to menu', 'menu']] : [['Back to menu', 'menu']];
     } else {
@@ -607,15 +618,20 @@ async function start(): Promise<void> {
     };
   }
   // the volume control: on the start menu and the pause screen
-  const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume'));
+  const volume = new VolumeControl(sfx, document.querySelectorAll<HTMLElement>('.volume.sfx'));
+  const musicVolume = new VolumeControl(music, document.querySelectorAll<HTMLElement>('.volume.music'),
+    MUSIC_VOLUME_KEY, DEFAULT_MUSIC_VOLUME);
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyM' || e.repeat) return;
     sfx.setMuted(!sfx.muted);
+    music.setMuted(sfx.muted);                        // M: all sound
     volume.refresh();
+    musicVolume.refresh();
     hud.flashStatusText(sfx.muted ? 'SOUND OFF' : 'SOUND ON', 'miss');
   });
   input.onPauseChange = (p) => {
     sfx.setPaused(p);
+    music.setPaused(p);
     pausedEl.hidden = !p || menuOpen;
     if (!p && menuOpen) input.setPaused(true);          // Esc doesn't skip the mode select
   };
@@ -691,6 +707,7 @@ async function start(): Promise<void> {
         opp.update(fdt, solids);            // her shield, her healing charm, her birds and copies
       }
       combatSounds.update(dt);              // footsteps follow the poses just updated
+      music.update(dt);                     // its fade-out runs in game time
       malfoidTarget.update(dt);
       opp.target.update(dt);
       slowFx.update(dt);
@@ -795,7 +812,7 @@ async function start(): Promise<void> {
     protego, protegoFx, cameo, cameoTrigger,
     opponents, opp: () => opp, setOpponent, setPlayerBot, FighterAI, DIFFICULTY,
     setDuel, enterMode, openMenu, match, setLevel, getLevel: () => level, CONFRINGO, EXPELLIARMUS, campaign, arenas, arena: () => arena, forest: (arenas.woods as ForestArena).world,
-    renderer: sm.renderer, scene: sm.scene, input, solids });
+    renderer: sm.renderer, scene: sm.scene, input, solids, music, musicVolume });
 }
 
 start().catch((err) => {

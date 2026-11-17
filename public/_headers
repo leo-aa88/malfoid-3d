@@ -11,6 +11,8 @@
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 /sfx/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+/music/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
 # HTML entry point: let the browser revalidate every load so a new build is picked up.
 /

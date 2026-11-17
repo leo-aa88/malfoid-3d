@@ -20,28 +20,36 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 }
 /* --- title screen: the key art from the first paint, over the loading ------------------ */
 #title {
-  position: fixed; inset: 0; z-index: 10; cursor: default;
-  /* the art ends 56 px above the bottom (a crop takes its top, never the logo); the prompt sits
-     in the dark band below it, off the lettering */
-  background-color: #140c24;
-  background-image: linear-gradient(to top, #140c24 56px, rgba(20, 12, 36, 0) 72px), url('/initial_screen.jpg');
-  background-repeat: no-repeat;
-  background-size: 100% 100%, cover;
-  background-position: center, center bottom 56px;
+  --foot: 104px;    /* the band under the art: the prompt and the copyright notice */
+  position: fixed; inset: 0; z-index: 10; cursor: default; overflow: hidden;
+  background: #140c24;
   transition: opacity 0.4s ease;
+}
+/* the whole window: a blurred, darkened copy of the art behind it (no bars, no crop) */
+#title::before {
+  content: ''; position: absolute; inset: -48px;
+  background: url('/initial_screen.jpg') center / cover no-repeat;
+  filter: blur(28px) brightness(0.5) saturate(1.15);
+}
+/* the art itself, whole, above the band (the prompt never covers the lettering) */
+#title::after {
+  content: ''; position: absolute; inset: 0 0 var(--foot) 0;
+  background: url('/initial_screen.jpg') center / contain no-repeat;
 }
 #title.ready { cursor: pointer; }
 #title.leaving { opacity: 0; pointer-events: none; }
-/* far wider than the art (16:9): all of it, full height above the band */
-@media (min-aspect-ratio: 2/1) { #title { background-size: 100% 100%, auto calc(100% - 56px); background-position: center, center top; } }
-/* far taller: all of it in the middle */
-@media (max-aspect-ratio: 4/3) { #title { background-size: 100% 100%, contain; background-position: center, center; } }
+#title .title-foot {
+  position: absolute; left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0px); z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 16px 10px;
+}
 #title .title-line {
-  position: absolute; left: 50%; bottom: calc(max(14px, 2.5vh) + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); text-align: center;
-  padding: 7px 18px; border-radius: 999px;
+  max-width: 100%; text-align: center; padding: 7px 18px; border-radius: 999px;
   background: rgba(10, 6, 20, 0.72); color: #f3e9ff; font-size: 15px; letter-spacing: 0.04em;
   text-shadow: 0 1px 2px #000;
+}
+#title .legal {
+  margin: 0; max-width: 840px; text-align: center; text-wrap: balance; font-size: 11px; line-height: 1.4;
+  color: rgba(243, 233, 255, 0.72); text-shadow: 0 1px 2px #000;
 }
 #title .press { display: none; animation: title-pulse 1.6s ease-in-out infinite; }
 #title.ready .press { display: block; }
@@ -185,7 +193,6 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #mode .opponents button:disabled { opacity: 0.45; cursor: default; filter: none; }
 #mode .opponents small { display: block; font-size: 10px; font-weight: 400; opacity: 0.8; }
 #mode .continue { margin-top: 8px; padding: 9px 12px; background: #c0102a; font-weight: 600; text-align: center; }
-#mode .continue:disabled { background: rgba(255, 255, 255, 0.08); cursor: default; filter: none; }
 #mode .continue small { display: block; font-weight: 400; font-size: 12px; opacity: 0.85; }
 #mode .new-run { margin-top: 8px; font-size: 12px; opacity: 0.75; }
 #mode .new-run.warn { opacity: 1; color: #ffe37a; }
@@ -198,7 +205,8 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
   display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.12); cursor: default;
 }
-.volume .vol-name { opacity: 0.75; margin-right: 2px; }
+.volume + .volume { margin-top: 8px; padding-top: 0; border-top: 0; }   /* music under the effects */
+.volume .vol-name { opacity: 0.75; margin-right: 2px; width: 3.6em; text-align: left; }
 .volume input[type="range"] { flex: 1; min-width: 90px; accent-color: #9fe0bb; cursor: pointer; }
 .volume .vol-value { width: 3.6em; text-align: right; font-variant-numeric: tabular-nums; }
 #mode .volume button, .volume button {
@@ -228,7 +236,6 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #result .how { font-size: 15px; }
 #result .next { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.12); opacity: 0.85; }
 #result .next:empty { display: none; }
-#result .next span { margin-left: 6px; font-size: 12px; opacity: 0.7; }
 #result .actions { display: flex; gap: 8px; margin-top: 14px; }
 #result .actions button { flex: 1; padding: 9px 12px; border: 0; border-radius: 8px; cursor: pointer; color: #fff; font: inherit;
   font-weight: 600; background: #3b4252; white-space: nowrap; }

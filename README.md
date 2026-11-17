@@ -450,7 +450,7 @@ Tuning is in `src/combat/Illusio.ts` (`MALFOID_ILLUSIO`, `MALFOID_ILLUSIO_CFG`).
 | G | restart the fight (practice) |
 | B | training dummy guard: none / high / low |
 | N | bring the training dummy in front of her |
-| M | mute / unmute sound (the volume is set on the start menu and the pause screen) |
+| M | mute / unmute all sound, music included (the effects and music volumes are set on the start menu and the pause screen) |
 | Esc | pause (click or Esc to resume) |
 | Left drag | orbit (the camera follows on its own: behind her as she moves, side-on to both fighters in a duel; a drag holds the view for a moment) |
 | Right drag | pan |
@@ -576,8 +576,14 @@ Screenshots from the viewer are in `docs/confringo/`.
 - `ui/DobbyCameo.ts` – Dobby's cameo: when he appears (`CameoTrigger`) and his pop-up in the corner.
 - `ui/TitleScreen.ts` – the title art over the loading; a click or a key (not passed on to the
   game) opens the start menu.
-- `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
-  pause screen; remembered in the browser, with a short sample at the new level.
+- `ui/VolumeControl.ts` – the volume controls (− / slider / +), one for the effects and one for
+  the music, on the start menu and the pause screen; each remembered in the browser, with a
+  short sample at the new level.
+- `audio/Music.ts` – the battle music (`public/music/*.ogg`, streamed): an opponent's song starts
+  with DUEL!, loops through the match (a campaign match's rounds and breaks included) and fades
+  out over 1 s (game time) when the match's winner is announced. Hermione has her own song
+  (`OpponentDef.music`), every other duel the shared `battle.ogg`. It pauses with the game; M
+  mutes it with the effects. Tunables in `MUSIC` (mix gain, fade, default song).
 - `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement
   (driven by `audio/envelope.ts`, the lines' loudness over time).
 - `audio/Sfx.ts` – sound effects (Web Audio): each sound is a time slice of a file in
@@ -692,5 +698,10 @@ normals and authored shape keys are never modified.
 `docs/expression/` has the face comparisons against the design reference.
 
 ## License
+
+Harry Potter, its characters, names and Hogwarts are trademarks of and © Warner Bros.
+Entertainment Inc. Harry Potter Publishing Rights © J.K. Rowling. Malfoid vs. Hogwarts is a free,
+non-commercial fan game, not affiliated with or endorsed by Warner Bros. or J.K. Rowling. The
+same notice is shown on the title screen.
 
 Code: MIT (see `LICENSE`).
