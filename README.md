@@ -50,6 +50,31 @@ Use npm rather than `make dev` or `make build` if you don't have Blender. Both m
 rebuild the characters first, so they need everything listed for rebuilding the characters
 above.
 
+## Deploy (Cloudflare Pages)
+
+The build is a plain static site in `dist/`, so **Cloudflare Pages** hosts it with no server
+code. The production domain is **[malfoid-vs-hogwarts.com](https://malfoid-vs-hogwarts.com)**.
+
+One-time setup, in the Cloudflare dashboard:
+
+1. **Workers & Pages → Create → Pages → Connect to Git**, pick this repository and the `main`
+   branch.
+2. Framework preset **Vite**; build command **`npm run build`**; build output **`dist`**; root
+   directory **`/`**. Node version **22** (set `NODE_VERSION=22` in the build environment
+   variables, or commit a `.nvmrc`).
+3. **Custom domains → Set up a custom domain → `malfoid-vs-hogwarts.com`**. Cloudflare creates
+   the CNAME records automatically if the domain is on Cloudflare DNS; otherwise copy the CNAME
+   target it shows into the registrar's DNS panel. Add `www.malfoid-vs-hogwarts.com` the same
+   way if wanted.
+
+Every push to `main` then triggers a production deploy; pushes to other branches get a preview
+URL. The caching and security headers live in [`public/_headers`](public/_headers):
+content-hashed `assets/*` cache forever, GLBs and audio for a day with stale-while-revalidate,
+and `index.html` always revalidates so a new release is picked up immediately.
+
+**File-size note:** the committed GLBs are 18–19 MB each, under the 25 MB per-file limit on
+Cloudflare Pages. Keep new models under that.
+
 ## Modes
 
 The start screen offers three modes:
