@@ -13,6 +13,11 @@ class FakePlayer {
   pending = false;
   missing = false;
   played: { id: SoundId; at: number }[] = [];
+  /** files decoded while the rest still load (pending) */
+  ready = new Set<SoundId>();
+  has(id: SoundId): boolean {
+    return !this.missing && (!this.pending || this.ready.has(id));
+  }
   play(id: SoundId): SoundHandle | null {
     if (this.missing) return null;
     const t0 = this.clock;
@@ -110,6 +115,32 @@ test('the very first duel waits for the files to decode (but not forever)', () =
   b.run(VOICE.introDelay + VOICE.loadWait + 0.2);
   assert.equal(b.done(), 1, 'gives up after loadWait');
   assert.equal(done(), 0);
+});
+
+test('a line plays as soon as its own file is decoded, while others still load', () => {
+  const { sfx, voices, run } = setup();
+  sfx.pending = true;
+  sfx.ready.add('malfoidOpening');
+  voices.startIntro();
+  run(VOICE.introDelay + 0.1);
+  assert.deepEqual(sfx.played.map((p) => p.id), ['malfoidOpening'], 'the first line at once');
+  run(1 + VOICE.replyGap + 1);
+  assert.equal(sfx.played.length, 1, 'the reply waits for its file');
+  sfx.ready.add('ginnyOpening');
+  run(0.1);
+  assert.equal(sfx.played.at(-1)!.id, 'ginnyOpening');
+});
+
+test('the wait for the files covers a slow first load (several seconds)', () => {
+  const { sfx, voices, run, done } = setup();
+  sfx.pending = true;
+  voices.startIntro();
+  run(VOICE.introDelay + 6);
+  assert.equal(sfx.played.length, 0);
+  assert.equal(done(), 0, 'the fight is held, not started without the lines');
+  sfx.pending = false;
+  run(0.1);
+  assert.equal(sfx.played.length, 1);
 });
 
 test('win line: the winner speaks after a beat; stop cuts an intro without starting the fight', () => {

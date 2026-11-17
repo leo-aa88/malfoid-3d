@@ -150,8 +150,16 @@ export class Sfx {
   private previewToken = 0;
   private loadDone = false;
   private readonly v = new THREE.Vector3();
+  /** every file's bytes, fetched from page load on (decoding needs the audio context, which only
+   *  starts on a user gesture; fetching doesn't, so the start menu's time covers the download) */
+  private readonly bytes = new Map<FileId, Promise<ArrayBuffer | Error>>();
 
   constructor(private readonly camera: THREE.Camera) {
+    for (const f of FILES) {
+      this.bytes.set(f, fetch(`${BASE}sfx/${f}.mp3`)
+        .then((res): Promise<ArrayBuffer | Error> | Error => (res.ok ? res.arrayBuffer() : new Error(`${res.status}`)))
+        .catch((e: unknown) => (e instanceof Error ? e : new Error(String(e)))));
+    }
     // browsers only start audio after a user gesture
     const unlock = () => this.start();
     window.addEventListener('keydown', unlock);
@@ -182,9 +190,9 @@ export class Sfx {
   private async load(): Promise<void> {
     await Promise.all(FILES.map(async (f) => {
       try {
-        const res = await fetch(`${BASE}sfx/${f}.mp3`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        this.buffers.set(f, await this.ctx!.decodeAudioData(await res.arrayBuffer()));
+        const data = await this.bytes.get(f)!;
+        if (data instanceof Error) throw data;
+        this.buffers.set(f, await this.ctx!.decodeAudioData(data));
       } catch (e) {
         if (!this.warned) console.warn('sfx: some sound files are missing (the game runs silent without them)', e);
         this.warned = true;
@@ -314,6 +322,11 @@ export class Sfx {
   /** the files are still being fetched / decoded */
   get pending(): boolean {
     return !!this.loading && !this.loadDone;
+  }
+
+  /** this sound's file is decoded (it can play now, whatever else is still loading) */
+  has(id: SoundId): boolean {
+    return this.buffers.has(BANKS[id][0].file);
   }
 
   /**
