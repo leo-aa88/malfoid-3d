@@ -113,7 +113,9 @@ node tools/qa/smoke.mjs http://localhost:4173/ /tmp/smoke-shots
 
 ## Modes
 
-The start screen offers three modes:
+The game opens on the title art (`public/initial_screen.jpg`), shown from the first paint while
+the models load. Once they have loaded, a click or any key opens the start screen, which offers
+three modes:
 
 - **Training:** Malfoid against a training dummy in the studio scene, no opponent, with every
   spell, to practise strikes, combos and spells.
@@ -572,6 +574,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   per look, shared by every caster of that spell), `SpellFxSet.ts` (a caster's spells to their pools).
 - `ui/CombatHud.ts` – combo banner, damage numbers, dummy HP, a cooldown slot per spell, round wins.
 - `ui/DobbyCameo.ts` – Dobby's cameo: when he appears (`CameoTrigger`) and his pop-up in the corner.
+- `ui/TitleScreen.ts` – the title art over the loading; a click or a key (not passed on to the
+  game) opens the start menu.
 - `ui/VolumeControl.ts` – the sound volume control (− / slider / +) on the start menu and the
   pause screen; remembered in the browser, with a short sample at the new level.
 - `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement
