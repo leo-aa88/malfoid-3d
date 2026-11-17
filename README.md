@@ -580,8 +580,8 @@ Screenshots from the viewer are in `docs/confringo/`.
   the music, on the start menu and the pause screen; each remembered in the browser, with a
   short sample at the new level.
 - `audio/Music.ts` – the battle music (`public/music/*.ogg`, streamed): an opponent's song starts
-  with DUEL!, loops through the fight and fades out over 1 s (game time) when the winner is
-  announced; each campaign round starts it again. Hermione has her own song
+  with DUEL!, loops through the match (a campaign match's rounds and breaks included) and fades
+  out over 1 s (game time) when the match's winner is announced. Hermione has her own song
   (`OpponentDef.music`), every other duel the shared `battle.ogg`. It pauses with the game; M
   mutes it with the effects. Tunables in `MUSIC` (mix gain, fade, default song).
 - `audio/duelVoices.ts` – the duel's opening and win lines and the speakers' lip movement

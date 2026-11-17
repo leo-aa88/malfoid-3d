@@ -1,6 +1,6 @@
 /*
- * The battle music: an opponent's song starts with DUEL!, loops through the fight and fades out
- * when the winner is announced (each campaign round is a fight of its own). Streamed through
+ * The battle music: an opponent's song starts with DUEL!, loops through the match (a campaign
+ * match's rounds included) and fades out when the match's winner is announced. Streamed through
  * <audio> elements: decoding minutes of music up front would take ~80 MB a song. Fades run in
  * game time, so a pause holds them; the game's pause pauses the song.
  */
@@ -8,8 +8,8 @@ import type { VolumeTarget } from '../ui/VolumeControl';
 
 export const MUSIC = {
   /** element volume at 100 % on the music slider: the songs are mastered far louder than the
-   *  effects (mean about -8 dB against -13..-26 dB), so even full music sits under them */
-  gain: 0.3,
+   *  effects (mean about -8 dB against -13..-26 dB); 0.3 sat clearly under them, so 20 % more */
+  gain: 0.36,
   /** s of game time from the winner's announcement to silence */
   fadeOut: 1.0,
   /** public/music/<song>.ogg for an opponent without a song of her own */
@@ -32,7 +32,7 @@ export interface Track {
 export class Music implements VolumeTarget {
   muted = false;
   /** the music slider, 0..1 */
-  volume = 0.6;
+  volume = 1;
   private readonly tracks = new Map<string, Track>();
   private current: Track | null = null;
   private song = MUSIC.defaultSong;
@@ -75,7 +75,13 @@ export class Music implements VolumeTarget {
     if (!this.paused) this.resume(t);
   }
 
-  /** the fight is over: fade out over `fade` s of game time (0, or while paused: at once) */
+  /** DUEL! of a match's later round: the song goes on where it is (started if it isn't playing) */
+  keep(song: string): void {
+    if (this.current && this.song === song && !this.fadeLength) return;
+    this.start(song);
+  }
+
+  /** the match is over: fade out over `fade` s of game time (0, or while paused: at once) */
   stop(fade = MUSIC.fadeOut): void {
     if (!this.current) return;
     if (fade <= 0 || this.paused) {

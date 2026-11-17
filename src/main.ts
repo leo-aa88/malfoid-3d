@@ -265,7 +265,9 @@ async function start(): Promise<void> {
   const faceAt = new THREE.Vector3();
   const setDuel = (on: boolean) => {
     cameo.hide();                                     // not carried into a new duel or round
-    music.stop(0);                                    // a new duel, or none: the song starts at DUEL!
+    // the match's next round keeps the song going; a new duel (or none) stops it, and it
+    // starts again at DUEL!
+    if (!(on && roundBreak)) music.stop(0);
     if (on) music.prepare(songFor());
     duel = on;
     duelOver = 0;
@@ -323,12 +325,11 @@ async function start(): Promise<void> {
     if (closeUpOn) cam.frame(malfoid.position, opp.char.position);   // back to the duel view
     closeUpOn = null;
     hud.announce('DUEL!', 'duel');
-    music.start(songFor());
+    music.keep(songFor());
   };
   const finish = (winner: Malfoid) => {
     if (!duel || duelOver) return;
     duelOver = 1;
-    music.stop();                                     // fades out under the winner's announcement
     opp.ai.setActive(false);
     if (winner === opp.char) opp.char.setExpression(opp.def.faces.win, 4);
     else if (opp.def.faces.lose) opp.char.setExpression(opp.def.faces.lose, 99);
@@ -346,6 +347,7 @@ async function start(): Promise<void> {
       refreshMenu();
     }
     hud.announce(`${winner.name.toUpperCase()} WINS`, 'win');
+    music.stop();                                     // the match is over: fades out under the announcement
     // the winner's line: the campaign only (practice has no voice lines, like no opening lines)
     if (mode === 'campaign') voices.win(winner);
   };

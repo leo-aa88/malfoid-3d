@@ -89,17 +89,27 @@ test('DUEL! while paused (entering a mode from the menu) starts with the unpause
   assert.equal(song('battle')!.playing, true);
 });
 
-test('each round is a fight: the next DUEL! starts the song again from the beginning', () => {
+test('a match\'s later round: the song goes on where it is; after the match ends, the next starts it over', () => {
   const { music, song } = setup();
-  music.start('battle');
-  music.stop();
-  music.update(MUSIC.fadeOut + 0.1);
+  music.keep('battle');                                  // round 1's DUEL!
   const t = song('battle')!;
+  assert.equal(t.playing, true);
   t.currentTime = 80;
-  music.start('battle');
+  music.keep('battle');                                  // round 2's DUEL!: no restart
+  assert.equal(t.currentTime, 80);
+  music.stop();                                          // the match's winner announced
+  music.update(MUSIC.fadeOut + 0.1);
+  assert.equal(t.playing, false);
+  music.keep('battle');                                  // the next match
   assert.equal(t.playing, true);
   assert.equal(t.currentTime, 0);
   assert.equal(t.volume, music.volume * MUSIC.gain);    // full again, not the faded level
+});
+
+test('the music slider starts at 100 %', () => {
+  const { music } = setup();
+  assert.equal(music.volume, 1);
+  assert.equal(DEFAULT_MUSIC_VOLUME, 100);
 });
 
 test('Hermione has her own song; every other opponent the shared battle song', () => {

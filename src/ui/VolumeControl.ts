@@ -10,7 +10,7 @@ export const VOLUME_STEP = 10;
 /** the effects volume before the player has chosen one (percent) */
 export const DEFAULT_VOLUME = 80;
 /** the music volume before the player has chosen one (percent) */
-export const DEFAULT_MUSIC_VOLUME = 60;
+export const DEFAULT_MUSIC_VOLUME = 100;
 export const SFX_VOLUME_KEY = 'malfoid.sfxVolume';
 export const MUSIC_VOLUME_KEY = 'malfoid.musicVolume';
 
