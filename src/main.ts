@@ -409,17 +409,17 @@ async function start(): Promise<void> {
   // the opponents already in the game
   modeEl.querySelector('.campaign-order')!.textContent =
     `Best of ${MATCH.bestOf} · one defeat ends the run · ${CAMPAIGN.filter((o) => o.playable).map((o) => (o.id === 'voldemort' ? 'Voldemort' : o.name.split(' ')[0])).join(', ')}`;
+  // a run whose next opponent isn't in the game yet has nothing to continue (no button, and
+  // starting a new one gives nothing up)
+  const continuable = () => !!campaign.run && !!campaign.opponent?.playable;
   const refreshMenu = () => {
     const run = campaign.run;
-    const next = campaign.opponent;
-    continueBtn.hidden = !run;
-    if (run) {
+    continueBtn.hidden = !continuable();
+    if (run && continuable()) {
       const status = `${run.level[0].toUpperCase()}${run.level.slice(1)}`;
-      continueBtn.disabled = !next?.playable;
-      continueBtn.innerHTML = next?.playable ? `Continue: ${next.name}<small>${status}</small>`
-        : `Next: ${next?.name ?? 'the end'} · coming soon<small>${status}</small>`;
+      continueBtn.innerHTML = `Continue: ${campaign.opponent!.name}<small>${status}</small>`;
     }
-    newRunEl.textContent = run ? 'Or start over' : 'Choose the difficulty';
+    newRunEl.textContent = continuable() ? 'Or start over' : 'Choose the difficulty';
     newRunEl.classList.remove('warn');
     for (const b of newRunBtns) b.classList.remove('confirm');
     armed = null;
@@ -428,7 +428,7 @@ async function start(): Promise<void> {
   for (const b of newRunBtns) {
     b.addEventListener('click', () => {
       b.blur();
-      if (campaign.run && armed !== b) {
+      if (continuable() && armed !== b) {
         refreshMenu();
         armed = b;
         b.classList.add('confirm');
