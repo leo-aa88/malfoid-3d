@@ -7,9 +7,10 @@
 import type { VolumeTarget } from '../ui/VolumeControl';
 
 export const MUSIC = {
-  /** element volume at 100 % on the music slider: the songs are mastered far louder than the
-   *  effects (mean about -8 dB against -13..-26 dB); 0.3 sat clearly under them, so 20 % more */
-  gain: 0.36,
+  /** element volume at 100 % on the music slider (an <audio> element tops out at 1): the songs
+   *  are mastered louder than the effects (mean about -8 dB against -13..-26 dB); 0.3 and 0.36
+   *  sat too far under them in play */
+  gain: 0.6,
   /** s of game time from the winner's announcement to silence */
   fadeOut: 1.0,
   /** public/music/<song>.ogg for an opponent without a song of her own */
