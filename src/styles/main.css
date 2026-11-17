@@ -163,6 +163,8 @@ body { font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #
 #mode .new-run { margin-top: 8px; font-size: 12px; opacity: 0.75; }
 #mode .new-run.warn { opacity: 1; color: #ffe37a; }
 #mode [hidden] { display: none !important; }              /* `#mode button` would show a hidden button */
+#mode .repo { display: inline-block; margin-top: 10px; font-size: 12px; color: #9fe0bb; opacity: 0.8; text-decoration: none; }
+#mode .repo:hover { opacity: 1; text-decoration: underline; }
 
 /* --- sound volume (start menu and pause screen) ------------------------------- */
 .volume {

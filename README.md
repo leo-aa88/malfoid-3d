@@ -1,4 +1,4 @@
-# malfoid-3d
+# Malfoid vs. Hogwarts
 
 An anime-style 3D fighting game in the browser: **Malfoid**, a Slytherin student, duels Harry
 Potter's potential romantic interests (and a Hufflepuff who simply wants her stopped) one by
@@ -49,6 +49,73 @@ site in `dist/`.
 Use npm rather than `make dev` or `make build` if you don't have Blender. Both make targets
 rebuild the characters first, so they need everything listed for rebuilding the characters
 above.
+
+## Deploy (Cloudflare Workers Builds)
+
+The build is a plain static site in `dist/`, served by **Cloudflare Workers Assets** (the
+unified Workers + Pages flow). The production domain is
+**[malfoid-vs-hogwarts.com](https://malfoid-vs-hogwarts.com)**.
+
+The deploy config lives in [`wrangler.jsonc`](wrangler.jsonc): project name `malfoid-vs-hogwarts`, no
+Worker script, `assets.directory` pointing at `./dist`.
+
+One-time setup, in the Cloudflare dashboard (**Workers & Pages → Create → Import a repository**):
+
+1. Pick this repository and the `main` branch. The Workers Builds setup dialog pre-fills:
+   - **Project name:** `malfoid-vs-hogwarts` (must match `name` in `wrangler.jsonc`)
+   - **Build command:** change to **`npm test && npm run build`**, so Cloudflare refuses to
+     deploy a commit whose tests or type check fail, even one pushed straight to `main`
+   - **Deploy command:** `npx wrangler deploy` (reads `wrangler.jsonc`)
+   - **Preview command:** change to **`npx wrangler versions upload`** so pushes to non-`main`
+     branches upload a preview version without promoting it to production.
+   - Leave **Enable Preview builds** on.
+2. Node version **22** (pinned by `.nvmrc`).
+3. **Settings → Domains & Routes → Add → Custom domain → `malfoid-vs-hogwarts.com`**.
+   Cloudflare adds the CNAME automatically if the domain is on Cloudflare DNS; otherwise copy
+   the CNAME target into the registrar's DNS panel. Add `www.malfoid-vs-hogwarts.com` the same
+   way if wanted.
+
+Every push to `main` then triggers a production deploy; pushes to other branches upload a
+preview version with its own URL. The caching and security headers live in
+[`public/_headers`](public/_headers): content-hashed `assets/*` cache forever, GLBs and audio
+for a day with stale-while-revalidate, and `index.html` always revalidates so a new release is
+picked up immediately.
+
+**File-size note:** Workers Assets rejects any single file over 25 MiB. The committed GLBs are
+18–19 MB each; keep new models under the limit.
+
+### CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every pull request into `main`
+and on `main` itself, as two jobs:
+
+- **Test and build:** `npm test`, `npm run build` (type check + Vite), then
+  `wrangler deploy --dry-run`, which rejects a broken `wrangler.jsonc` or any file over 25 MiB.
+- **Boot in browser:** builds, serves `dist/` with `vite preview`, and runs
+  [`tools/qa/smoke.mjs`](tools/qa/smoke.mjs) in headless Chromium (software WebGL). The game
+  must load, then Training, a Practice duel against every opponent, a Campaign run and the menu
+  must each render 20 frames with no page error, console error or failed request. On failure
+  the screenshots are uploaded as the `smoke-screenshots` artifact. It takes a few minutes,
+  mostly compiling each arena's shaders in software.
+
+Make both jobs required status checks on `main` (**Settings → Branches → Branch protection
+rule → Require status checks to pass**: `Test and build`, `Boot in browser`), so a red PR
+can't be merged and so never reaches Cloudflare.
+
+To run the boot check locally (`--no-save` keeps Playwright out of `package.json`; the next
+`npm ci` removes it):
+
+```bash
+npm install --no-save playwright@1.58.2 && npx playwright install --only-shell chromium
+```
+
+```bash
+npm run build && npx vite preview --port 4173 --strictPort &
+```
+
+```bash
+node tools/qa/smoke.mjs http://localhost:4173/ /tmp/smoke-shots
+```
 
 ## Modes
 

@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Malfoid</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <title>Malfoid vs. Hogwarts</title>
+    <meta name="description" content="Malfoid vs. Hogwarts — an anime-style browser duelling game. Play Training, Practice and Campaign modes in Three.js." />
   </head>
   <body>
     <div id="app"></div>
@@ -32,7 +34,7 @@
     </div>
     <div id="mode" hidden>
       <div class="box">
-        <div class="big">Malfoid</div>
+        <div class="big">Malfoid vs. Hogwarts</div>
         <div class="sub">Choose a mode</div>
         <button type="button" data-mode="training"><b>Training</b><span>the dummy, every spell</span></button>
         <div class="pick practice">
@@ -68,6 +70,7 @@
           <button type="button" data-vol="+" aria-label="Raise the sound volume">+</button>
           <span class="vol-value">80%</span>
         </div>
+        <a class="repo" href="https://github.com/leo-aa88/malfoid-vs-hogwarts" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
       </div>
     </div>
     <div id="result" hidden>
@@ -79,7 +82,7 @@
         <div class="actions"></div>
       </div>
     </div>
-    <div id="loading">Loading Malfoid…</div>
+    <div id="loading">Loading Malfoid vs. Hogwarts…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -1,0 +1,10 @@
+// Cloudflare Workers config for Malfoid vs. Hogwarts.
+// Pure static site: no Worker script, just the Vite build in dist/ served
+// by Workers Assets. `npx wrangler deploy` reads this file.
+{
+  "name": "malfoid-vs-hogwarts",
+  "compatibility_date": "2026-11-17",
+  "assets": {
+    "directory": "./dist"
+  }
+}
