@@ -472,7 +472,8 @@ async function start(): Promise<void> {
       } else {
         [cls, tag, title] = ['won', 'Victory', `${beaten.name.split(' ')[0]} defeated`];
       }
-      next = nx ? `Next duel: <b>${nx.name}</b>${nx.playable ? '' : '<span>coming soon</span>'}` : 'The campaign is complete';
+      // only an opponent already in the game is announced (after Hermione: nothing)
+      next = !nx ? 'The campaign is complete' : nx.playable ? `Next duel: <b>${nx.name}</b>` : '';
       actions = nx?.playable ? [['Next duel', 'continue'], ['Back to menu', 'menu']]
         : learned ? [['Practise it in Training', 'training'], ['Back to menu', 'menu']] : [['Back to menu', 'menu']];
     } else {
