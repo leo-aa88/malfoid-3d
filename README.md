@@ -5,12 +5,6 @@ Potter's potential romantic interests (and a Hufflepuff who simply wants her sto
 one, with fists, kicks and spells, then Harry himself, Bellatrix Lestrange, and finally Lord
 Voldemort. Built with Three.js + TypeScript + Vite.
 
-Like Mega Man, every opponent Malfoid beats in the campaign teaches her a spell: beating Ginny
-teaches her **Expelliarmus**. **Ginny Weasley** and **Cho Chang**, the first two opponents, are
-playable; the rest of the campaign is planned. The built characters
-(`public/models/*.glb`) and sound effects (`public/sfx/`) are included, so the game runs straight
-from a clone.
-
 ## Prerequisites
 
 To **run or build the game** from a clone:
